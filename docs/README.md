@@ -1,12 +1,12 @@
-# brush documentation
+# shrub documentation
 
-User-facing documentation lives at [brush.sh](https://brush.sh): [installation](https://brush.sh/getting-started/install/), the [compatibility](https://brush.sh/reference/compatibility/), [configuration](https://brush.sh/reference/config-files/), and [command-line](https://brush.sh/reference/usage/) references, and [release notes](https://brush.sh/releases/). The reference pages are generated from this directory at each release.
+User-facing documentation lives at [shrub.sh](https://github.com/victor-software-house/shrub): [installation](https://github.com/victor-software-house/shrub/getting-started/install/), the [compatibility](https://github.com/victor-software-house/shrub/reference/compatibility/), [configuration](https://github.com/victor-software-house/shrub/reference/config-files/), and [command-line](https://github.com/victor-software-house/shrub/reference/usage/) references, and [release notes](https://github.com/victor-software-house/shrub/releases/). The reference pages are generated from this directory at each release.
 
-The docs here are for people working on brush itself:
+The docs here are for people working on shrub itself:
 
 * [How-to guides](how-to/README.md) for building, testing, benchmarking, and releasing
 * [Reference material](reference/README.md) for compatibility, configuration, experimental features, and project policies
-* [Explanation](explanation/README.md) of how brush is built, starting with its [architecture](explanation/architecture.md)
+* [Explanation](explanation/README.md) of how shrub is built, starting with its [architecture](explanation/architecture.md)
 
 If you're just getting started with the codebase, start with the [How to build](how-to/build.md) guide and [CONTRIBUTING.md](../CONTRIBUTING.md).
 

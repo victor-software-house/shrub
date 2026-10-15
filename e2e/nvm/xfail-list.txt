@@ -2,6 +2,6 @@
 # saying why; the runner reports an entry that starts passing, so a fix cannot land unnoticed.
 # Lines starting with # are comments.
 
-# Interactive `nvm ls` leaks file descriptors under brush:
-# https://github.com/reubeno/brush/issues/1173
+# Interactive `nvm ls` leaks file descriptors under shrub:
+# https://github.com/victor-software-house/shrub/issues/1173
 test_interactive_nvm_ls

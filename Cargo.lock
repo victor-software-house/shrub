@@ -371,16 +371,16 @@ dependencies = [
 name = "brush"
 version = "0.4.0"
 dependencies = [
- "brush-shell",
+ "shrub-shell",
 ]
 
 [[package]]
-name = "brush-builtins"
+name = "shrub-builtins"
 version = "0.2.0"
 dependencies = [
  "anyhow",
- "brush-core",
- "brush-parser",
+ "shrub-core",
+ "shrub-parser",
  "cfg-if",
  "chrono",
  "clap",
@@ -399,14 +399,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "brush-core"
+name = "shrub-core"
 version = "0.5.0"
 dependencies = [
  "anyhow",
  "async-recursion",
  "async-trait",
  "bon",
- "brush-parser",
+ "shrub-parser",
  "cached",
  "cfg-if",
  "check_elevation",
@@ -441,7 +441,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "brush-coreutils-builtins"
+name = "shrub-coreutils-builtins"
 version = "0.1.0"
 dependencies = [
  "uu_arch",
@@ -530,10 +530,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "brush-experimental-builtins"
+name = "shrub-experimental-builtins"
 version = "0.1.0"
 dependencies = [
- "brush-core",
+ "shrub-core",
  "clap",
  "serde_json",
 ]
@@ -544,20 +544,20 @@ version = "0.2.2"
 dependencies = [
  "anyhow",
  "assert_cmd",
- "brush-core",
- "brush-interactive",
- "brush-parser",
+ "shrub-core",
+ "shrub-interactive",
+ "shrub-parser",
  "libfuzzer-sys",
  "tokio",
 ]
 
 [[package]]
-name = "brush-interactive"
+name = "shrub-interactive"
 version = "0.4.0"
 dependencies = [
  "bon",
- "brush-core",
- "brush-parser",
+ "shrub-core",
+ "shrub-parser",
  "indexmap",
  "nu-ansi-term",
  "pretty_assertions",
@@ -571,7 +571,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "brush-parser"
+name = "shrub-parser"
 version = "0.4.0"
 dependencies = [
  "anyhow",
@@ -596,19 +596,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "brush-shell"
+name = "shrub-shell"
 version = "0.4.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
  "assert_fs",
- "brush-builtins",
- "brush-core",
- "brush-coreutils-builtins",
- "brush-experimental-builtins",
- "brush-interactive",
- "brush-parser",
- "brush-test-harness",
+ "shrub-builtins",
+ "shrub-core",
+ "shrub-coreutils-builtins",
+ "shrub-experimental-builtins",
+ "shrub-interactive",
+ "shrub-parser",
+ "shrub-test-harness",
  "clap",
  "clap-markdown",
  "clap_complete",
@@ -653,7 +653,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "brush-test-harness"
+name = "shrub-test-harness"
 version = "0.1.0"
 dependencies = [
  "anyhow",

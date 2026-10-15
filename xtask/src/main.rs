@@ -21,7 +21,7 @@ pub struct GlobalArgs {
 }
 
 #[derive(Parser)]
-#[clap(name = "xtask", about = "Build automation tasks for brush")]
+#[clap(name = "xtask", about = "Build automation tasks for shrub")]
 struct CommandLineArgs {
     #[clap(flatten)]
     global: GlobalArgs,

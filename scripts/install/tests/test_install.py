@@ -79,7 +79,7 @@ SHIMS = {
         """
         "${REAL_TAR}" "$@" || exit
         while [[ $# -gt 0 ]]; do
-            [[ $1 == -C ]] && printf '#!/bin/sh\\nexit 1\\n' >"$2/brush"
+            [[ $1 == -C ]] && printf '#!/bin/sh\\nexit 1\\n' >"$2/shrub"
             shift
         done
         """,
@@ -134,7 +134,7 @@ def install(request, tmp_path):
 def assert_succeeded(result):
     assert result.returncode == 0, result.stdout
     # All output should be the installer's own; anything else means some tool misbehaved.
-    assert all(line.startswith("brush-install: ") for line in result.stdout.splitlines()), (
+    assert all(line.startswith("shrub-install: ") for line in result.stdout.splitlines()), (
         result.stdout
     )
 
@@ -143,11 +143,11 @@ def assert_failed(result, message):
     assert result.returncode != 0, result.stdout
     # Every failure should end with the installer's own error message.
     last_line = result.stdout.splitlines()[-1]
-    assert last_line.startswith("brush-install: error: "), result.stdout
+    assert last_line.startswith("shrub-install: error: "), result.stdout
     assert message in last_line, result.stdout
 
 
-def brush_version(path):
+def shrub_version(path):
     return subprocess.run(
         [path, "--version"], capture_output=True, text=True, check=True
     ).stdout
@@ -155,31 +155,31 @@ def brush_version(path):
 
 def test_latest_release_to_default_dir(install, tmp_path):
     home = tmp_path / "home"
-    # Without any other brush on PATH, so the note is about PATH rather than shadowing.
-    path = os.pathsep.join(d for d in os.environ["PATH"].split(os.pathsep) if not (Path(d) / "brush").exists())
+    # Without any other shrub on PATH, so the note is about PATH rather than shadowing.
+    path = os.pathsep.join(d for d in os.environ["PATH"].split(os.pathsep) if not (Path(d) / "shrub").exists())
     result = install(HOME=home, PATH=path, XDG_BIN_HOME=None)
     assert_succeeded(result)
 
     bin_dir = home / ".local" / "bin"
-    version = brush_version(bin_dir / "brush")
-    assert version.startswith("brush ")
-    assert not version.startswith(f"brush {VERSION} ")
-    assert os.listdir(bin_dir) == ["brush"]
+    version = shrub_version(bin_dir / "shrub")
+    assert version.startswith("shrub ")
+    assert not version.startswith(f"shrub {VERSION} ")
+    assert os.listdir(bin_dir) == ["shrub"]
     assert f"note: {bin_dir} is not in your PATH" in result.stdout
 
 
 def test_pinned_version_replaces_existing_binary(install, tmp_path):
-    (tmp_path / "brush").write_text("old")
+    (tmp_path / "shrub").write_text("old")
     result = install("--version", f"v{VERSION}", "--dir", tmp_path)
     assert_succeeded(result)
-    assert brush_version(tmp_path / "brush").startswith(f"brush {VERSION} ")
+    assert shrub_version(tmp_path / "shrub").startswith(f"shrub {VERSION} ")
 
 
 def test_xdg_bin_home_is_default_dir(install, tmp_path):
     xdg_bin = tmp_path / "xdg-bin"
     result = install("--version", VERSION, HOME=tmp_path / "home", XDG_BIN_HOME=xdg_bin)
     assert_succeeded(result)
-    assert os.listdir(xdg_bin) == ["brush"]
+    assert os.listdir(xdg_bin) == ["shrub"]
 
 
 @pytest.mark.skipif(platform.system() != "Linux", reason="glibc detection is Linux-only")
@@ -238,16 +238,16 @@ def test_too_old_gh_warns_with_reason(install, tmp_path):
     )
 
 
-def test_notes_when_another_brush_comes_first_in_path(install, tmp_path):
+def test_notes_when_another_shrub_comes_first_in_path(install, tmp_path):
     earlier, dest = tmp_path / "earlier", tmp_path / "dest"
     earlier.mkdir()
-    (earlier / "brush").write_text("#!/bin/sh\n")
-    (earlier / "brush").chmod(0o755)
+    (earlier / "shrub").write_text("#!/bin/sh\n")
+    (earlier / "shrub").chmod(0o755)
 
     path = os.pathsep.join([str(earlier), str(dest), os.environ["PATH"]])
     result = install("--version", VERSION, "--dir", dest, PATH=path)
     assert_succeeded(result)
-    assert f"note: running 'brush' will run {earlier / 'brush'}, not {dest / 'brush'}" in result.stdout
+    assert f"note: running 'shrub' will run {earlier / 'shrub'}, not {dest / 'shrub'}" in result.stdout
 
 
 def test_no_path_note_when_dir_is_in_path_via_symlink(install, tmp_path):
@@ -264,8 +264,8 @@ def test_no_path_note_when_dir_is_in_path_via_symlink(install, tmp_path):
 def test_latest_canary(install, tmp_path):
     result = install("--canary", "--dir", tmp_path)
     assert_succeeded(result)
-    assert "ghcr.io/reubeno/brush-canary:" in result.stdout
-    assert "+canary " in brush_version(tmp_path / "brush")
+    assert "ghcr.io/victor-software-house/shrub-canary:" in result.stdout
+    assert "+canary " in shrub_version(tmp_path / "shrub")
 
 
 @pytest.mark.skipif(not GH_INSTALLED, reason="gh is not installed")
@@ -278,7 +278,7 @@ def test_verifies_real_canary_attestation(install, tmp_path):
 
 def newest_canary_commit():
     """Returns the commit of the newest canary build, from its manifest on ghcr.io."""
-    package = "reubeno/brush-canary"
+    package = "victor-software-house/shrub-canary"
     with urllib.request.urlopen(f"https://ghcr.io/token?scope=repository:{package}:pull") as response:
         token = json.load(response)["token"]
     # Every build publishes all targets, so any target's tag names the same commit.
@@ -297,13 +297,13 @@ def test_pinned_canary_attestation_checks_commit(install, tmp_path):
     assert_succeeded(result)
     assert re.search(rf"canary build of commit {commit}, published \d{{4}}-\d\d-\d\dT", result.stdout), result.stdout
     assert f"--source-digest {commit}" in args_file.read_text()
-    assert f"(git:{commit[:7]}" in brush_version(tmp_path / "bin" / "brush")
+    assert f"(git:{commit[:7]}" in shrub_version(tmp_path / "bin" / "shrub")
 
 
 def test_help(install):
     result = install("--help", "--bogus")
     assert result.returncode == 0, result.stdout
-    assert result.stdout.startswith("Installs brush"), result.stdout
+    assert result.stdout.startswith("Installs shrub"), result.stdout
     assert "--require-attestation" in result.stdout
 
 
@@ -336,7 +336,7 @@ def test_bad_arguments(install, args, message):
             ["--version", "0.0.0"], [], "failed to download", id="nonexistent-version"
         ),
         pytest.param(
-            ["--commit", "0" * 40], [], "no canary build of brush found", id="nonexistent-commit"
+            ["--commit", "0" * 40], [], "no canary build of shrub found", id="nonexistent-commit"
         ),
         pytest.param(
             ["--version", VERSION], ["bad-checksum"], "checksum mismatch", id="bad-checksum"
@@ -385,8 +385,8 @@ def test_unwritable_dir(install, tmp_path):
 def test_broken_binary_keeps_existing_one(install, tmp_path):
     dest = tmp_path / "dest"
     dest.mkdir()
-    (dest / "brush").write_text("old")
+    (dest / "shrub").write_text("old")
     result = install("--version", VERSION, "--dir", dest, shims=["broken-binary"])
     assert_failed(result, "build failed to run on this system")
-    assert os.listdir(dest) == ["brush"]
-    assert (dest / "brush").read_text() == "old"
+    assert os.listdir(dest) == ["shrub"]
+    assert (dest / "shrub").read_text() == "old"

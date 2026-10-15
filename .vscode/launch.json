@@ -7,15 +7,15 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'brush'",
+            "name": "Debug executable 'shrub'",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=brush",
-                    "--package=brush-shell"
+                    "--bin=shrub",
+                    "--package=shrub-shell"
                 ],
                 "filter": {
-                    "name": "brush",
+                    "name": "shrub",
                     "kind": "bin"
                 }
             },
@@ -27,16 +27,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug integration test 'brush-compat-tests'",
+            "name": "Debug integration test 'shrub-compat-tests'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--test=brush-compat-tests",
-                    "--package=brush-shell"
+                    "--test=shrub-compat-tests",
+                    "--package=shrub-shell"
                 ],
                 "filter": {
-                    "name": "brush-compat-tests",
+                    "name": "shrub-compat-tests",
                     "kind": "test"
                 }
             },

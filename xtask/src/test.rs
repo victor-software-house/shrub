@@ -2,10 +2,10 @@
 //!
 //! This module provides commands for running different types of tests:
 //!
-//! - **Unit tests**: Fast tests that don't execute the brush binary (excludes integration test
-//!   binaries like brush-compat-tests, brush-interactive-tests, brush-completion-tests)
+//! - **Unit tests**: Fast tests that don't execute the shrub binary (excludes integration test
+//!   binaries like shrub-compat-tests, shrub-interactive-tests, shrub-completion-tests)
 //! - **Integration tests**: All workspace tests including unit tests and integration tests that
-//!   execute the brush binary
+//!   execute the shrub binary
 //! - **End-to-end tests**: Real applications' own suites (including bash-completion's), run in
 //!   containers; see `e2e/README.md`
 //!
@@ -21,25 +21,25 @@ use xshell::{Shell, cmd};
 use crate::common::{BuildProfile, find_workspace_root};
 
 /// Integration test binaries that are excluded from unit tests.
-/// These tests execute the brush binary and are slower.
+/// These tests execute the shrub binary and are slower.
 const INTEGRATION_TEST_BINARIES: &[&str] = &[
-    "brush-compat-tests",
-    "brush-interactive-tests",
-    "brush-completion-tests",
+    "shrub-compat-tests",
+    "shrub-interactive-tests",
+    "shrub-completion-tests",
 ];
 
 #[cfg(windows)]
-const TEST_BINARIES_DISABLED_ON_WINDOWS: &[&str] = &["brush-compat-tests"];
+const TEST_BINARIES_DISABLED_ON_WINDOWS: &[&str] = &["shrub-compat-tests"];
 
-/// Shared arguments for test commands that need a brush binary.
+/// Shared arguments for test commands that need a shrub binary.
 #[derive(Args, Debug, Clone)]
 pub struct BinaryArgs {
-    /// Path to the brush binary to test. If not specified, uses the binary
+    /// Path to the shrub binary to test. If not specified, uses the binary
     /// from the workspace's target directory based on --profile/--debug/--release.
     #[clap(long, global = true)]
-    pub brush_path: Option<PathBuf>,
+    pub shrub_path: Option<PathBuf>,
 
-    /// Build profile to use when auto-detecting the brush binary.
+    /// Build profile to use when auto-detecting the shrub binary.
     #[clap(long, short = 'p', value_enum, default_value_t = BuildProfile::Debug, global = true)]
     pub profile: BuildProfile,
 
@@ -65,10 +65,10 @@ impl BinaryArgs {
         }
     }
 
-    /// Find the brush binary using these arguments.
+    /// Find the shrub binary using these arguments.
     #[cfg(unix)]
-    pub fn find_brush_binary(&self) -> Result<PathBuf> {
-        crate::common::find_brush_binary(self.brush_path.as_ref(), self.effective_profile())
+    pub fn find_shrub_binary(&self) -> Result<PathBuf> {
+        crate::common::find_shrub_binary(self.shrub_path.as_ref(), self.effective_profile())
     }
 }
 
@@ -87,16 +87,16 @@ pub struct TestCommand {
 /// Test subcommands.
 #[derive(Subcommand, Clone)]
 pub enum TestSubcommand {
-    /// Run unit tests (fast tests that don't execute the brush binary).
+    /// Run unit tests (fast tests that don't execute the shrub binary).
     ///
-    /// Excludes integration test binaries: brush-compat-tests, brush-interactive-tests,
-    /// brush-completion-tests.
+    /// Excludes integration test binaries: shrub-compat-tests, shrub-interactive-tests,
+    /// shrub-completion-tests.
     Unit(UnitTestArgs),
 
     /// Run all workspace tests (unit + integration tests).
     ///
     /// This includes all tests: unit tests plus integration tests that execute
-    /// the brush binary (compat tests, interactive tests, completion tests).
+    /// the shrub binary (compat tests, interactive tests, completion tests).
     Integration(IntegrationTestArgs),
 
     /// Run containerized end-to-end tests against real applications.
@@ -125,7 +125,7 @@ pub struct IntegrationTestArgs {
     pub results_output: Option<PathBuf>,
 
     /// Build and test against a wasm32-wasip3 target under a WASI runtime
-    /// (wasmtime by default). Builds brush for wasm32-wasip3 with its default
+    /// (wasmtime by default). Builds shrub for wasm32-wasip3 with its default
     /// features, then runs a subset of integration tests (excluding compat,
     /// interactive, and completion suites) under the WASI launcher. Needs a
     /// toolchain with the wasm32-wasip3 target (Rust 1.100+, or nightly) and
@@ -135,12 +135,12 @@ pub struct IntegrationTestArgs {
 
     /// Launcher command for the WASI runtime (only used with --wasi).
     /// The first token is resolved against `PATH`; subsequent tokens are
-    /// passed as leading arguments before the brush binary path.
+    /// passed as leading arguments before the shrub binary path.
     /// Defaults to `wasmtime run -S inherit-env --dir=.::/ --allow-precompiled --`.
     #[clap(long)]
     pub wasi_launcher: Option<String>,
 
-    /// Skip the WASI wasm build step and assume brush.wasm is already
+    /// Skip the WASI wasm build step and assume shrub.wasm is already
     /// present at the expected path (only used with --wasi).
     #[clap(long)]
     pub skip_wasi_build: bool,
@@ -175,7 +175,7 @@ pub fn run(cmd: &TestCommand, verbose: bool) -> Result<()> {
 
 /// Run unit tests (excludes integration test binaries).
 ///
-/// Unit tests are fast tests that don't execute the brush binary.
+/// Unit tests are fast tests that don't execute the shrub binary.
 pub fn run_unit_tests(
     sh: &Shell,
     binary_args: &BinaryArgs,
@@ -210,7 +210,7 @@ pub fn run_unit_tests(
 /// Run all workspace tests (unit + integration).
 ///
 /// This runs all tests in the workspace, including integration tests
-/// that execute the brush binary. With `--wasi`, builds brush for
+/// that execute the shrub binary. With `--wasi`, builds shrub for
 /// wasm32-wasip3 and runs the integration tests under a WASI runtime.
 pub fn run_integration_tests(
     sh: &Shell,
@@ -258,7 +258,7 @@ pub fn run_integration_tests(
     test_result
 }
 
-/// Run the brush integration tests against a wasm32-wasip3 build of brush,
+/// Run the shrub integration tests against a wasm32-wasip3 build of shrub,
 /// executed under a WASI runtime. Builds the wasm module first unless
 /// `--skip-wasi-build` is given, then runs the integration tests via nextest
 /// with the appropriate environment variables populated for the test harness.
@@ -272,15 +272,15 @@ fn run_integration_tests_wasi(
 
     // Build the wasm module unless the caller opts out.
     if !args.skip_wasi_build {
-        eprintln!("Building brush for wasm32-wasip3...");
+        eprintln!("Building shrub for wasm32-wasip3...");
         let mut build_args = vec![
             "build",
             "--target",
             "wasm32-wasip3",
             "-p",
-            "brush-shell",
+            "shrub-shell",
             "--bin",
-            "brush",
+            "shrub",
         ];
         if is_release {
             build_args.push("--release");
@@ -290,7 +290,7 @@ fn run_integration_tests_wasi(
         }
         cmd!(sh, "cargo {build_args...}")
             .run()
-            .context("failed to build brush for wasm32-wasip3")?;
+            .context("failed to build shrub for wasm32-wasip3")?;
     }
 
     // Locate the wasm module that was (or should have been) produced.
@@ -299,10 +299,10 @@ fn run_integration_tests_wasi(
     let wasm_path = workspace_root
         .join("target/wasm32-wasip3")
         .join(profile_dir)
-        .join("brush.wasm");
+        .join("shrub.wasm");
     let wasm_path = wasm_path.canonicalize().with_context(|| {
         format!(
-            "brush.wasm not found at {} — did the build step succeed?",
+            "shrub.wasm not found at {} — did the build step succeed?",
             wasm_path.display()
         )
     })?;
@@ -310,41 +310,41 @@ fn run_integration_tests_wasi(
     // The `--dir=.::/` flag maps the host root filesystem into the WASI
     // sandbox. This is intentionally permissive for testing — tests create
     // temp dirs and need access to fixtures across the filesystem. This is
-    // NOT a recommended default for production use of brush under WASI.
+    // NOT a recommended default for production use of shrub under WASI.
     // Pre-compile the wasm module to avoid JIT compilation overhead during
     // parallel test execution. Without this, multiple concurrent wasmtime
-    // processes each try to JIT-compile brush.wasm simultaneously, which
+    // processes each try to JIT-compile shrub.wasm simultaneously, which
     // can exceed test timeouts on CI.
-    eprintln!("Pre-compiling brush.wasm...");
+    eprintln!("Pre-compiling shrub.wasm...");
     let cwasm_path = wasm_path.with_extension("cwasm");
     {
         let wasm_arg = wasm_path.display().to_string();
         let cwasm_arg = cwasm_path.display().to_string();
         cmd!(sh, "wasmtime compile {wasm_arg} -o {cwasm_arg}")
             .run()
-            .context("failed to pre-compile brush.wasm with wasmtime")?;
+            .context("failed to pre-compile shrub.wasm with wasmtime")?;
     }
 
     // The default launcher includes --allow-precompiled so wasmtime accepts
     // the AOT-compiled .cwasm module without re-compilation, and
     // `-S inherit-env` so the environment the harness sets for each test
-    // case reaches brush.
+    // case reaches shrub.
     let launcher = args
         .wasi_launcher
         .as_deref()
         .unwrap_or("wasmtime run -S inherit-env --dir=.::/ --allow-precompiled --");
 
-    eprintln!("Running brush integration tests under WASI...");
+    eprintln!("Running shrub integration tests under WASI...");
     eprintln!("  wasm:     {}", cwasm_path.display());
     eprintln!("  launcher: {launcher}");
 
-    let brush_path_str = cwasm_path.display().to_string();
-    let _brush_path = sh.push_env("BRUSH_PATH", &brush_path_str);
-    let _brush_launcher = sh.push_env("BRUSH_LAUNCHER", launcher);
-    let _brush_platform_tags = sh.push_env("BRUSH_PLATFORM_TAGS", "wasi wasm");
+    let shrub_path_str = cwasm_path.display().to_string();
+    let _shrub_path = sh.push_env("SHRUB_PATH", &shrub_path_str);
+    let _shrub_launcher = sh.push_env("SHRUB_LAUNCHER", launcher);
+    let _shrub_platform_tags = sh.push_env("SHRUB_PLATFORM_TAGS", "wasi wasm");
 
-    // Only run the brush integration tests; compat tests require a native binary.
-    let filter = "binary(brush-integration-tests)";
+    // Only run the shrub integration tests; compat tests require a native binary.
+    let filter = "binary(shrub-integration-tests)";
     let test_result = run_nextest(sh, profile, Some(filter), verbose);
 
     // Copy nextest results if requested (even on test failure, so CI can upload them).

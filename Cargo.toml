@@ -1,29 +1,41 @@
 [workspace]
 resolver = "3"
 members = [
-    "brush",
-    "brush-shell",
-    "brush-parser",
-    "brush-core",
-    "brush-builtins",
-    "brush-coreutils-builtins",
-    "brush-experimental-builtins",
-    "brush-interactive",
-    "brush-test-harness",
+    "shrub",
+    "shrub-shell",
+    "shrub-parser",
+    "shrub-core",
+    "shrub-builtins",
+    "shrub-coreutils-builtins",
+    "shrub-experimental-builtins",
+    "shrub-interactive",
+    "shrub-test-harness",
     "fuzz",
     "xtask",
 ]
-default-members = ["brush-shell"]
+default-members = ["shrub-shell"]
 
 [workspace.package]
-authors = ["reuben olinsky"]
+version = "0.0.2"
 categories = ["command-line-utilities", "development-tools"]
 edition = "2024"
 keywords = ["cli", "shell", "sh", "bash", "script"]
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/reubeno/brush"
+repository = "https://github.com/victor-software-house/shrub"
 rust-version = "1.88.0"
+
+[workspace.dependencies]
+# Internal crates. Exact versions: every crate releases together at the workspace
+# version, and .ctl/ver.yaml rewrites these requirements on each bump.
+shrub-builtins = { version = "=0.0.2", path = "shrub-builtins" }
+shrub-core = { version = "=0.0.2", path = "shrub-core" }
+shrub-coreutils-builtins = { version = "=0.0.2", path = "shrub-coreutils-builtins" }
+shrub-experimental-builtins = { version = "=0.0.2", path = "shrub-experimental-builtins" }
+shrub-interactive = { version = "=0.0.2", path = "shrub-interactive" }
+shrub-parser = { version = "=0.0.2", path = "shrub-parser" }
+shrub-shell = { version = "=0.0.2", path = "shrub-shell", default-features = false }
+shrub-test-harness = { path = "shrub-test-harness" }
 
 [workspace.lints.rust]
 warnings = { level = "deny" }

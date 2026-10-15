@@ -7,14 +7,14 @@ completion, history) that unit tests can't.
 
 ```bash
 cargo build
-cargo xtask test e2e fzf                     # one adapter against brush
+cargo xtask test e2e fzf                     # one adapter against shrub
 cargo xtask test e2e                         # default adapters (excludes blesh, bash-tests, bash-completion)
 cargo xtask test e2e --with bash-completion  # default adapters plus an opt-in one
 cargo xtask test e2e blesh                   # opt in to the slow ble.sh suite
 cargo xtask test e2e --baseline fzf          # baseline against Bash
 cargo xtask test e2e --shell /path/to/sh fzf # any other binary
 cargo xtask test e2e fzf -- -n /ctrl_r/      # adapter-specific arguments
-cargo xtask test --release e2e fzf           # use target/release/brush
+cargo xtask test --release e2e fzf           # use target/release/shrub
 cargo xtask test e2e --verbose fzf           # stream the runner's own output
 cargo xtask test e2e --timeout 600 fzf      # bound each adapter (default 1800s)
 cargo xtask test e2e --summary-output e2e.md # also write the run as a Markdown dashboard
@@ -24,7 +24,7 @@ A run reports one line per adapter and a summary, read back from the JUnit
 each runner writes:
 
 ```
-    Starting 7 e2e adapter(s) against brush
+    Starting 7 e2e adapter(s) against shrub
      Results target/e2e/run-ABC123
         PASS [    1.2s] starship  3 tests
         FAIL [   13.3s] atuin     5 tests, 1 failed
@@ -57,7 +57,7 @@ job log and every run directory in the `e2e-logs` artifact. Because the `xfail-l
 files are the committed baseline, a PR that fixes or breaks a test shows it in its own
 diff; no run against `main` is needed. `blesh` is excluded from the default selection
 because compatibility failures and timeouts make it take several minutes against
-brush. Run it explicitly with `cargo xtask test e2e blesh`, or select one file with
+shrub. Run it explicitly with `cargo xtask test e2e blesh`, or select one file with
 `cargo xtask test e2e blesh -- util`. Its per-file timeout remains 180 seconds.
 `bash-tests` is likewise opt-in, until it has shown itself reliable. Neither runs in CI.
 `bash-completion` is opt-in because its ~2000 tests take several minutes; CI adds it with
@@ -78,7 +78,7 @@ context is `e2e/`, so it can `COPY shim /e2e/bin`) whose entrypoint:
    instead and skip the shim; a shim on `PATH` also captures test tooling
    written in bash (tmux, say), which must not run under the shell under test.
    A suite that takes a shell *path* has nowhere to put a command-line flag; turn
-   the behavior on through brush's config file (`$HOME/.config/brush/config.toml`,
+   the behavior on through shrub's config file (`$HOME/.config/shrub/config.toml`,
    and `HOME` is `/tmp` in the container) instead, which bash ignores and so leaves
    the baseline run alone.
 2. **Writes results** to `/results`: `log.txt` plus JUnit XML under
@@ -120,8 +120,8 @@ entry **matches no test that ran** ("stale xfail entry" -- renamed, removed, or 
 `skip-list.txt`), so a gap that closes is reported rather than absorbed, and the list cannot rot.
 Stale detection needs the whole suite, so it is skipped when adapter arguments select a subset. Because the matching happens over JUnit, one mechanism
 covers every runner. Name a test by the `name` its JUnit carries, or as `classname::name`.
-These expectations apply only to brush runs; `--baseline` and `--shell` runs use
-no brush expectations and fail on any reported test failure.
+These expectations apply only to shrub runs; `--baseline` and `--shell` runs use
+no shrub expectations and fail on any reported test failure.
 
 `skip-list.txt` is for tests that must **not** run: they hang, or they cannot exercise the shell
 at all (nvm has one with a `/bin/zsh` shebang). This is the exception -- prefer `xfail-list.txt`,
@@ -169,11 +169,11 @@ what they would otherwise each reinvent:
 | app | notes |
 |-----|-------|
 | fzf | upstream `test/test_shell_integration.rb`, `TestBash` only; minitest + tmux, JUnit via `minitest-ci` |
-| atuin | our own suite in `atuin/tests/` (pytest + tmux), written to be upstreamable. atuin's bash integration is bash-preexec, so the adapter turns on brush's `zsh-hooks` through a config file to exercise the native hooks rather than the `DEBUG`-trap emulation |
+| atuin | our own suite in `atuin/tests/` (pytest + tmux), written to be upstreamable. atuin's bash integration is bash-preexec, so the adapter turns on shrub's `zsh-hooks` through a config file to exercise the native hooks rather than the `DEBUG`-trap emulation |
 | bash-tests | bash's own regression suite (`tests/run-*`), from a bash-5.3 build that also provides its helper binaries and the `--baseline` shell; one pytest case per `run-*` script, which is sourced verbatim, on a terminal, with `diff` replaced by a function that captures the output for byte-exact comparison against the `.right` file. `PLATFORM_DIFFS` in `tests/test_bash.py` excuses the few differences bash itself shows on Linux. Failures report how many expected lines match, and `log.txt` ends with the total across the run. Args go to pytest: `-- -k alias`, `-- --subset minimal` for the scripts `run-minimal` runs, `-- --script-timeout 60` (default 30s per script) |
 | bash-completion | upstream's `test/t` pytest suite (tag 2.18.0), in upstream's own rolling `fedoradev` test image, which has the commands under test installed; built with `make` as upstream's CI does, and run under `xvfb-run`. Report-only: upstream's `xfail` markers are its only expectations. Args go to pytest: `-- -k test_ls` |
 | blesh | upstream `ble.sh --test`, one pytest case per test section with a process-group timeout (`BLESH_TEST_TIMEOUT`, default 180s); sections are read from ble.sh's own build output, so a section added upstream runs rather than being missed; full output and leftover per-section artifacts are retained; args select sections: `cargo xtask test e2e blesh -- util`. Every section is currently expected to fail: ble.sh gets far enough to emit no section summary at all |
 | mise | selected upstream bash activation tests (pytest), run directly against the shell under test |
-| nvm | upstream `test/fast/Listing versions` suite (urchin) plus interactive regression coverage for [#1173](https://github.com/reubeno/brush/issues/1173) |
+| nvm | upstream `test/fast/Listing versions` suite (urchin) plus interactive regression coverage for [#1173](https://github.com/victor-software-house/shrub/issues/1173) |
 | starship | our own suite in `starship/tests/` (pytest + direct PTY) |
 | zoxide | our own suite in `zoxide/tests/` (pytest + direct PTY) |

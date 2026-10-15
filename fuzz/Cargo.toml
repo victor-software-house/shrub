@@ -1,6 +1,6 @@
 [package]
-name = "brush-fuzz"
-description = "Fuzz tests for brush"
+name = "shrub-fuzz"
+description = "Fuzz tests for shrub"
 publish = false
 version = "0.2.2"
 authors.workspace = true
@@ -25,15 +25,15 @@ assert_cmd = "2.2.0"
 libfuzzer-sys = "0.4"
 tokio = { version = "1.52.3", features = ["rt"] }
 
-[dependencies.brush-core]
-path = "../brush-core"
+[dependencies.shrub-core]
+path = "../shrub-core"
 
-[dependencies.brush-parser]
-path = "../brush-parser"
+[dependencies.shrub-parser]
+path = "../shrub-parser"
 features = ["arbitrary"]
 
-[dependencies.brush-interactive]
-path = "../brush-interactive"
+[dependencies.shrub-interactive]
+path = "../shrub-interactive"
 features = ["highlighting"]
 
 [[bin]]

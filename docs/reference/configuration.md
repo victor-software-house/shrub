@@ -1,27 +1,27 @@
 # Configuration File
 
-brush supports an optional TOML configuration file that allows you to customize shell behavior without command-line arguments.
+shrub supports an optional TOML configuration file that allows you to customize shell behavior without command-line arguments.
 
 ## File Location
 
-`brush` looks for the configuration file at:
+`shrub` looks for the configuration file at:
 
-- **Linux/macOS**: `${XDG_CONFIG_HOME}/brush/config.toml`*
-- **Windows**: `%APPDATA%\brush\config.toml`
+- **Linux/macOS**: `${XDG_CONFIG_HOME}/shrub/config.toml`*
+- **Windows**: `%APPDATA%\shrub\config.toml`
 
 > [!NOTE]
-> On Linux/macOS falls back to `~/.config/brush/config.toml` if `XDG_CONFIG_HOME` is undefined.
+> On Linux/macOS falls back to `~/.config/shrub/config.toml` if `XDG_CONFIG_HOME` is undefined.
 
 You can override this location with the `--config` flag:
 
 ```bash
-brush --config /path/to/custom/config.toml
+shrub --config /path/to/custom/config.toml
 ```
 
 To disable configuration file loading entirely, use:
 
 ```bash
-brush --no-config
+shrub --no-config
 ```
 
 ## Configuration Priority
@@ -30,11 +30,11 @@ Settings are applied in the following order (later values override earlier ones)
 
 1. **Defaults** - Built-in default values
 2. **Configuration file** - Values from `config.toml`
-3. **Command-line arguments** - Flags passed to brush
+3. **Command-line arguments** - Flags passed to shrub
 
 ## File Format
 
-The configuration file uses [TOML](https://toml.io/) format. All settings are optional; brush uses sensible defaults for any unspecified values.
+The configuration file uses [TOML](https://toml.io/) format. All settings are optional; shrub uses sensible defaults for any unspecified values.
 
 ### Example Configuration
 
@@ -57,7 +57,7 @@ User interface settings.
 |-----------------------|---------|---------|-------------------------|----------------------------------------------|
 | `syntax-highlighting` | boolean | see below | `--enable-highlighting` | Enable syntax highlighting in the input line |
 
-> The default value of `syntax-highlighting` depends on how `brush-shell`
+> The default value of `syntax-highlighting` depends on how `shrub-shell`
 > was built: `true` when built with the `experimental` Cargo feature,
 > `false` otherwise. CLI flags take precedence over the configuration
 > file.
@@ -84,7 +84,7 @@ A JSON Schema for the configuration file is available at [`schemas/config.schema
 To enable schema validation in VS Code with the [Even Better TOML](https://marketplace.visualstudio.com/items?itemName=tamasfe.even-better-toml) extension, add this to your `config.toml`:
 
 ```toml
-#:schema https://raw.githubusercontent.com/reubeno/brush/main/schemas/config.schema.json
+#:schema https://raw.githubusercontent.com/victor-software-house/shrub/main/schemas/config.schema.json
 
 [ui]
 syntax-highlighting = true
@@ -96,23 +96,23 @@ The `#:schema` directive tells the editor where to find the schema for validatio
 
 Many editors support JSON Schema for TOML files. Consult your editor's documentation for how to associate a schema with a file. You can reference the schema via:
 
-- **URL**: `https://raw.githubusercontent.com/reubeno/brush/main/schemas/config.schema.json`
-- **Local path**: Point to `schemas/config.schema.json` in your brush source checkout
+- **URL**: `https://raw.githubusercontent.com/victor-software-house/shrub/main/schemas/config.schema.json`
+- **Local path**: Point to `schemas/config.schema.json` in your shrub source checkout
 
 ## Sample Configuration
 
-A sample configuration file is available at [`samples/config.toml`](../../samples/config.toml) in the brush repository. You can copy this file to get started:
+A sample configuration file is available at [`samples/config.toml`](../../samples/config.toml) in the shrub repository. You can copy this file to get started:
 
 ```bash
 # Linux/macOS
-mkdir -p ~/.config/brush
-cp samples/config.toml ~/.config/brush/config.toml
+mkdir -p ~/.config/shrub
+cp samples/config.toml ~/.config/shrub/config.toml
 ```
 
 ## Forward Compatibility
 
-brush ignores unknown settings in the configuration file. This allows configuration files to be shared across different versions of brush without causing errors.
+shrub ignores unknown settings in the configuration file. This allows configuration files to be shared across different versions of shrub without causing errors.
 
 ## Error Handling
 
-If the configuration file cannot be read or parsed, brush logs an error message and continues with default settings. The shell will still start normally.
+If the configuration file cannot be read or parsed, shrub logs an error message and continues with default settings. The shell will still start normally.

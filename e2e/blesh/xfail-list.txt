@@ -2,7 +2,7 @@
 # saying why; the runner reports an entry that starts passing, so a fix cannot land unnoticed.
 # Lines starting with # are comments.
 
-# ble.sh does not get far enough under brush to emit a section summary for any of its test files.
+# ble.sh does not get far enough under shrub to emit a section summary for any of its test files.
 test_upstream_file[bash]
 test_upstream_file[main]
 test_upstream_file[util]

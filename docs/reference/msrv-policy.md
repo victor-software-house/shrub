@@ -2,10 +2,10 @@
 
 ## Overview
 
-The `brush` project maintains a conservative MSRV policy to balance two key concerns:
+The `shrub` project maintains a conservative MSRV policy to balance two key concerns:
 
-1. **Binary distribution**: Users building `brush` from source should not need a bleeding-edge compiler
-2. **Library usage**: Downstream projects depending on `brush` crates should not face aggressive MSRV increases
+1. **Binary distribution**: Users building `shrub` from source should not need a bleeding-edge compiler
+2. **Library usage**: Downstream projects depending on `shrub` crates should not face aggressive MSRV increases
 
 These concerns pull against each other, and they do not apply evenly across the workspace. The crates
 that other projects embed are held to a stricter standard than the ones that exist to produce the
@@ -15,23 +15,23 @@ shell itself. The workspace is therefore split into two tiers.
 
 ### Library tier
 
-`brush-core`, `brush-parser`, `brush-builtins`, `brush-coreutils-builtins`, and
-`brush-experimental-builtins` are the reusable pieces. Other projects embed them to get a shell
-runtime, a bash-compatible parser, or a set of builtins without taking on brush's interactive front
+`shrub-core`, `shrub-parser`, `shrub-builtins`, `shrub-coreutils-builtins`, and
+`shrub-experimental-builtins` are the reusable pieces. Other projects embed them to get a shell
+runtime, a bash-compatible parser, or a set of builtins without taking on shrub's interactive front
 end. Their dependency sets are deliberately narrow for the same reason.
 
 These crates inherit `rust-version` from `[workspace.package]` in the root `Cargo.toml`. That value
 is the project's MSRV, and it is the one the rules below are mostly about.
 
-`xtask` and `brush-test-harness` inherit the same value. Neither is published, but `cargo xtask` is
+`xtask` and `shrub-test-harness` inherit the same value. Neither is published, but `cargo xtask` is
 how CI runs the MSRV check, so `xtask` has to compile with the MSRV toolchain. That is why `xtask`
-must not depend on `brush-shell`: the tool that drives the build cannot sit downstream of the thing
+must not depend on `shrub-shell`: the tool that drives the build cannot sit downstream of the thing
 it builds.
 
 ### Application tier
 
-`brush`, `brush-shell`, `brush-interactive`, and `brush-fuzz` exist to produce, host, and exercise
-the shell. `brush-shell` and `brush-interactive` are published as libraries, but their reason to
+`shrub`, `shrub-shell`, `shrub-interactive`, and `shrub-fuzz` exist to produce, host, and exercise
+the shell. `shrub-shell` and `shrub-interactive` are published as libraries, but their reason to
 exist is the interactive front end, and they carry its dependencies: line editing, terminal
 handling, completion. Those dependencies raise their own MSRVs on a schedule the project does not
 control, and refusing to follow would mean freezing the interactive experience on whatever line
@@ -66,8 +66,8 @@ be the commit that takes the dependency, so the reason is visible in one place r
 later.
 
 The 4-6 month age requirement does not apply to this tier; the forcing dependency's own MSRV decides
-the number. In exchange, a raise is confined to the crates that need it. If only `brush-interactive`
-requires a newer toolchain, `brush-shell` and `brush` follow because they depend on it, and the
+the number. In exchange, a raise is confined to the crates that need it. If only `shrub-interactive`
+requires a newer toolchain, `shrub-shell` and `shrub` follow because they depend on it, and the
 library tier does not move at all.
 
 ### Communication
@@ -100,7 +100,7 @@ change to it. Without the flag, every crate is checked, which is what the pinned
 
 ## Rationale
 
-This split recognizes that `brush` serves two different audiences. A project embedding `brush-core`
+This split recognizes that `shrub` serves two different audiences. A project embedding `shrub-core`
 wants a stable, predictable compiler requirement and gets one. A person building the shell wants a
 current line editor and working terminal integration, and that has a cost the embedding audience
 should not have to pay.

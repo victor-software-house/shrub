@@ -1,5 +1,5 @@
 # Works with https://github.com/charmbracelet/vhs
-# This tape assumes that fzf and brush are already pre-installed and ready to go.
+# This tape assumes that fzf and shrub are already pre-installed and ready to go.
 
 Output sample.gif
 
@@ -10,13 +10,13 @@ Set Width 1600
 Set Height 600
 Set CursorBlink false
 
-# Setup environment to launch brush in
+# Setup environment to launch shrub in
 Env HISTFILE ""
 Env PS1 '$0$ '
 
-# Launch brush and set up bash-completion
+# Launch shrub and set up bash-completion
 Hide
-Type `brush --enable-highlighting --norc --noprofile --no-config`
+Type `shrub --enable-highlighting --norc --noprofile --no-config`
 Enter
 Show
 

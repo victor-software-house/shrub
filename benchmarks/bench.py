@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Shell benchmarking harness for brush.
+Shell benchmarking harness for shrub.
 
 Runs shell script snippets against test and reference shells using
 warmup, calibration, and timed execution phases.
@@ -232,10 +232,10 @@ def generate_benchmark_script(case: BenchmarkCase, iterations: int) -> str:
 
 def get_shell_flags(shell_path: str) -> list[str]:
     """Get appropriate flags for running a shell in benchmark mode."""
-    # Check if this looks like brush
+    # Check if this looks like shrub
     shell_name = shell_path.split("/")[-1]
 
-    if "brush" in shell_name:
+    if "shrub" in shell_name:
         return [
             "--norc",
             "--noprofile",
@@ -763,7 +763,7 @@ def _positive_int(value: str) -> int:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Shell benchmarking harness for brush",
+        description="Shell benchmarking harness for shrub",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Available benchmarks:
@@ -783,9 +783,9 @@ Available benchmarks:
   if_not_taken  - If conditional (branch not taken)
 
 Examples:
-  %(prog)s --shell ./target/release/brush
-  %(prog)s --shell brush --reference-shell bash --benchmarks colon increment
-  %(prog)s --shell brush --duration 5 --json
+  %(prog)s --shell ./target/release/shrub
+  %(prog)s --shell shrub --reference-shell bash --benchmarks colon increment
+  %(prog)s --shell shrub --duration 5 --json
 """,
     )
 

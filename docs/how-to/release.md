@@ -4,7 +4,7 @@ _(This is only relevant for project maintainers.)_
 
 * Install [release-plz](https://github.com/MarcoIeni/release-plz)
 * Checkout the `main` branch (with a clean working tree).
-* Refresh the compatibility-test count badge in `README.md` if it has drifted (round down to the nearest hundred; count `- name:` entries under `brush-shell/tests/cases/compat`).
+* Refresh the compatibility-test count badge in `README.md` if it has drifted (round down to the nearest hundred; count `- name:` entries under `shrub-shell/tests/cases/compat`).
 * Run: `release-plz update`. Review its changes, notable including the changelog updates.
 * PR through any generated changes with a `chore: prepare release` commit summary.
 * After the changes have merged into `main`, update your local `main` branch.
@@ -12,4 +12,4 @@ _(This is only relevant for project maintainers.)_
 * Authenticate with `crates.io` by running: `cargo login`.
 * Run: `release-plz release --backend github --git-token <TOKEN>`.
 * Update the published GitHub release to include an auto-generated changelog.
-* Run: `cargo install --locked brush-shell` to verify the release.
+* Run: `cargo install --locked shrub-shell` to verify the release.

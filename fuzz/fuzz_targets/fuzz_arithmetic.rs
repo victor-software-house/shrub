@@ -5,24 +5,24 @@
 use std::sync::LazyLock;
 
 use anyhow::Result;
-use brush_parser::ast;
+use shrub_parser::ast;
 use libfuzzer_sys::fuzz_target;
 
 static TOKIO_RT: LazyLock<tokio::runtime::Runtime> =
     LazyLock::new(|| tokio::runtime::Runtime::new().unwrap());
 
-static SHELL_TEMPLATE: LazyLock<brush_core::Shell> = LazyLock::new(|| {
+static SHELL_TEMPLATE: LazyLock<shrub_core::Shell> = LazyLock::new(|| {
     TOKIO_RT
         .block_on(
-            brush_core::Shell::builder()
-                .profile(brush_core::ProfileLoadBehavior::Skip)
-                .rc(brush_core::RcLoadBehavior::Skip)
+            shrub_core::Shell::builder()
+                .profile(shrub_core::ProfileLoadBehavior::Skip)
+                .rc(shrub_core::RcLoadBehavior::Skip)
                 .build(),
         )
         .unwrap()
 });
 
-fn eval_arithmetic(mut shell: brush_core::Shell, input: &ast::ArithmeticExpr) -> Result<()> {
+fn eval_arithmetic(mut shell: shrub_core::Shell, input: &ast::ArithmeticExpr) -> Result<()> {
     const DEFAULT_TIMEOUT_IN_SECONDS: u64 = 15;
 
     //
@@ -31,9 +31,9 @@ fn eval_arithmetic(mut shell: brush_core::Shell, input: &ast::ArithmeticExpr) ->
     let input_str = input.to_string();
 
     //
-    // Instantiate a brush shell with defaults, then try to evaluate the expression.
+    // Instantiate a shrub shell with defaults, then try to evaluate the expression.
     //
-    let parsed_expr = brush_parser::arithmetic::parse(input_str.as_str()).ok();
+    let parsed_expr = shrub_parser::arithmetic::parse(input_str.as_str()).ok();
     let our_eval_result = if let Some(parsed_expr) = parsed_expr {
         shell.eval_arithmetic(&parsed_expr).ok()
     } else {

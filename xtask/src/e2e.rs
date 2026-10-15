@@ -33,7 +33,7 @@ pub struct E2eArgs {
     #[clap(long = "with", value_name = "APP", conflicts_with = "apps")]
     with: Vec<String>,
 
-    /// Test the applications against Bash instead of brush.
+    /// Test the applications against Bash instead of shrub.
     #[clap(long, conflicts_with = "shell")]
     baseline: bool,
 
@@ -66,7 +66,7 @@ pub fn run(binary_args: &BinaryArgs, args: &E2eArgs, verbose: bool) -> Result<()
     let shell = resolve_shell(binary_args, args)?;
     // Read up front: an unreadable list should fail before any container time is spent, not
     // halfway through a run whose earlier reports would then be lost. `--baseline`/`--shell`
-    // runs carry no expectations, since those describe brush.
+    // runs carry no expectations, since those describe shrub.
     let expectations: Vec<BTreeSet<String>> = if args.baseline || args.shell.is_some() {
         vec![BTreeSet::new(); apps.len()]
     } else {
@@ -380,14 +380,14 @@ fn select_e2e_apps(e2e_dir: &Path, args: &E2eArgs) -> Result<Vec<String>> {
 
 /// The shell binary to bind-mount into each container, or `None` for the container's own bash.
 fn resolve_shell(binary_args: &BinaryArgs, args: &E2eArgs) -> Result<Option<PathBuf>> {
-    if (args.baseline || args.shell.is_some()) && binary_args.brush_path.is_some() {
-        anyhow::bail!("--brush-path cannot be combined with --baseline or --shell");
+    if (args.baseline || args.shell.is_some()) && binary_args.shrub_path.is_some() {
+        anyhow::bail!("--shrub-path cannot be combined with --baseline or --shell");
     }
     if args.baseline {
         return Ok(None);
     }
     let Some(path) = &args.shell else {
-        return Ok(Some(binary_args.find_brush_binary()?));
+        return Ok(Some(binary_args.find_shrub_binary()?));
     };
     // Resolved, since a symlink or a relative path would not survive the bind mount.
     let path = path
@@ -1006,7 +1006,7 @@ fn run_e2e_adapter(run: &E2eRun<'_>, app: &str) -> Result<Option<String>> {
         timeout,
         verbose,
     } = *run;
-    let image = format!("brush-e2e-{app}");
+    let image = format!("shrub-e2e-{app}");
     let dockerfile = e2e_dir.join(app).join("Dockerfile");
     let results = results_root.join(app);
     fs::create_dir(&results)

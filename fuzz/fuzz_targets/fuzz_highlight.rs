@@ -6,17 +6,17 @@
 use libfuzzer_sys::fuzz_target;
 use std::sync::LazyLock;
 
-use brush_interactive::highlighting::{Highlighted, highlight_command};
+use shrub_interactive::highlighting::{Highlighted, highlight_command};
 
 static TOKIO_RT: LazyLock<tokio::runtime::Runtime> =
     LazyLock::new(|| tokio::runtime::Runtime::new().unwrap());
 
-static SHELL_TEMPLATE: LazyLock<brush_core::Shell> = LazyLock::new(|| {
+static SHELL_TEMPLATE: LazyLock<shrub_core::Shell> = LazyLock::new(|| {
     TOKIO_RT
         .block_on(
-            brush_core::Shell::builder()
-                .profile(brush_core::ProfileLoadBehavior::Skip)
-                .rc(brush_core::RcLoadBehavior::Skip)
+            shrub_core::Shell::builder()
+                .profile(shrub_core::ProfileLoadBehavior::Skip)
+                .rc(shrub_core::RcLoadBehavior::Skip)
                 .build(),
         )
         .unwrap()

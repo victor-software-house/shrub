@@ -1,10 +1,10 @@
 #!/bin/sh
 #
-# Installs brush from official GitHub releases of reubeno/brush, or (with --canary) from the
+# Installs shrub from official GitHub releases of victor-software-house/shrub, or (with --canary) from the
 # canary builds that CI publishes for every push to its main branch.
 #
 # Usage:
-#   curl --proto '=https' --tlsv1.2 -fsSL https://brush.sh/install.sh | sh
+#   curl --proto '=https' --tlsv1.2 -fsSL https://github.com/victor-software-house/shrub/install.sh | sh
 #
 # To pass options, use `sh -s --`, e.g.:
 #   curl ... | sh -s -- --version 0.4.0 --require-attestation
@@ -22,17 +22,17 @@
 
 set -eu
 
-REPO="reubeno/brush"
+REPO="victor-software-house/shrub"
 RELEASE_WORKFLOW="${REPO}/.github/workflows/cd.yaml"
 # Where the release workflow publishes canary builds, on ghcr.io.
-CANARY_PACKAGE="reubeno/brush-canary"
+CANARY_PACKAGE="victor-software-house/shrub-canary"
 
 usage() {
     cat <<'EOF'
-Installs brush from its official GitHub releases, or from canary builds of its main branch.
+Installs shrub from its official GitHub releases, or from canary builds of its main branch.
 
 Usage:
-  curl --proto '=https' --tlsv1.2 -fsSL https://brush.sh/install.sh | sh -s -- [options]
+  curl --proto '=https' --tlsv1.2 -fsSL https://github.com/victor-software-house/shrub/install.sh | sh -s -- [options]
 
 Options:
   --version <version>     Version to install (e.g. "0.4.0"); defaults to the latest release.
@@ -47,7 +47,7 @@ EOF
 }
 
 say() {
-    echo "brush-install: $*" >&2
+    echo "shrub-install: $*" >&2
 }
 
 die() {
@@ -189,7 +189,7 @@ detect_target() {
 # Sets `tag` to the git tag of the release to install, and `source_ref` to its full ref.
 resolve_release_tag() {
     if [ -n "${version}" ]; then
-        tag="brush-shell-v${version#v}"
+        tag="shrub-shell-v${version#v}"
         source_ref="refs/tags/${tag}"
         return
     fi
@@ -200,7 +200,7 @@ resolve_release_tag() {
         die "could not determine latest release"
     tag="${latest_url##*/}"
     case "${tag}" in
-        brush-shell-v*) ;;
+        shrub-shell-v*) ;;
         *) die "could not determine latest release" ;;
     esac
     source_ref="refs/tags/${tag}"
@@ -209,12 +209,12 @@ resolve_release_tag() {
 # Downloads the release archive into `tmp_dir` and checks it against its
 # published SHA-256 checksum.
 download_archive() {
-    archive="brush-${target}.tar.gz"
+    archive="shrub-${target}.tar.gz"
     release_url="https://github.com/${REPO}/releases/download/${tag}"
 
     say "downloading ${release_url}/${archive}"
     download "${release_url}/${archive}" "${tmp_dir}/${archive}"
-    download "${release_url}/brush-${target}.sha256" "${tmp_dir}/${archive}.sha256"
+    download "${release_url}/shrub-${target}.sha256" "${tmp_dir}/${archive}.sha256"
 
     (cd "${tmp_dir}" && sha256sum -c "${archive}.sha256" >/dev/null) || die "checksum mismatch for ${archive}"
     say "verified SHA-256 checksum"
@@ -230,7 +230,7 @@ manifest_annotation() {
 # Downloads the newest canary build (or the one for `commit`) into `tmp_dir`, and checks it
 # against its digest in the registry, which is the SHA-256 of its content.
 download_canary_archive() {
-    archive="brush-${target}.tar.gz"
+    archive="shrub-${target}.tar.gz"
     image_tag="${target}${commit:+-${commit}}"
     registry="https://ghcr.io/v2/${CANARY_PACKAGE}"
     source_ref="refs/heads/main"
@@ -244,7 +244,7 @@ download_canary_archive() {
     manifest="$(fetch -H "Authorization: Bearer ${token}" \
         -H "Accept: application/vnd.oci.image.manifest.v1+json" \
         "${registry}/manifests/${image_tag}")" ||
-        die "no canary build of brush found for ${target}${commit:+ at commit ${commit}}"
+        die "no canary build of shrub found for ${target}${commit:+ at commit ${commit}}"
     manifest="$(printf '%s' "${manifest}" | tr -d ' \t\r\n')"
 
     # The archive is the manifest's only layer.
@@ -309,36 +309,36 @@ verify_attestation() {
 
 # Extracts the binary and moves it into place.
 install_binary() {
-    tar -xzf "${tmp_dir}/${archive}" -C "${tmp_dir}" brush || die "failed to extract ${archive}"
+    tar -xzf "${tmp_dir}/${archive}" -C "${tmp_dir}" shrub || die "failed to extract ${archive}"
 
     # Stage the binary next to its destination so that the final step is a rename.
     # A rename is atomic, so an interrupted install never leaves a partial binary
-    # behind, and it works even while an older brush at that path is running
+    # behind, and it works even while an older shrub at that path is running
     # (overwriting a running executable in place fails on Linux). Checking that the
     # staged binary runs first means a build that can't run here never replaces a
     # working one.
     mkdir -p "${install_dir}" || die "cannot write to ${install_dir}"
-    staged_binary="$(mktemp "${install_dir}/.brush.tmp.XXXXXX")" || die "cannot write to ${install_dir}"
-    cp "${tmp_dir}/brush" "${staged_binary}" || die "cannot write to ${install_dir}"
+    staged_binary="$(mktemp "${install_dir}/.shrub.tmp.XXXXXX")" || die "cannot write to ${install_dir}"
+    cp "${tmp_dir}/shrub" "${staged_binary}" || die "cannot write to ${install_dir}"
     chmod 755 "${staged_binary}"
 
     installed_version="$("${staged_binary}" --version)" ||
-        die "the ${target} build failed to run on this system; see https://brush.sh/getting-started/install/ for other ways to install"
+        die "the ${target} build failed to run on this system; see https://github.com/victor-software-house/shrub/getting-started/install/ for other ways to install"
 
-    mv -f "${staged_binary}" "${install_dir}/brush" || die "cannot write to ${install_dir}"
-    say "installed ${installed_version} to ${install_dir}/brush"
+    mv -f "${staged_binary}" "${install_dir}/shrub" || die "cannot write to ${install_dir}"
+    say "installed ${installed_version} to ${install_dir}/shrub"
 }
 
-# Lets the user know if running `brush` won't run what was just installed.
+# Lets the user know if running `shrub` won't run what was just installed.
 check_path() {
-    # Nothing above has run `brush` by name, so this is a fresh PATH search.
-    found="$(command -v brush)" || true
+    # Nothing above has run `shrub` by name, so this is a fresh PATH search.
+    found="$(command -v shrub)" || true
 
     # shellcheck disable=SC3013 # -ef isn't POSIX, but every sh we support has it.
     if [ -z "${found}" ]; then
         say "note: ${install_dir} is not in your PATH"
-    elif [ ! "${found}" -ef "${install_dir}/brush" ]; then
-        say "note: running 'brush' will run ${found}, not ${install_dir}/brush"
+    elif [ ! "${found}" -ef "${install_dir}/shrub" ]; then
+        say "note: running 'shrub' will run ${found}, not ${install_dir}/shrub"
     fi
 }
 

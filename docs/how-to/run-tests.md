@@ -38,11 +38,11 @@ cargo test --workspace
 To run just bash compatibility tests:
 
 ```bash
-cargo test --test brush-compat-tests
+cargo test --test shrub-compat-tests
 ```
 
 To run a specific compatibility test case
 
 ```bash
-cargo test --test brush-compat-tests -- '<name of test case>'
+cargo test --test shrub-compat-tests -- '<name of test case>'
 ```

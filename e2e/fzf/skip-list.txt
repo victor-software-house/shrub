@@ -8,6 +8,6 @@
 # directory completion opens an empty Reedline menu (#1413).
 TestBash#test_dir_completion
 
-# Load-flaky: under brush, fzf binds Ctrl-R with `bind -x`, and the test times out under CPU
+# Load-flaky: under shrub, fzf binds Ctrl-R with `bind -x`, and the test times out under CPU
 # contention (e.g. run 36155337854) but passes in isolation.
 TestBash#test_ctrl_r_delete

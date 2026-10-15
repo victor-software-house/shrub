@@ -1,15 +1,15 @@
-# Agent Development Guide for `brush`
+# Agent Development Guide for `shrub`
 
-This guide helps AI agents work efficiently on the `brush` codebase by providing essential context about architecture, patterns, and development workflows.
+This guide helps AI agents work efficiently on the `shrub` codebase by providing essential context about architecture, patterns, and development workflows.
 
 ## 1. Architecture Overview & Navigation
 
 ### Architecture
 
 [docs/explanation/architecture.md](docs/explanation/architecture.md) is the definition of
-brush's architecture: its crates, how they depend on each other, how `brush-core` is
+shrub's architecture: its crates, how they depend on each other, how `shrub-core` is
 structured, and the layering principles that decide which crate code belongs in (e.g.
-what `brush-core` owns vs. the interactive front end). Read it before adding a crate,
+what `shrub-core` owns vs. the interactive front end). Read it before adding a crate,
 moving code between crates, or changing a public API's shape, and keep it up to date when
 the architecture changes.
 
@@ -17,22 +17,22 @@ the architecture changes.
 
 **Critical files to understand first:**
 
-- `brush-core/src/shell.rs` - Main `Shell` struct and creation logic
-- `brush-core/src/lib.rs` - Public API exports
-- `brush-shell/src/main.rs` - CLI application entry point
+- `shrub-core/src/shell.rs` - Main `Shell` struct and creation logic
+- `shrub-core/src/lib.rs` - Public API exports
+- `shrub-shell/src/main.rs` - CLI application entry point
 
 **Architecture patterns:**
 
 - Shell instances are created via `Shell::builder()`
 - The project uses builder patterns for type-safe configuration
-- Platform-specific code in `brush-core` MUST live under the `sys` module
+- Platform-specific code in `shrub-core` MUST live under the `sys` module
 - Follows Rust 2024 edition standards
 
 ### Module Dependencies
 
 ```text
-brush-shell → brush-interactive → brush-core → brush-parser
-            ↘ brush-builtins ↗
+shrub-shell → shrub-interactive → shrub-core → shrub-parser
+            ↘ shrub-builtins ↗
 ```
 
 ## 2. Testing Strategy
@@ -88,7 +88,7 @@ For finer-grained control:
 
 ##### Outer Loop (Comprehensive Testing)  
 
-1. **Compatibility tests**: `cargo test --test brush-compat-tests` - Bash compatibility validation
+1. **Compatibility tests**: `cargo test --test shrub-compat-tests` - Bash compatibility validation
 2. **Full workspace tests**: `cargo test --workspace` - Complete test suite
 
 #### Pre-Finish Quality Validation
@@ -101,7 +101,7 @@ cargo xtask ci full
 
 **Manual approach:** Before considering work complete, run these validation steps:
 
-- **Compatibility tests**: `cargo test --test brush-compat-tests`
+- **Compatibility tests**: `cargo test --test shrub-compat-tests`
 - **Linting**: `cargo clippy`
 - **Formatting**: `cargo fmt --check`
 - **Pre-commit hooks** (spelling, links, workflows, dependency audit, structural lints): `cargo xtask check hooks` (needs `prek`)
@@ -128,7 +128,7 @@ cargo xtask ci full
 **Pro tip**: For specific compatibility test cases, use:
 
 ```bash
-cargo test --test brush-compat-tests -- '<name of test case>'
+cargo test --test shrub-compat-tests -- '<name of test case>'
 ```
 
 **Fast iteration strategies:**
@@ -157,7 +157,7 @@ cargo test --test brush-compat-tests -- '<name of test case>'
 - Unit tests: In `src/` files with `#[cfg(test)]`
 - Integration tests: In `tests/` directories
 - Examples: In `examples/` directories (must be runnable)
-- Shell script tests: YAML-based test cases in `brush-shell/tests/cases/`
+- Shell script tests: YAML-based test cases in `shrub-shell/tests/cases/`
 
 ### Performance Testing
 
@@ -183,10 +183,10 @@ cargo test --test brush-compat-tests -- '<name of test case>'
 
 ### Dependency Impact
 
-When changing public APIs in `brush-core` (see section 3 for breaking change policy):
+When changing public APIs in `shrub-core` (see section 3 for breaking change policy):
 
-1. Check `brush-shell/src/main.rs` for struct initialization sites
-2. Check `brush-interactive/` for any usage
+1. Check `shrub-shell/src/main.rs` for struct initialization sites
+2. Check `shrub-interactive/` for any usage
 
 ## 4. Documentation & Examples Standards
 
@@ -209,7 +209,7 @@ When changing public APIs in `brush-core` (see section 3 for breaking change pol
 
 Examples should:
 
-- Be self-contained and runnable with `cargo run --package brush-core --example <name>`
+- Be self-contained and runnable with `cargo run --package shrub-core --example <name>`
 - Include comprehensive error handling
 - Demonstrate both basic and advanced usage patterns
 - Include output examples in comments when helpful
@@ -307,7 +307,7 @@ Assisted-by: Mistral Vibe:mistral-medium-3.5
 
 ## Quick Reference Checklist
 
-When making changes to brush:
+When making changes to shrub:
 
 ### Before Starting
 

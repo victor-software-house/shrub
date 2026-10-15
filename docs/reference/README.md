@@ -1,6 +1,6 @@
 # Reference
 
-These documents serve as reference material for the `brush` project.
+These documents serve as reference material for the `shrub` project.
 
 * [Configuration file](configuration.md)
 * [Experimental features](experimental.md)

@@ -1,0 +1,33 @@
+[package]
+name = "shrub"
+description = "Rust-implemented shell focused on POSIX and bash compatibility"
+version.workspace = true
+categories.workspace = true
+edition.workspace = true
+keywords.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+# Application tier; see docs/reference/msrv-policy.md.
+rust-version = "1.95.0"
+
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/shrub-shell-v{ version }/shrub-{ target }{ archive-suffix }"
+
+[[bin]]
+name = "shrub"
+path = "src/main.rs"
+bench = false
+
+[features]
+default = ["shrub-shell/default"]
+basic = ["shrub-shell/basic"]
+minimal = ["shrub-shell/minimal"]
+reedline = ["shrub-shell/reedline"]
+experimental = ["shrub-shell/experimental"]
+
+[lints]
+workspace = true
+
+[dependencies]
+shrub-shell = { workspace = true, default-features = false }

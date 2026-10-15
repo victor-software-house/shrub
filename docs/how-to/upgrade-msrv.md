@@ -1,17 +1,17 @@
 # How to upgrade MSRV
 
 This document outlines the process for upgrading the Minimum Supported Rust Version (MSRV) for the
-`brush` project.
+`shrub` project.
 
 ## Overview
 
 Before upgrading, review the [MSRV Policy](../reference/msrv-policy.md). The workspace is split into
 two tiers, and which one you are raising decides both the process and the bar you have to clear:
 
-- **Library tier** (`brush-core`, `brush-parser`, `brush-builtins`, and the other embeddable
+- **Library tier** (`shrub-core`, `shrub-parser`, `shrub-builtins`, and the other embeddable
   crates): governed by the workspace-wide `rust-version`. Raising it reaches every downstream
   consumer, and the policy's age requirement applies.
-- **Application tier** (`brush`, `brush-shell`, `brush-interactive`, `brush-fuzz`): each declares its
+- **Application tier** (`shrub`, `shrub-shell`, `shrub-interactive`, `shrub-fuzz`): each declares its
   own `rust-version`. Raise it only when a dependency forces it, in the same change that takes the
   dependency.
 
@@ -23,8 +23,8 @@ This is the common case: a dependency of the interactive front end has moved.
 
 Set `rust-version` in the crate's own `Cargo.toml` to the version the dependency requires, and no
 higher. Cargo rejects a package whose dependency declares a higher `rust-version` than it does, so
-dependents have to move with it. In practice `brush-interactive` pulls `brush-shell`, which pulls
-`brush`.
+dependents have to move with it. In practice `shrub-interactive` pulls `shrub-shell`, which pulls
+`shrub`.
 
 The manifests are the only place the number appears. Nothing else needs editing: CI derives the set
 of higher-MSRV crates from `cargo metadata`.
@@ -53,9 +53,9 @@ To see the other half of the split, ask the MSRV toolchain to build a crate you 
 should refuse by name:
 
 ```bash
-cargo "+$msrv" check -p brush-shell
+cargo "+$msrv" check -p shrub-shell
 # error: rustc <workspace MSRV> is not supported by the following packages:
-#   brush-interactive@<version> requires rustc <the value you just set>
+#   shrub-interactive@<version> requires rustc <the value you just set>
 ```
 
 ### 3. Confirm the library tier did not move
@@ -101,8 +101,8 @@ Confirm the value the library tier will publish, which is what downstream consum
 package rather than trusting the source manifest:
 
 ```bash
-cargo package --no-verify -p brush-core
-tar -xzOf target/package/brush-core-*.crate '*/Cargo.toml' | grep rust-version
+cargo package --no-verify -p shrub-core
+tar -xzOf target/package/shrub-core-*.crate '*/Cargo.toml' | grep rust-version
 ```
 
 ### 4. Run tests

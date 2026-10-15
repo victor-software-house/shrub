@@ -5,13 +5,13 @@ set -uo pipefail
 source /e2e/lib/run_pytest.sh
 
 # atuin's bash integration is bash-preexec: `atuin init bash` inlines a copy of it and
-# registers into precmd_functions/preexec_functions. brush implements those hooks natively but
+# registers into precmd_functions/preexec_functions. shrub implements those hooks natively but
 # behind an experimental flag, so without it this suite only ever exercises bash-preexec's own
-# DEBUG-trap emulation. Turn it on through brush's config file rather than a command-line flag:
+# DEBUG-trap emulation. Turn it on through shrub's config file rather than a command-line flag:
 # the suite takes a shell path with nowhere to put a flag, and bash ignores the file, so the
 # `--baseline` run is unaffected. Remove once the feature is on by default.
-mkdir -p "$HOME/.config/brush"
-cat >"$HOME/.config/brush/config.toml" <<'TOML'
+mkdir -p "$HOME/.config/shrub"
+cat >"$HOME/.config/shrub/config.toml" <<'TOML'
 [experimental]
 zsh-hooks = true
 TOML
