@@ -1,0 +1,50 @@
+name: Test
+
+# The platforms CI's verify job, on ubuntu-latest (x86_64 Linux), does not
+# cover. shrub-core's platform code lives under sys/, and the compatibility
+# suite compares shrub with each platform's own bash and tools.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  MISE_ENV: ci
+
+concurrency:
+  group: test-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}-${{ github.event.pull_request.base.sha || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install locked toolchain
+        uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2
+        with:
+          version: 2026.10.10
+          cache: true
+      - name: Cache builds with mbx
+        uses: jdx/mr-boxington-action@47ce49b32025d93a7a2f4570815afaa2b7092240 # v1.7.2
+      # macOS ships bash 3.2; the compatibility suite's oracle is a current
+      # bash, which the harness reads from BASH_PATH.
+      - name: Install current bash
+        if: runner.os == 'macOS'
+        run: |
+          brew install bash
+          echo "BASH_PATH=$(brew --prefix bash)/bin/bash" >> "$GITHUB_ENV"
+      - name: Test
+        run: mise run test

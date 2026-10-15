@@ -16,7 +16,7 @@ shrub-shell → shrub-interactive → shrub-core → shrub-parser
 - `shrub-core/src/shell.rs` holds the `Shell` struct; shells are created with `Shell::builder()`.
 - `shrub-core/src/lib.rs` holds the public exports.
 - `shrub-shell/src/main.rs` is the CLI entry point.
-- Platform-specific code in `shrub-core` lives under its `sys` module.
+- Platform-specific code in `shrub-core` lives under its `sys` module; `check:sys-boundary` flags target cfgs elsewhere, and a deliberate exception carries `// ast-grep-ignore: platform-cfg-outside-sys`.
 
 ## Tasks
 
@@ -26,10 +26,13 @@ mise pins every tool, and the tasks are the only supported commands.
 |:--|:--|
 | `mise run verify` | Toolchain pins, format, clippy, feature checks, tests, doc-tests, cargo-deny, unused crates, repository checks |
 | `mise run format` | rustfmt check on the pinned nightly |
-| `mise run test` | Unit, integration and compatibility tests |
-| `mise run check:repo` | TOML format, Markdown, spelling and workflow lint |
+| `mise run test` | Unit, integration and compatibility tests with the default features |
+| `mise run check:repo` | TOML format, Markdown, spelling, workflow lint, and `check:local` |
+| `mise run check:local` | The sys-boundary rule (ast-grep) and the workflow audit (zizmor) |
 
 `verify` comes from ctl-core's shared Rust tasks; `check:features` and `check:local` are in `mise-tasks/`.
+`test` overrides ctl-core's in `mise.toml`, because the compatibility suite and shrub-parser's stub `winnow-parser` feature need the default features.
+CI runs `verify` on x86_64 Linux, and `.github/workflows/test.yml` runs `test` on macOS and arm64 Linux.
 lefthook runs `format` before a commit and `verify` before a push.
 `cargo xtask` stays for the test runner and generated docs; see [docs/how-to/run-tests.md](docs/how-to/run-tests.md).
 
@@ -39,6 +42,7 @@ lefthook runs `format` before a commit and `verify` before a push.
 - Compatibility cases are YAML files under `shrub-shell/tests/cases/`, run against Bash.
   A compatibility fix adds a case there.
 - Examples in `examples/` must run with `cargo run --package <crate> --example <name>`.
+- `schemas/config.schema.json` is generated from `shrub-shell`'s `Config`; a unit test under the `schema` feature fails when it is stale, and `cargo xtask gen schema config --out schemas/config.schema.json` regenerates it.
 
 ## Public API
 

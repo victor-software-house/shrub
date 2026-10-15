@@ -5,9 +5,10 @@ min_version = "2026.10.10"
 # mise loads git:: task includes only in experimental mode.
 experimental = true
 lockfile = true
-# The platforms CI and contributors use. Without it, mise install fills every
-# tool up to the platforms any tool already records, and rewrites the locks.
-lockfile_platforms = ["linux-x64", "macos-arm64"]
+# The platforms CI and contributors use; linux-arm64 serves the arm64 test
+# leg. Without it, mise install fills every tool up to the platforms any tool
+# already records, and rewrites the locks.
+lockfile_platforms = ["linux-x64", "linux-arm64", "macos-arm64"]
 
 # Every tool this root declares must match mise.lock or mise.<env>.lock.
 [tool_config]
@@ -32,6 +33,9 @@ taplo = "0.10.0"
 rumdl = "0.2.79"
 typos = "1.51.1"
 actionlint = "1.7.12"
+# The repository's own checks (mise-tasks/local.toml).
+ast-grep = "0.50.0"
+zizmor = "1.30.1"
 
 # mise-tasks/ holds this repository's task fragments and file tasks. An
 # includes list replaces the default task dirs, so mise-tasks comes first; add
