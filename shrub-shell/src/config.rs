@@ -455,4 +455,17 @@ mod tests {
         assert!(ui.disable_bracketed_paste);
         assert!(ui.disable_color);
     }
+
+    /// Editors fetch the committed schema by URL, so it must match `Config`.
+    #[cfg(feature = "schema")]
+    #[test]
+    fn committed_schema_matches_config() {
+        let schema = schemars::schema_for!(Config);
+        let generated = format!("{}\n", serde_json::to_string_pretty(&schema).unwrap());
+        pretty_assertions::assert_eq!(
+            include_str!("../../schemas/config.schema.json"),
+            generated,
+            "schemas/config.schema.json is stale; regenerate it with `cargo xtask gen schema config --out schemas/config.schema.json`"
+        );
+    }
 }

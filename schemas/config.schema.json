@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Config",
-  "description": "Root configuration structure for the shrub shell.\n\nAll fields are optional to support forward compatibility and partial configuration.\nUnknown fields in the TOML file are silently ignored.",
+  "description": "Root configuration structure for the shrub shell.\n\nAll fields are optional to support forward compatibility and partial\nconfiguration. Unknown fields in the TOML file are silently ignored.",
   "type": "object",
   "properties": {
     "experimental": {
@@ -15,7 +15,7 @@
   },
   "$defs": {
     "ExperimentalConfig": {
-      "description": "Experimental features configuration.\n\nThese options control unstable features that may change or be removed in future versions.",
+      "description": "Experimental features configuration.\n\nThese options control unstable features that may change or be removed in\nfuture versions.",
       "type": "object",
       "properties": {
         "terminal-shell-integration": {

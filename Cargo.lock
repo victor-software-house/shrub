@@ -6311,8 +6311,6 @@ dependencies = [
  "clap",
  "junit-parser",
  "libc",
- "serde",
- "serde_json",
  "tempfile",
  "xshell",
 ]
