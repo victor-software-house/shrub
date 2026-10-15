@@ -97,72 +97,72 @@ shrub-builtins = { workspace = true }
 shrub-interactive = { workspace = true }
 shrub-coreutils-builtins = { workspace = true, optional = true }
 shrub-experimental-builtins = { workspace = true, optional = true }
-clap = { version = "4.6.0", features = ["derive", "env"] }
-color-print = "0.3.7"
+clap = { workspace = true, features = ["derive", "env"] }
+color-print = { workspace = true }
 etcetera = "0.11.0"
 schemars = { version = "1.2.1", optional = true }
-serde = { version = "1.0", features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
 toml = "1.1.0"
 const_format = "0.2.36"
 git-version = "0.3.9"
-serde_json = { version = "1.0.149", optional = true }
-thiserror = "2.0.18"
-tracing = "0.1.44"
+serde_json = { workspace = true, optional = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
 tracing-subscriber = "0.3.23"
 human-panic = "2.0.6"
 
 [target.'cfg(not(any(unix, windows)))'.dependencies]
-tokio = { version = "1.52.3", features = ["rt", "sync"] }
+tokio = { workspace = true, features = ["rt", "sync"] }
 
 [target.'cfg(any(unix, windows))'.dependencies]
 crossterm = "0.29.0"
-tokio = { version = "1.52.3", features = ["rt", "rt-multi-thread", "sync"] }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "sync"] }
 
 [target.wasm32-unknown-unknown.dependencies]
-getrandom = { version = "0.4.2", features = ["wasm_js"] }
-uuid = { version = "1", features = ["js"] }
+getrandom = { workspace = true, features = ["wasm_js"] }
+uuid = { workspace = true, features = ["js"] }
 
 [dev-dependencies]
-anyhow = "1.0.102"
-tempfile = "3.27.0"
+anyhow = { workspace = true }
+tempfile = { workspace = true }
 # Used by the `gen` example.
 clap-markdown = "0.1.5"
 clap_complete = "4.6.4"
 clap_mangen = "0.3.0"
 # Also a regular optional dependency, enabled by `experimental-load`. The `gen`
 # example needs it without that feature, so it's listed here too.
-serde_json = "1.0.149"
+serde_json = { workspace = true }
 shrub-parser = { workspace = true }
 shrub-test-harness = { workspace = true, features = ["insta"] }
-assert_cmd = "2.2.0"
-assert_fs = "1.1.3"
-colored = "3.1.1"
-criterion = { version = "0.8.2", features = ["async_tokio", "html_reports"] }
-descape = "3.0.0"
-diff = "0.1.13"
-glob = "0.3.3"
-indent = "0.1.1"
-indexmap = "2.13.0"
-junit-report = "0.9.0"
-os-release = "0.1.0"
+assert_cmd = { workspace = true }
+assert_fs = { workspace = true }
+colored = { workspace = true }
+criterion = { workspace = true, features = ["async_tokio", "html_reports"] }
+descape = { workspace = true }
+diff = { workspace = true }
+glob = { workspace = true }
+indent = { workspace = true }
+indexmap = { workspace = true }
+junit-report = { workspace = true }
+os-release = { workspace = true }
 predicates = "3.1.4"
-pretty_assertions = { version = "1.4.1", features = ["unstable"] }
-regex = "1.12.3"
-serde = { version = "1.0.228", features = ["derive"] }
-yaml_serde = "0.10.7"
-strip-ansi-escapes = "0.2.1"
+pretty_assertions = { workspace = true, features = ["unstable"] }
+regex = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+yaml_serde = { workspace = true }
+strip-ansi-escapes = { workspace = true }
 test-with = { version = "0.17.0", default-features = false, features = [
   "executable",
 ] }
-tokio = { version = "1.52.3", features = ["time"] }
-version-compare = "0.2.1"
-walkdir = "2.5.0"
+tokio = { workspace = true, features = ["time"] }
+version-compare = { workspace = true }
+walkdir = { workspace = true }
 which = "8.0.2"
 
 [target.'cfg(unix)'.dev-dependencies]
-nix = { version = "0.31.2" }
+nix = { workspace = true }
 
 # expectrl's pty support (via ptyprocess) is limited to these platforms;
 # the interactive tests that rely on it are gated accordingly.
 [target.'cfg(any(target_os = "linux", target_os = "android", target_os = "macos", target_os = "freebsd"))'.dev-dependencies]
-expectrl = "0.9.0"
+expectrl = { workspace = true }

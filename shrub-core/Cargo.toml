@@ -25,31 +25,31 @@ experimental-parser = ["shrub-parser/winnow-parser"]
 async-recursion = "1.1.1"
 async-trait = "0.1.89"
 shrub-parser = { workspace = true }
-bon = "3.9.1"
-cached = "2.0.2"
-cfg-if = "1.0.4"
-chrono = "0.4.44"
-clap = { version = "4.6.0", features = ["derive", "wrap_help"] }
-color-print = "0.3.7"
-fancy-regex = "0.19.0"
+bon = { workspace = true }
+cached = { workspace = true }
+cfg-if = { workspace = true }
+chrono = { workspace = true }
+clap = { workspace = true, features = ["derive", "wrap_help"] }
+color-print = { workspace = true }
+fancy-regex = { workspace = true }
 futures = "0.3.32"
 inherent = "1.0.13"
-itertools = "0.15.0"
+itertools = { workspace = true }
 normalize-path = "0.2.1"
 rand = "0.10.0"
 rpds = "1.2.0"
-serde = { version = "1.0.228", optional = true, features = ["derive"] }
-strum = "0.28.0"
+serde = { workspace = true, features = ["derive"], optional = true }
+strum = { workspace = true }
 strum_macros = "0.28.0"
-thiserror = "2.0.18"
-tracing = "0.1.44"
+thiserror = { workspace = true }
+tracing = { workspace = true }
 
 [target.'cfg(target_family = "wasm")'.dependencies]
-tokio = { version = "1.52.3", features = ["io-util", "macros", "rt", "sync"] }
+tokio = { workspace = true, features = ["io-util", "macros", "rt", "sync"] }
 
 [target.'cfg(any(unix, windows))'.dependencies]
 hostname = "0.4.2"
-tokio = { version = "1.52.3", features = [
+tokio = { workspace = true, features = [
   "io-util",
   "macros",
   "net",
@@ -66,8 +66,8 @@ whoami = "2.1.1"
 
 [target.'cfg(unix)'.dependencies]
 command-fds = "0.3.2"
-libc = "0.2.183"
-nix = { version = "0.31.2", features = [
+libc = { workspace = true }
+nix = { workspace = true, features = [
   "fs",
   "poll",
   "process",
@@ -81,11 +81,11 @@ terminfo = "0.9.0"
 uzers = "0.12.2"
 
 [target.wasm32-unknown-unknown.dependencies]
-getrandom = { version = "0.4.2", features = ["wasm_js"] }
-uuid = { version = "1", features = ["js"] }
+getrandom = { workspace = true, features = ["wasm_js"] }
+uuid = { workspace = true, features = ["js"] }
 
 [dev-dependencies]
-anyhow = "1.0.102"
-pretty_assertions = { version = "1.4.1", features = ["unstable"] }
-tempfile = "3.27.0"
-tokio = { version = "1.52.3", features = ["time"] }
+anyhow = { workspace = true }
+pretty_assertions = { workspace = true, features = ["unstable"] }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["time"] }

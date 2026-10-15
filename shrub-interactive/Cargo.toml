@@ -29,14 +29,14 @@ highlighting = []
 workspace = true
 
 [dependencies]
-bon = "3.9.1"
+bon = { workspace = true }
 shrub-parser = { workspace = true }
 shrub-core = { workspace = true }
-indexmap = "2.13.0"
+indexmap = { workspace = true }
 radix_trie = "0.3.0"
-thiserror = "2.0.18"
-tokio = { version = "1.52.3", features = ["rt", "sync"] }
-tracing = "0.1.44"
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["rt", "sync"] }
+tracing = { workspace = true }
 unicode-width = { version = "0.2.2", optional = true }
 
 # reedline builds only for these targets; see `build.rs`.
@@ -45,5 +45,5 @@ nu-ansi-term = { version = "0.50.3", optional = true }
 reedline = { version = "0.52.0", optional = true }
 
 [dev-dependencies]
-pretty_assertions = { version = "1.4.1", features = ["unstable"] }
+pretty_assertions = { workspace = true, features = ["unstable"] }
 vt100 = "0.16.2"

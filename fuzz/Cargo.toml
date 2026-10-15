@@ -18,10 +18,10 @@ cargo-fuzz = true
 workspace = true
 
 [dependencies]
-anyhow = "1.0.102"
-assert_cmd = "2.2.0"
+anyhow = { workspace = true }
+assert_cmd = { workspace = true }
 libfuzzer-sys = "0.4"
-tokio = { version = "1.52.3", features = ["rt"] }
+tokio = { workspace = true, features = ["rt"] }
 
 [dependencies.shrub-core]
 workspace = true

@@ -5,7 +5,23 @@ clippy_disallowed_methods: []
 clippy_disallowed_types: []
 deny_bans: []
 deny_ignore: []
-deny_licenses: []
+deny_licenses:
+-   license: BSD-2-Clause
+    reason: git-version and junit-parser
+-   license: BSD-3-Clause
+    reason: check_elevation
+-   license: CC0-1.0
+    reason: notify and tiny-keccak, through the coreutils builtins
+-   license: ISC
+    reason: inotify and is_ci
+-   license: MPL-2.0
+    reason: colored and indent, in tests
+-   license: NCSA
+    reason: libfuzzer-sys, in the fuzz targets
+-   license: WTFPL
+    reason: terminfo, in shrub-core
+-   license: Zlib
+    reason: const_format, foldhash and konst
 deny_skip: []
 feature_sets: []
 kind: rust-crate

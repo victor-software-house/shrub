@@ -130,21 +130,21 @@ workspace = true
 [dependencies]
 shrub-core = { workspace = true }
 shrub-parser = { workspace = true }
-cfg-if = "1.0.4"
-chrono = "0.4.44"
-clap = { version = "4.6.0", features = ["derive", "wrap_help"] }
-fancy-regex = "0.19.0"
-itertools = "0.15.0"
-strum = "0.28.0"
-thiserror = "2.0.18"
-tracing = "0.1.44"
-utf8-chars = "3.0.6"
+cfg-if = { workspace = true }
+chrono = { workspace = true }
+clap = { workspace = true, features = ["derive", "wrap_help"] }
+fancy-regex = { workspace = true }
+itertools = { workspace = true }
+strum = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+utf8-chars = { workspace = true }
 
 [target.'cfg(target_family = "wasm")'.dependencies]
-tokio = { version = "1.52.3", features = ["io-util", "macros", "rt"] }
+tokio = { workspace = true, features = ["io-util", "macros", "rt"] }
 
 [target.'cfg(any(unix, windows))'.dependencies]
-tokio = { version = "1.52.3", features = [
+tokio = { workspace = true, features = [
   "io-util",
   "macros",
   "process",
@@ -153,13 +153,10 @@ tokio = { version = "1.52.3", features = [
   "signal",
   "sync",
 ] }
-uucore = { version = "0.12.0", default-features = false, features = [
-  "format",
-  "signals",
-] }
+uucore = { workspace = true, features = ["format", "signals"] }
 
 [target.'cfg(unix)'.dependencies]
-nix = { version = "0.31.2", features = [
+nix = { workspace = true, features = [
   "fs",
   "process",
   "resource",
@@ -173,5 +170,5 @@ rlimit = "0.11.0"
 procfs = "0.18.0"
 
 [dev-dependencies]
-anyhow = "1.0.102"
-pretty_assertions = { version = "1.4.1", features = ["unstable"] }
+anyhow = { workspace = true }
+pretty_assertions = { workspace = true, features = ["unstable"] }
