@@ -10,12 +10,7 @@ It keeps brush's MIT licence and copyright notice.
 Create a shell, run Bash-compatible code in it, and inspect the result:
 
 ```rust
-use shrub_builtins::ShellBuilderExt as _;
-
-let mut shell = shrub_core::Shell::builder()
-    .default_builtins(shrub_builtins::BuiltinSet::BashMode)
-    .build()
-    .await?;
+let mut shell = shrub_core::Shell::builder().build().await?;
 
 let result = shell
     .run_string(
