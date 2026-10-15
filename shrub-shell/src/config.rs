@@ -432,7 +432,13 @@ mod tests {
         // default)
         let ui = config.to_ui_options(&args);
 
-        assert!(!ui.disable_highlighting); // CLI enabled highlighting
+        // A flag that matches its default can't be told apart from an unset
+        // one, so where highlighting is on by default (the `experimental`
+        // feature) the config wins.
+        assert_eq!(
+            ui.disable_highlighting,
+            crate::entry::DEFAULT_ENABLE_HIGHLIGHTING
+        );
         assert!(ui.zsh_style_hooks); // CLI enabled
     }
 

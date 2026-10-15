@@ -43,3 +43,18 @@ includes = [
   # ref together with the rust pins above.
   "git::https://github.com/victor-software-house/ctl-core.git//tasks/rust.toml?ref=v0.6.19",
 ]
+
+# Replaces ctl-core's test, which runs everything with --all-features; a task
+# here takes precedence over the included one, while one in mise-tasks/ does
+# not. The compatibility suite compares shrub with bash, so its binary must
+# build with the default features: `experimental` bundles the uutils coreutils
+# as builtins, which turns `command -v cat` and `wc` output away from bash.
+# Unit tests still run with every feature. shrub-fuzz is excluded: --bins
+# overrides its targets' test = false and would run libFuzzer.
+[tasks.test]
+description = "Unit tests with all features; integration and compatibility tests with the default features"
+run = [
+  "cargo test --locked --workspace --exclude shrub-fuzz --all-features --lib --bins",
+  "cargo test --locked --workspace --tests",
+]
+timeout = "30m"
