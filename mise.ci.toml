@@ -4,3 +4,6 @@
 [env]
 CARGO_INCREMENTAL = "0"
 CARGO_TERM_COLOR = "always"
+# On ext4 mbx restores cache hits as read-only hard links to its store, which
+# cargo package's verify build cannot rewrite; restored outputs get a copy.
+MBX_RESTORE_HARDLINK = "0"

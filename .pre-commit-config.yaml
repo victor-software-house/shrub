@@ -193,18 +193,6 @@ repos:
   # ---------------------------------------------------------------------------
   - repo: local
     hooks:
-      # `rustfmt` rather than `cargo fmt --all`: passing the staged files formats
-      # only what is being committed. `cargo fmt --all` would rewrite files
-      # outside the commit, and pre-commit stashes unstaged changes before
-      # running hooks, so rewriting a file that also has unstaged edits makes the
-      # stash restore conflict. rustfmt reads rustfmt.toml for the edition.
-      - id: rustfmt
-        name: rustfmt
-        entry: rustfmt
-        language: system
-        types: [rust]
-        require_serial: true
-
       # One hook, not four. `ci quick` is the same command AGENTS.md tells
       # contributors to run, so people who install the hooks and people who
       # don't execute identical code. It covers fmt, build, clippy, and unit

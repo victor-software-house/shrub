@@ -1,0 +1,3 @@
+# Spelling, checked by `mise run lint:typos`.
+[files]
+extend-exclude = ["*.lock"]

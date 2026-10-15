@@ -2,14 +2,44 @@
 min_version = "2026.10.10"
 
 [settings]
+# mise loads git:: task includes only in experimental mode.
+experimental = true
 lockfile = true
-# The platforms CI and contributors use.
+# The platforms CI and contributors use. Without it, mise install fills every
+# tool up to the platforms any tool already records, and rewrites the locks.
 lockfile_platforms = ["linux-x64", "macos-arm64"]
 
 # Every tool this root declares must match mise.lock or mise.<env>.lock.
 [tool_config]
 locked = true
 
-# The stable pin equals rust-toolchain.toml.
+# The toolchain lives here, not in mise.dev.toml, because CI loads only
+# MISE_ENV=ci. The stable pin equals rust-toolchain.toml and rust-version.
 [tools]
-rust = { version = "1.99.0", components = "clippy,rustfmt" }
+rust = [
+  # Pinned stable: build, lint, test.
+  { version = "1.99.0", components = "clippy", mr_boxington = true },
+  # Formatting only, for rustfmt's unstable options.
+  { version = "nightly-2026-09-29", profile = "minimal", components = "rustfmt" },
+]
+mr-boxington = "1.24.0"
+"github:EmbarkStudios/cargo-deny" = "0.20.2"
+"github:bnjbvr/cargo-machete" = "0.9.2"
+"github:obi1kenobi/cargo-semver-checks" = "0.51.0"
+jq = "1.8.2"
+# The repository checks (mise-tasks/repo.toml).
+taplo = "0.10.0"
+rumdl = "0.2.79"
+typos = "1.51.1"
+actionlint = "1.7.12"
+
+# mise-tasks/ holds this repository's task fragments and file tasks. An
+# includes list replaces the default task dirs, so mise-tasks comes first; add
+# pinned git:: catalogs after it.
+[task_config]
+includes = [
+  "mise-tasks",
+  # The standard Rust tasks, verify included, shared from ctl-core. Bump the
+  # ref together with the rust pins above.
+  "git::https://github.com/victor-software-house/ctl-core.git//tasks/rust.toml?ref=v0.6.19",
+]
