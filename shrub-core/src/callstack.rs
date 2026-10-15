@@ -1,13 +1,12 @@
 //! Call stack representations.
 
-use crate::{functions, traps};
-use std::{
-    borrow::Cow,
-    collections::{HashSet, VecDeque},
-    sync::Arc,
-};
+use std::borrow::Cow;
+use std::collections::{HashSet, VecDeque};
+use std::sync::Arc;
 
 use shrub_parser::ast::SourceLocation;
+
+use crate::{functions, traps};
 
 /// Encapsulates info regarding a script call.
 #[derive(Clone, Debug)]
@@ -155,22 +154,26 @@ impl std::fmt::Display for FunctionCall {
 pub struct Frame {
     /// The type of frame.
     pub frame_type: FrameType,
-    /// The source information for the frame. The locations associated with AST nodes
-    /// executed in this frame should be interpreted as being relative to this
-    /// source info.
+    /// The source information for the frame. The locations associated with AST
+    /// nodes executed in this frame should be interpreted as being relative
+    /// to this source info.
     pub source_info: crate::SourceInfo,
     /// The location of the entry point into this frame, within the frame of
-    /// reference of `source_info`. May be `None` if the entry point is not known.
+    /// reference of `source_info`. May be `None` if the entry point is not
+    /// known.
     pub entry: Option<Arc<crate::SourcePosition>>,
-    /// Information about the currently executing location. For the topmost frame on
-    /// the stack, this represents the current execution location. For older frames,
-    /// this represents the site from which a control transfer was made to the next
-    /// younger frame. May be `None` if the current location is not known. When present,
-    /// it is relative to the frame of reference of `source_info`.
+    /// Information about the currently executing location. For the topmost
+    /// frame on the stack, this represents the current execution location.
+    /// For older frames, this represents the site from which a control
+    /// transfer was made to the next younger frame. May be `None` if the
+    /// current location is not known. When present, it is relative to the
+    /// frame of reference of `source_info`.
     pub current: Option<Arc<crate::SourcePosition>>,
-    /// Positional arguments (not including $0). May not be present for all frames.
+    /// Positional arguments (not including $0). May not be present for all
+    /// frames.
     pub args: Vec<String>,
-    /// Optionally, indicates an additional line offset within the current source context.
+    /// Optionally, indicates an additional line offset within the current
+    /// source context.
     pub current_line_offset: usize,
 }
 
@@ -263,7 +266,8 @@ pub struct FormatCallStack<'a> {
 }
 
 impl<'a> FormatCallStack<'a> {
-    /// Creates a new formatter for the given call stack with the specified options.
+    /// Creates a new formatter for the given call stack with the specified
+    /// options.
     ///
     /// # Arguments
     ///
@@ -385,8 +389,8 @@ impl CallStack {
         Self::default()
     }
 
-    /// Removes the top from from the stack. If the stack is empty, does nothing and
-    /// returns `None`; otherwise, returns the removed call frame.
+    /// Removes the top from from the stack. If the stack is empty, does nothing
+    /// and returns `None`; otherwise, returns the removed call frame.
     pub fn pop(&mut self) -> Option<Frame> {
         let frame = self.frames.pop_front()?;
 
@@ -430,7 +434,8 @@ impl CallStack {
         }
     }
 
-    /// Increments the current line offset in the top stack frame by the given delta.
+    /// Increments the current line offset in the top stack frame by the given
+    /// delta.
     ///
     /// # Arguments
     ///
@@ -585,7 +590,8 @@ impl CallStack {
         })
     }
 
-    /// Returns whether or not the current script stack frame is a sourced script.
+    /// Returns whether or not the current script stack frame is a sourced
+    /// script.
     pub fn in_sourced_script(&self) -> bool {
         self.iter_script_calls()
             .next()
@@ -620,9 +626,10 @@ impl CallStack {
         self.trap_delivery_suppress_count > 0
     }
 
-    /// Acquires a block on trap delivery, preventing traps from being delivered until
-    /// the block is released. Multiple blocks may be acquired, and trap delivery will
-    /// remain suppressed until all blocks have been released.
+    /// Acquires a block on trap delivery, preventing traps from being delivered
+    /// until the block is released. Multiple blocks may be acquired, and
+    /// trap delivery will remain suppressed until all blocks have been
+    /// released.
     pub const fn acquire_trap_delivery_block(&mut self) {
         self.trap_delivery_suppress_count += 1;
     }
@@ -633,7 +640,8 @@ impl CallStack {
         self.trap_delivery_suppress_count = self.trap_delivery_suppress_count.saturating_sub(1);
     }
 
-    /// Returns whether or not the shell is actively executing in a shell function.
+    /// Returns whether or not the shell is actively executing in a shell
+    /// function.
     pub fn in_function(&self) -> bool {
         self.iter_function_calls().next().is_some()
     }
@@ -665,9 +673,10 @@ impl CallStack {
 mod tests {
     use std::path::PathBuf;
 
+    use pretty_assertions::assert_matches;
+
     use super::*;
     use crate::SourceInfo;
-    use pretty_assertions::assert_matches;
 
     #[test]
     fn test_call_stack_new() {

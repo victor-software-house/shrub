@@ -26,11 +26,9 @@
 use std::time::Duration;
 
 use anyhow::Context;
-use expectrl::{
-    Expect, Session,
-    process::unix::{PtyStream, UnixProcess},
-    stream::log::LogStream,
-};
+use expectrl::process::unix::{PtyStream, UnixProcess};
+use expectrl::stream::log::LogStream;
+use expectrl::{Expect, Session};
 
 const PROMPT: &str = "shrub> ";
 const DSR_QUERY: &str = "\x1b[6n";
@@ -70,8 +68,8 @@ fn bound_key_runs_command_and_shell_survives() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Like readline, completion sees the whole line, not just the text before the cursor:
-/// e.g. `COMP_WORDS` includes words after it.
+/// Like readline, completion sees the whole line, not just the text before the
+/// cursor: e.g. `COMP_WORDS` includes words after it.
 #[test]
 fn completion_sees_text_after_cursor() -> anyhow::Result<()> {
     let mut session = start_reedline_session()?;
@@ -92,9 +90,10 @@ fn completion_sees_text_after_cursor() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// `preexec` fires for lines the user typed, not for a command a key binding ran. The
-/// hooks exist to observe what the user is about to run; bash-preexec has the same split,
-/// because a `bind -x` command runs from readline rather than from the command line.
+/// `preexec` fires for lines the user typed, not for a command a key binding
+/// ran. The hooks exist to observe what the user is about to run; bash-preexec
+/// has the same split, because a `bind -x` command runs from readline rather
+/// than from the command line.
 #[test]
 fn bound_key_command_does_not_fire_preexec() -> anyhow::Result<()> {
     let mut session = start_reedline_session_with(|cmd| {
@@ -102,9 +101,10 @@ fn bound_key_command_does_not_fire_preexec() -> anyhow::Result<()> {
     })?;
     expect_next_prompt(&mut session, 0)?;
 
-    // The hook counts its dispatches as well as reporting its argument, so a stray dispatch
-    // for the bound command can't hide between the markers below. Markers are split so the
-    // echoed keystrokes of the setup lines can't satisfy the expectations.
+    // The hook counts its dispatches as well as reporting its argument, so a
+    // stray dispatch for the bound command can't hide between the markers
+    // below. Markers are split so the echoed keystrokes of the setup lines
+    // can't satisfy the expectations.
     session.send_line(r#"preexec() { n=$((n+1)); echo "PRE_""EXEC[$1]"; }"#)?;
     expect_next_prompt(&mut session, 0)?;
 
@@ -119,8 +119,8 @@ fn bound_key_command_does_not_fire_preexec() -> anyhow::Result<()> {
         .context("bound command did not run")?;
     expect_next_prompt(&mut session, 0).context("no prompt after bound command")?;
 
-    // Dispatch 2, for this line -- `$n` expands after the hook has already run, so a third
-    // dispatch anywhere would show up here.
+    // Dispatch 2, for this line -- `$n` expands after the hook has already run,
+    // so a third dispatch anywhere would show up here.
     session.send_line("echo COUNT_$n")?;
     session
         .expect("PRE_EXEC[echo COUNT_$n]")
@@ -132,9 +132,10 @@ fn bound_key_command_does_not_fire_preexec() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// A command a key binding runs is bracketed by the same OSC 633 marker pair as a typed one.
-/// Terminals track commands by that pair, so emitting only the closing marker -- as this path
-/// used to -- leaves one counting a command that never started.
+/// A command a key binding runs is bracketed by the same OSC 633 marker pair as
+/// a typed one. Terminals track commands by that pair, so emitting only the
+/// closing marker -- as this path used to -- leaves one counting a command that
+/// never started.
 #[test]
 fn osc_command_markers_stay_paired_for_a_bound_command() -> anyhow::Result<()> {
     let mut session = start_reedline_session_with(|cmd| {
@@ -147,8 +148,8 @@ fn osc_command_markers_stay_paired_for_a_bound_command() -> anyhow::Result<()> {
     session.send_line(r#"bind -x '"\C-t": echo BOUND_""FIRED'"#)?;
     expect_next_prompt(&mut session, 0)?;
 
-    // Ctrl+T. The bound command runs without the user typing a line, but it is still a
-    // command, so it gets both markers around it.
+    // Ctrl+T. The bound command runs without the user typing a line, but it is
+    // still a command, so it gets both markers around it.
     session.send("\x14")?;
     session
         .expect(COMMAND_STARTED)

@@ -1,8 +1,9 @@
 //! Tests for function definition parsing.
 
+use anyhow::Result;
+
 use super::{ParseResult, test_with_snapshot};
 use crate::assert_snapshot_redacted;
-use anyhow::Result;
 
 #[test]
 fn parse_function_basic() -> Result<()> {
@@ -100,8 +101,8 @@ fn parse_function_with_local_vars() -> Result<()> {
 
 #[test]
 fn parse_function_with_extended_test_body() -> Result<()> {
-    // bash accepts `[[ ... ]]` (itself a compound command) as a brace-less function
-    // body, e.g. real-world usage in Gentoo Portage's bin/eapi.sh:
+    // bash accepts `[[ ... ]]` (itself a compound command) as a brace-less
+    // function body, e.g. real-world usage in Gentoo Portage's bin/eapi.sh:
     //   ___eapi_has_pkg_pretend() [[ ${1-${EAPI-0}} != [0-3] ]]
     let input = "foo() [[ -n $1 ]]";
     let result = test_with_snapshot(input)?;

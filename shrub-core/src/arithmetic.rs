@@ -2,14 +2,16 @@
 
 use std::borrow::Cow;
 
-use crate::{ExecutionParameters, Shell, env, expansion, extensions, variables};
 use shrub_parser::ast;
+
+use crate::{ExecutionParameters, Shell, env, expansion, extensions, variables};
 
 /// Maximum recursion depth for arithmetic variable dereference chains
 /// (e.g., a=b, b=c, c=a would cycle through variable dereferences).
 const MAX_VARIABLE_DEREF_DEPTH: u32 = 1024;
 
-/// Represents an error that occurs during evaluation of an arithmetic expression.
+/// Represents an error that occurs during evaluation of an arithmetic
+/// expression.
 #[derive(Debug, thiserror::Error)]
 pub enum EvalError {
     /// Division by zero.
@@ -76,7 +78,8 @@ impl ExpandAndEvaluate for ast::UnexpandedArithmeticExpr {
     }
 }
 
-/// Evaluate the given arithmetic expression, returning the resulting numeric value.
+/// Evaluate the given arithmetic expression, returning the resulting numeric
+/// value.
 ///
 /// # Arguments
 ///
@@ -115,7 +118,8 @@ pub(crate) async fn expand_and_eval(
 
 /// Trait implemented by evaluatable arithmetic expressions.
 pub trait Evaluatable {
-    /// Evaluate the given arithmetic expression, returning the resulting numeric value.
+    /// Evaluate the given arithmetic expression, returning the resulting
+    /// numeric value.
     ///
     /// # Arguments
     ///
@@ -404,9 +408,9 @@ const fn bool_to_i64(value: bool) -> i64 {
     if value { 1 } else { 0 }
 }
 
-// N.B. We implement our own version of wrapping_pow that takes a 64-bit exponent.
-// This seems to be the best way to guarantee that we handle overflow cases
-// with exponents correctly.
+// N.B. We implement our own version of wrapping_pow that takes a 64-bit
+// exponent. This seems to be the best way to guarantee that we handle overflow
+// cases with exponents correctly.
 const fn wrapping_pow_u64(mut base: i64, mut exponent: u64) -> i64 {
     let mut result: i64 = 1;
 

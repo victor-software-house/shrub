@@ -1,11 +1,9 @@
 //! PEG-based parser implementation for shell scripts.
 
-use crate::SourceSpan;
+use super::{ParserOptions, Tokens};
 use crate::ast::{self, SeparatorOperator, SourceLocation, maybe_location};
 use crate::tokenizer::Token;
-use crate::word;
-
-use super::{ParserOptions, Tokens};
+use crate::{SourceSpan, word};
 
 peg::parser! {
     pub grammar token_parser<'a>(parser_options: &ParserOptions) for Tokens<'a> {

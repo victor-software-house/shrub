@@ -1,5 +1,5 @@
-use shrub_parser::word;
 use itertools::Itertools;
+use shrub_parser::word;
 
 pub(crate) fn generate_and_combine_brace_expansions(
     pieces: Vec<shrub_parser::word::BraceExpressionOrText>,
@@ -41,9 +41,10 @@ fn expand_brace_expr_member(bem: word::BraceExpressionMember) -> Box<dyn Iterato
                 increment = 1;
             }
 
-            // A bound written with a leading zero asks for every member to be padded
-            // out to the width of the longer bound, so `{01..10}` counts `01 02 ...`
-            // and not `1 2 ...`. The sign takes one of those columns.
+            // A bound written with a leading zero asks for every member to be
+            // padded out to the width of the longer bound, so
+            // `{01..10}` counts `01 02 ...` and not `1 2 ...`. The
+            // sign takes one of those columns.
             let format = move |n: i64| match zero_padded_width {
                 Some(width) => std::format!("{n:0width$}"),
                 None => n.to_string(),

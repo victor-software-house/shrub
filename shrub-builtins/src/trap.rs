@@ -1,6 +1,6 @@
-use clap::Parser;
 use std::io::Write;
 
+use clap::Parser;
 use shrub_core::traps::TrapSignal;
 use shrub_core::{ExecutionResult, builtins};
 
@@ -38,14 +38,16 @@ impl builtins::Command for TrapCommand {
             }
             Ok(ExecutionResult::success())
         } else if self.args.len() == 1 {
-            // When only a single argument is given, it is assumed to be a signal name
-            // and an indication to remove the handlers for that signal.
+            // When only a single argument is given, it is assumed to be a
+            // signal name and an indication to remove the handlers
+            // for that signal.
             let signal = self.args[0].as_str();
             Self::remove_all_handlers(&mut context, signal.parse()?);
             Ok(ExecutionResult::success())
         } else if self.args[0] == "-" {
             // "-" as the first argument indicates that the remaining
-            // arguments are signal names and we need to remove the handlers for them.
+            // arguments are signal names and we need to remove the handlers for
+            // them.
             for signal in &self.args[1..] {
                 Self::remove_all_handlers(&mut context, signal.parse()?);
             }
@@ -103,8 +105,8 @@ impl TrapCommand {
         I: IntoIterator<Item = TrapSignal>,
     {
         // Our new source context is relative to the current position.
-        // TODO(source-info): Provide the location of the specific token that makes up
-        // `self.args[0]`.
+        // TODO(source-info): Provide the location of the specific token that
+        // makes up `self.args[0]`.
         let source_info = context.shell.call_stack().current_pos_as_source_info();
 
         for signal in signals {

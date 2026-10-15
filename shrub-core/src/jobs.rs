@@ -6,13 +6,7 @@ use std::fmt::Display;
 
 use futures::FutureExt;
 
-use crate::ExecutionResult;
-use crate::error;
-use crate::processes;
-use crate::sys;
-use crate::tasks;
-use crate::trace_categories;
-use crate::traps;
+use crate::{ExecutionResult, error, processes, sys, tasks, trace_categories, traps};
 
 pub(crate) type JobResult = (Job, Result<ExecutionResult, error::Error>);
 
@@ -61,10 +55,10 @@ impl JobTask {
         }
     }
 
-    /// Polls the task for completion. Returns `Some(result)` if the task has completed,
-    /// or `None` if it is still running. The result is the execution result of the task.
-    /// Behaves in a best-effort manner; if an internal error occurs during polling,
-    /// it will return `None`.
+    /// Polls the task for completion. Returns `Some(result)` if the task has
+    /// completed, or `None` if it is still running. The result is the
+    /// execution result of the task. Behaves in a best-effort manner; if an
+    /// internal error occurs during polling, it will return `None`.
     fn poll(&mut self) -> Option<Result<ExecutionResult, error::Error>> {
         match self {
             Self::External(process) => {
@@ -181,8 +175,8 @@ impl JobManager {
                 let job = self.jobs.remove(i);
                 results.push((job, result));
             } else if matches!(self.jobs[i].state, JobState::Done) {
-                // TODO(jobs): This is a workaround to remove jobs that are done but for which we
-                // don't know what happened.
+                // TODO(jobs): This is a workaround to remove jobs that are done
+                // but for which we don't know what happened.
                 results.push((self.jobs.remove(i), Ok(ExecutionResult::success())));
             } else {
                 i += 1;
@@ -392,9 +386,11 @@ impl Job {
 
     /// Moves the job to execute in the foreground.
     pub fn move_to_foreground(&mut self) -> Result<(), error::Error> {
-        // The job gets the terminal before it's continued, so that it doesn't find itself in the
-        // background and stop again on reading from the terminal. (Without a terminal, as in a
-        // script that enables job control, there's none to give it, and it's continued anyway.)
+        // The job gets the terminal before it's continued, so that it doesn't
+        // find itself in the background and stop again on reading from
+        // the terminal. (Without a terminal, as in a script that
+        // enables job control, there's none to give it, and it's continued
+        // anyway.)
         if let Some(pgid) = self.own_process_group()
             && let Err(err) = sys::terminal::move_to_foreground(pgid)
         {
@@ -410,15 +406,17 @@ impl Job {
             self.continue_processes()?;
             self.state = JobState::Running;
         } else {
-            // As bash does for `fg`, continue it anyway: it may have been stopped without the
-            // shell noticing yet (e.g., by reading from the terminal in the background).
+            // As bash does for `fg`, continue it anyway: it may have been
+            // stopped without the shell noticing yet (e.g., by
+            // reading from the terminal in the background).
             let _ = self.continue_processes();
         }
 
         Ok(())
     }
 
-    /// Continues the job's stopped processes: all of its process group, if it has one.
+    /// Continues the job's stopped processes: all of its process group, if it
+    /// has one.
     fn continue_processes(&self) -> Result<(), error::Error> {
         if let Some(pgid) = self.own_process_group() {
             sys::signal::continue_process_group(pgid)
@@ -440,8 +438,9 @@ impl Job {
         }
     }
 
-    /// Kills the job: sends the signal to all of its process group, if it has one. A job sent
-    /// SIGTERM or SIGHUP is also continued, so that it acts on it if it's stopped.
+    /// Kills the job: sends the signal to all of its process group, if it has
+    /// one. A job sent SIGTERM or SIGHUP is also continued, so that it acts
+    /// on it if it's stopped.
     ///
     /// # Arguments
     ///
@@ -455,8 +454,9 @@ impl Job {
             return Err(error::ErrorKind::FailedToSendSignal.into());
         }
 
-        // As bash does, continue a stopped job sent SIGTERM or SIGHUP, so that it acts on it;
-        // and one not known to be stopped, which may have stopped without the shell's noticing.
+        // As bash does, continue a stopped job sent SIGTERM or SIGHUP, so that
+        // it acts on it; and one not known to be stopped, which may
+        // have stopped without the shell's noticing.
         if sys::signal::continue_stopped_on(signal) {
             self.continue_job()?;
         }
@@ -479,15 +479,16 @@ impl Job {
         None
     }
 
-    /// Tries to retrieve the process group ID (PGID) of the job: that of its own process group,
-    /// if it has one, or else its representative pid.
+    /// Tries to retrieve the process group ID (PGID) of the job: that of its
+    /// own process group, if it has one, or else its representative pid.
     pub fn process_group_id(&self) -> Option<sys::process::ProcessId> {
         self.own_process_group()
             .or_else(|| self.representative_pid())
     }
 
-    /// Returns the job's own process group, if it has one: under job control, its processes
-    /// run in a group of their own, which needn't be led by the first of them.
+    /// Returns the job's own process group, if it has one: under job control,
+    /// its processes run in a group of their own, which needn't be led by
+    /// the first of them.
     fn own_process_group(&self) -> Option<sys::process::ProcessId> {
         self.tasks.iter().find_map(|task| match task {
             JobTask::External(child) => child.pgid(),

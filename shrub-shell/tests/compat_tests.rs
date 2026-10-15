@@ -5,12 +5,13 @@
 
 #![cfg(any(unix, windows))]
 
+use std::path::{Path, PathBuf};
+
 use anyhow::Result;
+use clap::Parser;
 use shrub_test_harness::{
     OracleConfig, RunnerConfig, ShellConfig, TestMode, TestOptions, TestRunner, WhichShell,
 };
-use clap::Parser;
-use std::path::{Path, PathBuf};
 
 const BASH_CONFIG_NAME: &str = "bash";
 const SH_CONFIG_NAME: &str = "sh";

@@ -89,9 +89,11 @@ pub enum ErrorKind {
     #[error("not yet implemented: {0}")]
     Unimplemented(&'static str),
 
-    /// The requested functionality has not yet been implemented in this shell; it is tracked in a
-    /// GitHub issue.
-    #[error("not yet implemented: {0}; see https://github.com/victor-software-house/shrub/issues/{1}")]
+    /// The requested functionality has not yet been implemented in this shell;
+    /// it is tracked in a GitHub issue.
+    #[error(
+        "not yet implemented: {0}; see https://github.com/victor-software-house/shrub/issues/{1}"
+    )]
     UnimplementedAndTracked(&'static str, u32),
 
     /// An expected environment scope could not be found.
@@ -292,7 +294,8 @@ pub enum ErrorKind {
     #[error("internal shell error: {0}")]
     InternalError(String),
 
-    /// A position to complete at isn't a char boundary in the line being completed.
+    /// A position to complete at isn't a char boundary in the line being
+    /// completed.
     #[error("completion position {0} isn't a char boundary in the input line")]
     InvalidCompletionPosition(usize),
 
@@ -438,12 +441,14 @@ impl Error {
         }
     }
 
-    /// Converts this error into the appropriate control flow based on the shell's current state.
-    /// This centralizes the logic for determining how fatal errors should affect execution flow.
+    /// Converts this error into the appropriate control flow based on the
+    /// shell's current state. This centralizes the logic for determining
+    /// how fatal errors should affect execution flow.
     ///
     /// # Arguments
     ///
-    /// * `shell` - The shell instance, used to check interactive mode and script call stack.
+    /// * `shell` - The shell instance, used to check interactive mode and
+    ///   script call stack.
     pub fn to_control_flow(
         &self,
         shell: &Shell<impl extensions::ShellExtensions>,
@@ -483,12 +488,14 @@ pub fn unimp<T>(msg: &'static str) -> Result<T, Error> {
     Err(ErrorKind::Unimplemented(msg).into())
 }
 
-/// Convenience function for returning an error for *tracked*, unimplemented functionality.
+/// Convenience function for returning an error for *tracked*, unimplemented
+/// functionality.
 ///
 /// # Arguments
 ///
 /// * `msg` - The message to include in the error
-/// * `project_issue_id` - The GitHub issue ID where the implementation is tracked.
+/// * `project_issue_id` - The GitHub issue ID where the implementation is
+///   tracked.
 pub fn unimp_with_issue<T>(msg: &'static str, project_issue_id: u32) -> Result<T, Error> {
     Err(ErrorKind::UnimplementedAndTracked(msg, project_issue_id).into())
 }

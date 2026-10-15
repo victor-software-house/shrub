@@ -1,7 +1,10 @@
 //! Configuration types for the test harness.
 
+use std::collections::HashSet;
+use std::ffi::OsString;
+use std::path::PathBuf;
+
 use clap::Parser;
-use std::{collections::HashSet, ffi::OsString, path::PathBuf};
 
 /// Which shell to use for a test.
 #[derive(Clone, Debug)]
@@ -21,9 +24,9 @@ pub struct ShellConfig {
     pub default_args: Vec<String>,
     /// Default PATH variable for this shell.
     pub default_path_var: Option<String>,
-    /// Optional launcher command to prepend (e.g., `["wasmtime", "run", "--"]` for wasm
-    /// targets). The first element is the program to execute; the rest are leading arguments
-    /// inserted before the shell binary path.
+    /// Optional launcher command to prepend (e.g., `["wasmtime", "run", "--"]`
+    /// for wasm targets). The first element is the program to execute; the
+    /// rest are leading arguments inserted before the shell binary path.
     pub launcher: Option<Vec<String>>,
 }
 
@@ -48,7 +51,8 @@ impl ShellConfig {
         ]);
 
         // Handle systems that store their standard POSIX binaries elsewhere.
-        // For example, NixOS has an interesting set of paths that must be consulted.
+        // For example, NixOS has an interesting set of paths that must be
+        // consulted.
         if let Some(host_path) = std::env::var_os("PATH") {
             for path in std::env::split_paths(&host_path) {
                 if !dirs.contains(&path) && path.join("sh").is_file() {
@@ -313,8 +317,8 @@ impl TestOptions {
 
         // Use the basic input backend where shrub offers it: natively, on Unix.
         // WASI builds (run here under a runtime) and Windows builds don't, so
-        // asking for it would cause a startup error. Omitting it lets shrub pick
-        // its own default (Minimal, when input isn't a terminal).
+        // asking for it would cause a startup error. Omitting it lets shrub
+        // pick its own default (Minimal, when input isn't a terminal).
         let tags = self.platform_tags();
         if !tags.contains("wasi") && !tags.contains("windows") {
             default_args.push("--input-backend=basic".into());

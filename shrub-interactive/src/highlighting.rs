@@ -111,12 +111,14 @@ impl<'a> Highlighted<'a> {
 /// Highlights a shell command string.
 ///
 /// # Arguments
-/// * `shell` - Reference to the shell for context (aliases, functions, builtins, etc.)
+/// * `shell` - Reference to the shell for context (aliases, functions,
+///   builtins, etc.)
 /// * `line` - The command string to highlight
 /// * `cursor` - Current cursor position (byte offset)
 ///
 /// # Returns
-/// The highlighted line: spans covering the entire input, paired with the input.
+/// The highlighted line: spans covering the entire input, paired with the
+/// input.
 #[must_use]
 pub fn highlight_command<'a>(
     shell: &shrub_core::Shell<impl shrub_core::ShellExtensions>,
@@ -143,7 +145,8 @@ enum CommandType {
 
 struct Highlighter<'a, SE: shrub_core::ShellExtensions> {
     shell: &'a shrub_core::Shell<SE>,
-    /// The topmost input line; span offsets stored in `spans` index into this string.
+    /// The topmost input line; span offsets stored in `spans` index into this
+    /// string.
     input_line: &'a str,
     cursor: usize,
     spans: Vec<HighlightSpan>,
@@ -170,9 +173,11 @@ impl<'a, SE: shrub_core::ShellExtensions> Highlighter<'a, SE> {
         ) {
             let mut saw_command_token = false;
 
-            // Tokenizer offsets are *character* indices into `line`; slicing needs bytes.
-            // `char_indices()` gives the byte offset of each char, plus a sentinel for the
-            // end, so a lookup is O(1) and the whole line costs one pass (not O(n²)).
+            // Tokenizer offsets are *character* indices into `line`; slicing
+            // needs bytes. `char_indices()` gives the byte offset
+            // of each char, plus a sentinel for the
+            // end, so a lookup is O(1) and the whole line costs one pass (not
+            // O(n²)).
             let char_byte_offsets: Vec<usize> = line
                 .char_indices()
                 .map(|(byte_idx, _)| byte_idx)
@@ -196,9 +201,11 @@ impl<'a, SE: shrub_core::ShellExtensions> Highlighter<'a, SE> {
                         let start_byte = byte_offset(token_location.start.index);
                         let end_byte = byte_offset(token_location.end.index);
 
-                        // Parse the raw slice from `line`, not `w.as_str()`: the tokenizer may
-                        // drop chars from `w` (e.g. `\<newline>` continuations), so offsets into
-                        // `w` no longer map onto `line`; offsets into the raw slice do.
+                        // Parse the raw slice from `line`, not `w.as_str()`:
+                        // the tokenizer may drop chars
+                        // from `w` (e.g. `\<newline>` continuations), so
+                        // offsets into `w` no longer
+                        // map onto `line`; offsets into the raw slice do.
                         let raw_word_text = line.get(start_byte..end_byte).unwrap_or("");
                         if let Ok(word_pieces) =
                             shrub_parser::word::parse(raw_word_text, &self.shell.parser_options())
@@ -206,8 +213,10 @@ impl<'a, SE: shrub_core::ShellExtensions> Highlighter<'a, SE> {
                             let token_range =
                                 (global_offset + start_byte)..(global_offset + end_byte);
 
-                            // Classify against the tokenized form `w` (the logical word) so
-                            // command lookups ignore mid-word line continuations.
+                            // Classify against the tokenized form `w` (the
+                            // logical word) so
+                            // command lookups ignore mid-word line
+                            // continuations.
                             let default_text_kind = self.get_kind_for_word(
                                 w.as_str(),
                                 &token_range,
@@ -277,8 +286,8 @@ impl<'a, SE: shrub_core::ShellExtensions> Highlighter<'a, SE> {
                 self.set_next_missing_kind(HighlightKind::CommandSubstitution);
             }
             shrub_parser::word::WordPiece::ArithmeticExpression(_) => {
-                // TODO(highlighting): Consider individually highlighting pieces of the expression
-                // itself.
+                // TODO(highlighting): Consider individually highlighting pieces
+                // of the expression itself.
                 self.append_span(HighlightKind::Arithmetic, piece.clone());
             }
             shrub_parser::word::WordPiece::Text(_text) => {
@@ -303,7 +312,8 @@ impl<'a, SE: shrub_core::ShellExtensions> Highlighter<'a, SE> {
             self.input_line,
         );
 
-        // See if we need to cover a gap between this substring and the one that preceded it.
+        // See if we need to cover a gap between this substring and the one that
+        // preceded it.
         if range.start > self.current_byte_index {
             let missing_kind = self.next_missing_kind.unwrap_or(HighlightKind::Comment);
             self.spans.push(HighlightSpan::new(
@@ -322,8 +332,8 @@ impl<'a, SE: shrub_core::ShellExtensions> Highlighter<'a, SE> {
     }
 
     fn skip_ahead(&mut self, dest: usize) {
-        // Append a no-op span to make sure we cover any trailing gaps in the input line not
-        // otherwise styled.
+        // Append a no-op span to make sure we cover any trailing gaps in the
+        // input line not otherwise styled.
         self.append_span(HighlightKind::Default, dest..dest);
     }
 
@@ -378,8 +388,9 @@ impl<'a, SE: shrub_core::ShellExtensions> Highlighter<'a, SE> {
             return CommandType::Builtin;
         }
 
-        // Short-circuit if the cursor is still in this token (inclusive of its end, so a
-        // command still being typed isn't prematurely flagged as not-found).
+        // Short-circuit if the cursor is still in this token (inclusive of its
+        // end, so a command still being typed isn't prematurely flagged
+        // as not-found).
         if self.cursor >= token_range.start && self.cursor <= token_range.end {
             return CommandType::Unknown;
         }
@@ -420,7 +431,8 @@ mod tests {
         let total_covered: usize = highlighted.spans().iter().map(|s| s.range.len()).sum();
         assert_eq!(total_covered, line.len(), "Spans should cover entire input");
 
-        // The command should be classified as something (NotFound, External, etc.)
+        // The command should be classified as something (NotFound, External,
+        // etc.)
         let cmd_span = highlighted
             .spans()
             .iter()
@@ -532,8 +544,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_highlight_multibyte_chars_in_word_does_not_panic() {
-        // Regression: a multibyte word followed by another token used to panic from
-        // mixing char indices (tokenizer) with byte indices (word parser).
+        // Regression: a multibyte word followed by another token used to panic
+        // from mixing char indices (tokenizer) with byte indices (word
+        // parser).
         let shell = shrub_core::Shell::builder().build().await.unwrap();
         let line = ": 爸爸 /";
         let highlighted = highlight_command(&shell, line, line.len());
@@ -551,7 +564,8 @@ mod tests {
             .char_indices()
             .chain(std::iter::once((full.len(), ' ')))
         {
-            // `boundary` is sourced from char_indices(), so slicing is on a char boundary.
+            // `boundary` is sourced from char_indices(), so slicing is on a
+            // char boundary.
             #[allow(clippy::string_slice)]
             let line = &full[..boundary];
             let highlighted = highlight_command(&shell, line, line.len());
@@ -582,10 +596,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_highlight_issue_1128_multibyte_then_paren() {
-        // Regression for #1128: a 2-byte char immediately followed by `(` panicked
-        // because the operator's char index was sliced as a byte offset, landing
-        // mid-character. Exercise the reported chars, including the keystroke-by-
-        // keystroke sequence (the char alone, then the char + `(`).
+        // Regression for #1128: a 2-byte char immediately followed by `(`
+        // panicked because the operator's char index was sliced as a
+        // byte offset, landing mid-character. Exercise the reported
+        // chars, including the keystroke-by- keystroke sequence (the
+        // char alone, then the char + `(`).
         let shell = shrub_core::Shell::builder().build().await.unwrap();
         for prefix in ["£", "€", "é", "½", "§", "²", "ï", "¤", "…"] {
             for line in [prefix.to_string(), format!("{prefix}(")] {

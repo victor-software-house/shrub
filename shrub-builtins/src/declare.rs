@@ -1,16 +1,15 @@
+use std::io::Write;
+use std::sync::LazyLock;
+
 use clap::Parser;
 use itertools::Itertools;
-use std::{io::Write, sync::LazyLock};
-
-use shrub_core::{
-    ErrorKind, ExecutionResult, builtins,
-    env::{self, EnvironmentLookup, EnvironmentScope},
-    parser::ast,
-    variables::{
-        self, ArrayLiteral, ShellValue, ShellValueLiteral, ShellValueUnsetType, ShellVariable,
-        ShellVariableUpdateTransform,
-    },
+use shrub_core::env::{self, EnvironmentLookup, EnvironmentScope};
+use shrub_core::parser::ast;
+use shrub_core::variables::{
+    self, ArrayLiteral, ShellValue, ShellValueLiteral, ShellValueUnsetType, ShellVariable,
+    ShellVariableUpdateTransform,
 };
+use shrub_core::{ErrorKind, ExecutionResult, builtins};
 
 crate::minus_or_plus_flag_arg!(
     MakeIndexedArrayFlag,
@@ -63,8 +62,9 @@ pub(crate) struct DeclareCommand {
     #[arg(short = 'g')]
     create_global: bool,
 
-    /// When creating a local variable that shadows another variable of the same name,
-    /// then initialize it with the contents and attributes of the variable being shadowed.
+    /// When creating a local variable that shadows another variable of the same
+    /// name, then initialize it with the contents and attributes of the
+    /// variable being shadowed.
     #[arg(short = 'I')]
     locals_inherit_from_prev_scope: bool,
 
@@ -203,7 +203,8 @@ impl DeclareCommand {
                 }
                 Ok(true)
             } else {
-                // For some reason, bash does not print an error message in this case.
+                // For some reason, bash does not print an error message in this
+                // case.
                 Ok(false)
             }
         } else if let Some(variable) = context.shell.env().get_using_policy(name, lookup) {
@@ -232,8 +233,9 @@ impl DeclareCommand {
         }
     }
 
-    /// `declare -f` with attribute flags applies them to the named function rather than
-    /// displaying it (e.g. `declare -ft name`, `declare -fx name`).
+    /// `declare -f` with attribute flags applies them to the named function
+    /// rather than displaying it (e.g. `declare -ft name`, `declare -fx
+    /// name`).
     fn apply_function_attributes(
         &self,
         context: &mut shrub_core::ExecutionContext<'_, impl shrub_core::ShellExtensions>,
@@ -244,7 +246,8 @@ impl DeclareCommand {
             shrub_core::CommandArg::Assignment(_) => None,
         };
 
-        // As with display, bash reports failure without printing an error message here.
+        // As with display, bash reports failure without printing an error
+        // message here.
         let Some(func) = func else {
             return false;
         };
@@ -255,7 +258,8 @@ impl DeclareCommand {
             None => (),
         }
 
-        // TODO(declare): function tracing (-t) isn't tracked; it's accepted silently.
+        // TODO(declare): function tracing (-t) isn't tracked; it's accepted
+        // silently.
         true
     }
 
@@ -280,14 +284,16 @@ impl DeclareCommand {
             return self.try_display_declaration(context, declaration, verb);
         }
 
-        // Extract the variable name and the initial value being assigned (if any).
+        // Extract the variable name and the initial value being assigned (if
+        // any).
         let (name, assigned_index, initial_value, name_is_array, append) =
             Self::declaration_to_name_and_value(declaration)?;
 
         // Special-case: `local -`
         if name == "-" && matches!(verb, DeclareVerb::Local) {
-            // TODO(local): `local -` allows shadowing the current `set` options (i.e., $-), with
-            // subsequent updates getting discarded when the current local scope is popped.
+            // TODO(local): `local -` allows shadowing the current `set` options
+            // (i.e., $-), with subsequent updates getting discarded
+            // when the current local scope is popped.
             tracing::warn!("not yet implemented: local -");
             return Ok(true);
         }
@@ -424,8 +430,9 @@ impl DeclareCommand {
 
         match declaration {
             shrub_core::CommandArg::String(s) => {
-                // We need to handle the case of someone invoking `declare array[index]`.
-                // In such case, we ignore the index and treat it as a declaration of
+                // We need to handle the case of someone invoking `declare
+                // array[index]`. In such case, we ignore the
+                // index and treat it as a declaration of
                 // the array.
                 #[allow(
                     clippy::unwrap_in_result,
@@ -508,7 +515,8 @@ impl DeclareCommand {
         verb: DeclareVerb,
     ) -> Result<(), shrub_core::Error> {
         //
-        // Dump all declarations. Use attribute flags to filter which variables are dumped.
+        // Dump all declarations. Use attribute flags to filter which variables
+        // are dumped.
         //
 
         // We start by excluding all variables that are not enumerable.
@@ -578,8 +586,8 @@ impl DeclareCommand {
             EnvironmentLookup::Anywhere
         };
 
-        // Iterate through an ordered list of all matching declarations tracked in the
-        // environment.
+        // Iterate through an ordered list of all matching declarations tracked
+        // in the environment.
         for (name, variable) in context
             .shell
             .env()

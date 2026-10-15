@@ -1,7 +1,7 @@
-use std::{collections::HashMap, io::Write};
+use std::collections::HashMap;
+use std::io::Write;
 
 use clap::Parser;
-
 use shrub_core::{ExecutionResult, builtins, env, variables};
 
 /// Parse command options.
@@ -18,21 +18,25 @@ pub(crate) struct GetOptsCommand {
     args: Vec<String>,
 }
 
-// We track cross-call state in special variables. They are hidden from enumeration
-// (e.g. `set`, `declare`) so they don't leak into scripts' environments.
+// We track cross-call state in special variables. They are hidden from
+// enumeration (e.g. `set`, `declare`) so they don't leak into scripts'
+// environments.
 const VAR_GETOPTS_NEXT_CHAR_INDEX: &str = "__GETOPTS_NEXT_CHAR";
 const VAR_GETOPTS_LAST_OPTIND: &str = "__GETOPTS_LAST_OPTIND";
 const DEFAULT_NEXT_CHAR_INDEX: usize = 1;
 
 /// The result of processing one option from the argument list.
 struct GetOptsResult {
-    /// The value to assign to the target variable (the option char, `?`, or `:`).
+    /// The value to assign to the target variable (the option char, `?`, or
+    /// `:`).
     variable_value: String,
-    /// The value for OPTARG, if any (option's argument or, on error, the offending char).
+    /// The value for OPTARG, if any (option's argument or, on error, the
+    /// offending char).
     optarg: Option<String>,
     /// The new value for OPTIND after this call.
     optind: usize,
-    /// Exit code: success (0) if an option was found, general error (1) when done.
+    /// Exit code: success (0) if an option was found, general error (1) when
+    /// done.
     exit_code: ExecutionResult,
 }
 
@@ -45,9 +49,10 @@ struct OptionSpec {
     silent_errors: bool,
 }
 
-/// Parses the optstring into an [`OptionSpec`]. A leading `:` enables silent error
-/// mode. Each letter defines an option; a `:` immediately after a letter means it
-/// takes an argument. Duplicate letters are ignored (first definition wins).
+/// Parses the optstring into an [`OptionSpec`]. A leading `:` enables silent
+/// error mode. Each letter defines an option; a `:` immediately after a letter
+/// means it takes an argument. Duplicate letters are ignored (first definition
+/// wins).
 fn parse_option_spec(spec: &str) -> OptionSpec {
     let mut defs = HashMap::<char, bool>::new();
     let mut silent_errors = false;
@@ -69,7 +74,8 @@ fn parse_option_spec(spec: &str) -> OptionSpec {
             last_char = Some(c);
         } else {
             // Duplicate option char; first definition wins.
-            // Clear last_char so a trailing colon doesn't modify the first definition.
+            // Clear last_char so a trailing colon doesn't modify the first
+            // definition.
             last_char = None;
         }
     }
@@ -83,9 +89,10 @@ fn parse_option_spec(spec: &str) -> OptionSpec {
 impl builtins::Command for GetOptsCommand {
     type Error = shrub_core::Error;
 
-    /// Override the default [`builtins::Command::new`] function to handle clap's limitation related
-    /// to `--`. See [`builtins::parse_known`] for more information
-    /// TODO(command): we can safely remove this after the issue is resolved
+    /// Override the default [`builtins::Command::new`] function to handle
+    /// clap's limitation related to `--`. See [`builtins::parse_known`] for
+    /// more information TODO(command): we can safely remove this after the
+    /// issue is resolved
     fn new<I>(args: I) -> Result<Self, clap::Error>
     where
         I: IntoIterator<Item = String>,
@@ -246,13 +253,13 @@ fn parse_next_option<SE: shrub_core::ShellExtensions>(
     }
 
     let optind = if is_last_char_in_option {
-        // We're done with this argument, so unset the internal char index variable
-        // and request an update to OPTIND.
+        // We're done with this argument, so unset the internal char index
+        // variable and request an update to OPTIND.
         context.shell.env_mut().unset(VAR_GETOPTS_NEXT_CHAR_INDEX)?;
         next_index + 1
     } else {
-        // We have more to go in this argument, so update the internal char index
-        // and request that OPTIND not be updated.
+        // We have more to go in this argument, so update the internal char
+        // index and request that OPTIND not be updated.
         context.shell.env_mut().update_or_add(
             VAR_GETOPTS_NEXT_CHAR_INDEX,
             variables::ShellValueLiteral::Scalar((next_char_index + 1).to_string()),
@@ -288,7 +295,8 @@ fn resolve_option_argument<SE: shrub_core::ShellExtensions>(
     mut next_index: usize,
 ) -> Result<(String, Option<String>, bool, usize), shrub_core::Error> {
     // If this is the last character in the token, the argument value comes from
-    // the next token. Otherwise, the remainder of the current token is the value.
+    // the next token. Otherwise, the remainder of the current token is the
+    // value.
     if is_last_char_in_option {
         if next_index >= args_to_parse.len() {
             // Missing required argument.
@@ -390,8 +398,8 @@ fn update_variables<SE: shrub_core::ShellExtensions>(
     Ok(result.exit_code)
 }
 
-/// Returns whether OPTERR is enabled (i.e., getopts should print error messages).
-/// OPTERR defaults to 1; any nonzero value means errors are enabled.
+/// Returns whether OPTERR is enabled (i.e., getopts should print error
+/// messages). OPTERR defaults to 1; any nonzero value means errors are enabled.
 fn is_opterr_enabled<SE: shrub_core::ShellExtensions>(
     context: &shrub_core::ExecutionContext<'_, SE>,
 ) -> bool {

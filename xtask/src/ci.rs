@@ -1,6 +1,7 @@
 //! CI workflow commands that aggregate multiple checks and tests.
 //!
-//! This module provides composite workflows that run multiple checks in sequence:
+//! This module provides composite workflows that run multiple checks in
+//! sequence:
 //!
 //! ## Quick workflow (`cargo xtask ci quick`)
 //!
@@ -20,14 +21,14 @@
 //! 3. **Schema check** - Verifies generated schemas are up-to-date
 //! 4. **Integration tests** - Full workspace tests including compat tests
 //!
-//! The ordering is intentional: fast checks run first to provide quick feedback,
-//! with slower comprehensive tests running last.
+//! The ordering is intentional: fast checks run first to provide quick
+//! feedback, with slower comprehensive tests running last.
 //!
-//! `ci full` reproduces every CI check that does not need a different machine or
-//! toolchain. What it deliberately does not cover, because CI alone can: the
-//! three-OS matrix, the MSRV toolchain, cross-compilation, coverage, benchmarks,
-//! the bash-completion suite, the nightly-only `check unused-deps` and
-//! `analyze public-api`, `CodeQL`, and SARIF upload.
+//! `ci full` reproduces every CI check that does not need a different machine
+//! or toolchain. What it deliberately does not cover, because CI alone can: the
+//! three-OS matrix, the MSRV toolchain, cross-compilation, coverage,
+//! benchmarks, the bash-completion suite, the nightly-only `check unused-deps`
+//! and `analyze public-api`, `CodeQL`, and SARIF upload.
 
 use anyhow::Result;
 use clap::Parser;
@@ -50,7 +51,8 @@ pub enum CiCommand {
     /// git hook runs.
     Quick(QuickArgs),
 
-    /// Run the full workflow: quick + pre-commit hooks, schemas, integration tests (~60s warm).
+    /// Run the full workflow: quick + pre-commit hooks, schemas, integration
+    /// tests (~60s warm).
     ///
     /// This runs every check that should pass before opening a pull request.
     /// Requires `prek` in addition to the Rust toolchain; pass `--no-hooks`

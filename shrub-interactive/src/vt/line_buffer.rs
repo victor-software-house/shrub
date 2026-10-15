@@ -38,8 +38,8 @@ impl LineBuffer {
         self.move_to(cursor);
     }
 
-    /// Moves the cursor to byte offset `cursor` (clamped to a character boundary
-    /// within the text).
+    /// Moves the cursor to byte offset `cursor` (clamped to a character
+    /// boundary within the text).
     pub fn move_to(&mut self, cursor: usize) {
         let mut cursor = cursor.min(self.text.len());
         while !self.text.is_char_boundary(cursor) {
@@ -53,8 +53,8 @@ impl LineBuffer {
         self.cursor += s.len();
     }
 
-    /// Replaces the text in `range` with `replacement`, leaving the cursor just after
-    /// it.
+    /// Replaces the text in `range` with `replacement`, leaving the cursor just
+    /// after it.
     pub fn replace(&mut self, range: Range<usize>, replacement: &str) {
         self.text.replace_range(range.clone(), replacement);
         self.cursor = range.start + replacement.len();
@@ -95,12 +95,14 @@ impl LineBuffer {
         self.cursor = self.word_end_after(is_word_char);
     }
 
-    /// Deletes from the start of the line to the cursor, returning what was deleted.
+    /// Deletes from the start of the line to the cursor, returning what was
+    /// deleted.
     pub fn kill_to_start(&mut self) -> String {
         self.kill(0..self.cursor)
     }
 
-    /// Deletes from the cursor to the end of the line, returning what was deleted.
+    /// Deletes from the cursor to the end of the line, returning what was
+    /// deleted.
     pub fn kill_to_end(&mut self) -> String {
         self.kill(self.cursor..self.text.len())
     }
@@ -124,9 +126,9 @@ impl LineBuffer {
         self.kill(self.cursor..end)
     }
 
-    /// Swaps the characters before and at the cursor (or the two before it, at the
-    /// end of the line), and moves the cursor past them. Does nothing unless there
-    /// are two characters to swap.
+    /// Swaps the characters before and at the cursor (or the two before it, at
+    /// the end of the line), and moves the cursor past them. Does nothing
+    /// unless there are two characters to swap.
     pub fn transpose(&mut self) {
         let b = if self.cursor == self.text.len() {
             self.prev_char_boundary(self.cursor)
@@ -149,7 +151,8 @@ impl LineBuffer {
         killed
     }
 
-    /// Returns the start of the char before byte offset `pos`, or 0 at the start.
+    /// Returns the start of the char before byte offset `pos`, or 0 at the
+    /// start.
     fn prev_char_boundary(&self, pos: usize) -> usize {
         self.text[..pos]
             .char_indices()
@@ -174,8 +177,8 @@ impl LineBuffer {
             .len()
     }
 
-    /// Finds the end of the word after the cursor: skips over non-word chars, then
-    /// over word chars.
+    /// Finds the end of the word after the cursor: skips over non-word chars,
+    /// then over word chars.
     fn word_end_after(&self, in_word: impl Fn(char) -> bool) -> usize {
         let rest = self.text[self.cursor..]
             .trim_start_matches(|c| !in_word(c))
@@ -332,7 +335,8 @@ mod tests {
     #[test]
     fn edits_a_character_at_a_time_even_when_characters_combine() {
         // Like readline, the cursor moves over, and backspace deletes, one
-        // character: an accent that combines with the letter before it is one too.
+        // character: an accent that combines with the letter before it is one
+        // too.
         let mut b = buffer("e\u{301}|x");
         b.backspace();
         assert_eq!(marked(&b), "e|x");

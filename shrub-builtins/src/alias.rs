@@ -1,7 +1,7 @@
-use clap::Parser;
-use itertools::Itertools;
 use std::io::Write;
 
+use clap::Parser;
+use itertools::Itertools;
 use shrub_core::{ExecutionResult, builtins};
 
 use crate::write_alias_definition;

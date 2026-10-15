@@ -1,4 +1,5 @@
-use std::{fmt::Display, sync::Arc};
+use std::fmt::Display;
+use std::sync::Arc;
 
 /// Represents a position in source text.
 #[derive(Clone, Default, Debug)]
@@ -23,7 +24,8 @@ impl Display for SourcePosition {
 }
 
 impl SourcePosition {
-    /// Returns a new `SourcePosition` offset by the given `SourcePositionOffset`.
+    /// Returns a new `SourcePosition` offset by the given
+    /// `SourcePositionOffset`.
     ///
     /// # Arguments
     ///

@@ -13,10 +13,8 @@ use super::line_editor::{Action, KillBuffer, LineEditor, SearchStep, is_kill};
 use super::render::printable;
 use super::style::Style;
 use super::terminal::Terminal;
-use crate::{
-    ShellError, completeness,
-    input_backend::{InteractivePrompt, ReadResult},
-};
+use crate::input_backend::{InteractivePrompt, ReadResult};
+use crate::{ShellError, completeness};
 
 /// Width to assume for a terminal that doesn't report one.
 const DEFAULT_COLUMNS: usize = 80;
@@ -33,15 +31,16 @@ const MAX_MACRO_EXPANSIONS: usize = 100;
 pub(crate) struct LineReader {
     pub style: Style,
     pub bindings: Arc<Mutex<VtKeyBindings>>,
-    /// The line being edited when a bound key was pressed, while its command runs.
+    /// The line being edited when a bound key was pressed, while its command
+    /// runs.
     pub bound_line: Option<(String, usize)>,
     /// The line to start the next read with (e.g., as left by a bound command).
     pub next_line: Option<(String, usize)>,
     /// The lines of a program entered before a bound key was pressed, to go on
     /// with once its command has run.
     unfinished_program: String,
-    /// Whether the line was erased for a bound command, to be drawn again in its
-    /// place once the command has run.
+    /// Whether the line was erased for a bound command, to be drawn again in
+    /// its place once the command has run.
     redraw_in_place: bool,
     keys: KeyReader,
     kills: KillBuffer,
@@ -111,21 +110,22 @@ impl LineReader {
         terminal: &mut impl Terminal,
         out: &mut (impl Write + Send),
     ) -> Result<LineResult, ShellError> {
-        // Only the prompt's last line is redrawn with the input; the rest is shown
-        // once, and again only when the line is drawn afresh.
+        // Only the prompt's last line is redrawn with the input; the rest is
+        // shown once, and again only when the line is drawn afresh.
         let (prompt_above, prompt) = match prompt.rsplit_once('\n') {
             Some((above, last)) => (printable(above), last),
             None => (String::new(), prompt),
         };
-        // The terminal's width is read once per line, not on every redraw: a line
-        // being entered while the terminal is resized is drawn for the old width
-        // until the next line.
+        // The terminal's width is read once per line, not on every redraw: a
+        // line being entered while the terminal is resized is drawn for
+        // the old width until the next line.
         let columns = columns(terminal);
         let mut editor = LineEditor::new(prompt, prompt_above, self.style);
-        // Output (e.g., from the last command) may not have ended with a newline.
+        // Output (e.g., from the last command) may not have ended with a
+        // newline.
         editor.start_on_own_row(out, columns)?;
-        // A line erased for a bound command is drawn again in its place, below the
-        // rest of the prompt, which is still shown.
+        // A line erased for a bound command is drawn again in its place, below
+        // the rest of the prompt, which is still shown.
         if !std::mem::take(&mut self.redraw_in_place) {
             editor.show_prompt_above(out)?;
         }
@@ -143,8 +143,9 @@ impl LineReader {
                 self.macro_expansions = 0;
             }
 
-            // As at a terminal's own line editing, whatever they're bound to, Ctrl-C
-            // interrupts, and Ctrl-D on an empty line ends input.
+            // As at a terminal's own line editing, whatever they're bound to,
+            // Ctrl-C interrupts, and Ctrl-D on an empty line ends
+            // input.
             if key.bytes == [0x03] {
                 // Leave the interrupted line as it was, marked as such.
                 editor.buffer.end();
@@ -208,9 +209,9 @@ impl LineReader {
         }
     }
 
-    /// Works out what a pressed key does, given the key bindings, reading more keys
-    /// if it starts a bound sequence. Returns `None` if the keys were bound to a
-    /// macro, whose keys are then the next to act on.
+    /// Works out what a pressed key does, given the key bindings, reading more
+    /// keys if it starts a bound sequence. Returns `None` if the keys were
+    /// bound to a macro, whose keys are then the next to act on.
     async fn resolve(
         &mut self,
         first: Keypress,
@@ -229,8 +230,9 @@ impl LineReader {
                 break;
             }
 
-            // A longer bound sequence starts with the keys held. If they're bound
-            // themselves, wait only a little for the next, as readline does.
+            // A longer bound sequence starts with the keys held. If they're
+            // bound themselves, wait only a little for the next, as
+            // readline does.
             let next = if bound.as_ref().is_some_and(|(len, _)| *len == held.len()) {
                 self.keys.next_within(terminal, KEYSEQ_TIMEOUT)?
             } else {
@@ -242,8 +244,8 @@ impl LineReader {
             held.push(next);
         }
 
-        // Keys held past the bound sequence (or past the first, if none is bound)
-        // are acted on next.
+        // Keys held past the bound sequence (or past the first, if none is
+        // bound) are acted on next.
         let used = bound.as_ref().map_or(1, |(len, _)| *len);
         let rest = held.split_off(used);
         self.keys.push_front(rest);
@@ -476,9 +478,9 @@ mod tests {
         read_with(reader, shell, "$ ", vec![data(keys)]).await
     }
 
-    /// Plays what was drawn on an 80-column terminal, translating newlines to CR
-    /// LF as terminals do in raw mode; returns the rows it then shows, up to the
-    /// last that isn't blank, and the cursor's row and column.
+    /// Plays what was drawn on an 80-column terminal, translating newlines to
+    /// CR LF as terminals do in raw mode; returns the rows it then shows,
+    /// up to the last that isn't blank, and the cursor's row and column.
     fn shown(drawn: &str) -> (Vec<String>, (u16, u16)) {
         let mut terminal = vt100::Parser::new(24, 80, 0);
         terminal.process(drawn.replace('\n', "\r\n").as_bytes());
@@ -649,7 +651,8 @@ mod tests {
         .await;
         assert_eq!(outcome, input("界\n"));
 
-        // The rest of an escape sequence that arrives later is still part of it.
+        // The rest of an escape sequence that arrives later is still part of
+        // it.
         let (outcome, _) = read_with(
             &mut reader(),
             &shell,
@@ -659,8 +662,8 @@ mod tests {
         .await;
         assert_eq!(outcome, input("axb\n"));
 
-        // But after a pause, Escape is the Escape key, which does nothing, and what
-        // follows is typed.
+        // But after a pause, Escape is the Escape key, which does nothing, and
+        // what follows is typed.
         let (outcome, _) = read_with(
             &mut reader(),
             &shell,
@@ -722,8 +725,9 @@ mod tests {
         let shell = shell().await;
         let prompt = "info\n$ ";
 
-        // The line's erased while the command runs, then drawn again where it was,
-        // below what the command wrote, if anything, and the rest of the prompt.
+        // The line's erased while the command runs, then drawn again where it
+        // was, below what the command wrote, if anything, and the rest
+        // of the prompt.
         for (written, rows) in [
             ("", vec!["info", "$ ab"]),
             ("out\n", vec!["info", "out", "$ ab"]),
@@ -743,8 +747,8 @@ mod tests {
             assert_eq!(shown(&drawn).0, rows);
         }
 
-        // Without cursor addressing, the line's left as it was, and drawn afresh
-        // below.
+        // Without cursor addressing, the line's left as it was, and drawn
+        // afresh below.
         let mut reader = basic_reader();
         bind_command(&reader, vec![ctrl('x')], "cmd").await;
         let (_, mut drawn) = read_with(&mut reader, &shell, prompt, vec![data(b"ab\x18")]).await;
@@ -760,8 +764,8 @@ mod tests {
         bind_command(&reader, vec![ctrl('x')], "cmd").await;
         let shell = shell().await;
 
-        // The command sees just the line it was run from, and the program goes on
-        // from there once it's run.
+        // The command sees just the line it was run from, and the program goes
+        // on from there once it's run.
         let (outcome, mut drawn) = read(&mut reader, &shell, b"if true; then\rf\x18").await;
         assert_eq!(outcome, Outcome::Bound("cmd".to_owned()));
         assert_eq!(reader.bound_line, Some(("f".to_owned(), 1)));
@@ -823,7 +827,8 @@ mod tests {
     #[tokio::test]
     async fn binds_keys_that_send_the_same_bytes_as_others() {
         let mut reader = reader();
-        // `bind '"\C-]": ...'`, and a key readline knows as Ctrl-H, not Backspace.
+        // `bind '"\C-]": ...'`, and a key readline knows as Ctrl-H, not
+        // Backspace.
         bind_command(&reader, vec![ctrl(']')], "bracket").await;
         bind(
             &reader,
@@ -897,8 +902,8 @@ mod tests {
         let (outcome, _) = read(&mut reader, &shell, b"\x18z\r").await;
         assert_eq!(outcome, input("z\n"));
 
-        // When a longer sequence falls through, what follows its first key may still
-        // be bound.
+        // When a longer sequence falls through, what follows its first key may
+        // still be bound.
         let (outcome, _) = read(&mut reader, &shell, b"\x18\x18e").await;
         assert_eq!(outcome, Outcome::Bound("edit".to_owned()));
     }
@@ -924,8 +929,8 @@ mod tests {
             read_chunks(&mut reader, vec![data(b"\x18"), Chunk::Pause]).await,
             Outcome::Bound("short".to_owned())
         );
-        // A key that doesn't continue the sequence comes after the shorter one's
-        // command.
+        // A key that doesn't continue the sequence comes after the shorter
+        // one's command.
         assert_eq!(
             read_chunks(&mut reader, vec![data(b"\x18z\r")]).await,
             Outcome::Bound("short".to_owned())
@@ -947,8 +952,9 @@ mod tests {
         assert_eq!(outcome, input("cmd alpha\n"));
         assert!(!drawn.contains('\x07'), "{drawn:?}");
 
-        // With nothing to extend, the first Tab rings the bell and a second lists the
-        // candidates, below the line, which is then drawn again.
+        // With nothing to extend, the first Tab rings the bell and a second
+        // lists the candidates, below the line, which is then drawn
+        // again.
         let (outcome, drawn) = read(&mut reader(), &shell, b"cmd alpha\t\t\r").await;
         assert_eq!(outcome, input("cmd alpha\n"));
         assert_eq!(drawn.matches('\x07').count(), 1, "{drawn:?}");
@@ -1020,8 +1026,8 @@ mod tests {
             vec![data("\x12café\x02!\r")],
         )
         .await;
-        // The match is shown with the cursor at its start; Ctrl-B ends the search
-        // and moves back a character from there.
+        // The match is shown with the cursor at its start; Ctrl-B ends the
+        // search and moves back a character from there.
         assert_eq!(outcome, input("naïve! café\n"));
         assert!(
             drawn.contains("(reverse-i-search)`café': naïve café"),

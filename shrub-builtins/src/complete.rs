@@ -1,11 +1,12 @@
-use clap::{Parser, builder::TypedValueParser as _};
 use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::io::Write;
-use strum::{EnumMessage, IntoEnumIterator};
 
+use clap::Parser;
+use clap::builder::TypedValueParser as _;
 use shrub_core::completion::{self, CompleteAction, CompleteOption, Spec, SpecName, SpecialSpec};
 use shrub_core::{ExecutionExitCode, ExecutionResult, builtins, escape};
+use strum::{EnumMessage, IntoEnumIterator};
 
 #[derive(Parser)]
 struct CommonCompleteCommandArgs {
@@ -51,7 +52,8 @@ struct CommonCompleteCommandArgs {
 }
 
 /// Returns a parser for the name of one of `E`'s variants (e.g. `alias` for
-/// [`CompleteAction::Alias`]), which lists the names, and describes each with its docs.
+/// [`CompleteAction::Alias`]), which lists the names, and describes each with
+/// its docs.
 fn name_parser<E>() -> impl clap::builder::TypedValueParser<Value = E>
 where
     E: IntoEnumIterator + EnumMessage + std::str::FromStr + Clone + Send + Sync + 'static,
@@ -65,15 +67,16 @@ where
     clap::builder::PossibleValuesParser::new(names).try_map(|name| name.parse::<E>())
 }
 
-/// Returns the help for `variant`: its docs, without a trailing period, as clap shows help.
+/// Returns the help for `variant`: its docs, without a trailing period, as clap
+/// shows help.
 fn help_for(variant: &impl EnumMessage) -> &'static str {
     let docs = variant.get_documentation().unwrap_or_default();
     docs.strip_suffix('.').unwrap_or(docs)
 }
 
-/// The actions with flags of their own in `complete` and `compgen`, and those flags (e.g.
-/// `a`, for `-a`, which is short for `-A alias`), in the order bash shows them. Each flag
-/// is also its argument's clap ID.
+/// The actions with flags of their own in `complete` and `compgen`, and those
+/// flags (e.g. `a`, for `-a`, which is short for `-A alias`), in the order bash
+/// shows them. Each flag is also its argument's clap ID.
 const ACTION_FLAGS: [(&str, CompleteAction); 12] = [
     ("a", CompleteAction::Alias),
     ("b", CompleteAction::Builtin),
@@ -89,7 +92,8 @@ const ACTION_FLAGS: [(&str, CompleteAction); 12] = [
     ("v", CompleteAction::Variable),
 ];
 
-/// The actions selected with their own flags (see [`ACTION_FLAGS`]), which this parses.
+/// The actions selected with their own flags (see [`ACTION_FLAGS`]), which this
+/// parses.
 struct ActionFlags(Vec<CompleteAction>);
 
 impl clap::FromArgMatches for ActionFlags {
@@ -140,8 +144,9 @@ impl CommonCompleteCommandArgs {
         }
     }
 
-    /// Returns the actions selected, like bash, each once, in the fixed order bash runs them
-    /// in (that of [`CompleteAction`]'s variants), however they were given.
+    /// Returns the actions selected, like bash, each once, in the fixed order
+    /// bash runs them in (that of [`CompleteAction`]'s variants), however
+    /// they were given.
     fn resolve_actions(&self) -> Vec<CompleteAction> {
         let selected: Vec<_> = self.actions.iter().chain(&self.action_flags.0).collect();
         CompleteAction::iter()
@@ -169,7 +174,8 @@ pub(crate) struct CompleteCommand {
     #[arg(short = 'E')]
     use_for_empty_line: bool,
 
-    /// Apply these settings to completion of the initial word of the input line.
+    /// Apply these settings to completion of the initial word of the input
+    /// line.
     #[arg(short = 'I')]
     use_for_initial_word: bool,
 
@@ -179,7 +185,8 @@ pub(crate) struct CompleteCommand {
     names: Vec<String>,
 }
 
-/// Returns the flag that selects a special completion spec in `complete` and `compopt`.
+/// Returns the flag that selects a special completion spec in `complete` and
+/// `compopt`.
 const fn special_spec_flag(special: SpecialSpec) -> &'static str {
     match special {
         SpecialSpec::Default => "-D",
@@ -195,8 +202,8 @@ impl builtins::Command for CompleteCommand {
         &self,
         mut context: shrub_core::ExecutionContext<'_, SE>,
     ) -> Result<shrub_core::ExecutionResult, Self::Error> {
-        // Like bash, -D, -E, or -I name a special spec in place of any names given; they
-        // take precedence in that order.
+        // Like bash, -D, -E, or -I name a special spec in place of any names
+        // given; they take precedence in that order.
         let special = [
             (self.use_as_default, SpecialSpec::Default),
             (self.use_for_empty_line, SpecialSpec::EmptyLine),
@@ -213,8 +220,8 @@ impl builtins::Command for CompleteCommand {
                 .collect(),
         };
 
-        // With no spec named, list them all (as `complete` with no options does too), or
-        // with `-r`, remove them all.
+        // With no spec named, list them all (as `complete` with no options does
+        // too), or with `-r`, remove them all.
         if names.is_empty() {
             if self.remove && !self.print {
                 context.shell.completion_config_mut().clear();
@@ -241,8 +248,8 @@ impl builtins::Command for CompleteCommand {
 }
 
 impl CompleteCommand {
-    /// Displays `spec`, registered under `name`; a special spec is shown by the flag that
-    /// selects it.
+    /// Displays `spec`, registered under `name`; a special spec is shown by the
+    /// flag that selects it.
     fn display_named_spec(
         context: &shrub_core::ExecutionContext<'_, impl shrub_core::ShellExtensions>,
         name: SpecName<'_>,
@@ -273,7 +280,8 @@ impl CompleteCommand {
         }
     }
 
-    /// Displays `spec` as the `complete` command that recreates it, formatted as bash does.
+    /// Displays `spec` as the `complete` command that recreates it, formatted
+    /// as bash does.
     fn display_spec(
         context: &shrub_core::ExecutionContext<'_, impl shrub_core::ShellExtensions>,
         special_name: Option<&str>,
@@ -288,8 +296,8 @@ impl CompleteCommand {
             write!(s, " -o {}", <&str>::from(option))?;
         }
 
-        // Like bash, show each action once: those with their own flag first, then the rest
-        // with `-A`, each in the order bash lists them.
+        // Like bash, show each action once: those with their own flag first,
+        // then the rest with `-A`, each in the order bash lists them.
         for (flag, action) in &ACTION_FLAGS {
             if spec.actions.contains(action) {
                 write!(s, " -{flag}")?;
@@ -320,8 +328,8 @@ impl CompleteCommand {
             write!(s, " -F {function_name}")?;
         }
 
-        // Like bash, the spec's name comes last: a special spec's flag, or the command's
-        // name, quoted if needed.
+        // Like bash, the spec's name comes last: a special spec's flag, or the
+        // command's name, quoted if needed.
         let name = special_name.map_or_else(
             || {
                 escape::quote_if_needed(
@@ -350,8 +358,8 @@ impl CompleteCommand {
                 if context.shell.options().interactive {
                     writeln!(context.stderr(), "complete: {}: not found", name.as_str())?;
                 } else {
-                    // For some reason, this is not supposed to be treated as a failure
-                    // in non-interactive execution.
+                    // For some reason, this is not supposed to be treated as a
+                    // failure in non-interactive execution.
                     result = true;
                 }
             }
@@ -388,8 +396,8 @@ impl builtins::Command for CompGenCommand {
         let word = self.word.as_deref().unwrap_or_default();
         let candidates = spec.generate(context.shell, word).await?;
 
-        // We are expected to return 1 if there are no candidates, even if no errors
-        // occurred along the way.
+        // We are expected to return 1 if there are no candidates, even if no
+        // errors occurred along the way.
         if candidates.is_empty() {
             return Ok(ExecutionResult::general_error());
         }
@@ -438,8 +446,8 @@ impl builtins::Command for CompOptCommand {
         &self,
         context: shrub_core::ExecutionContext<'_, SE>,
     ) -> Result<shrub_core::ExecutionResult, Self::Error> {
-        // Like bash, an option given with both `-o` and `+o` is disabled, whatever their
-        // order.
+        // Like bash, an option given with both `-o` and `+o` is disabled,
+        // whatever their order.
         let mut options =
             HashMap::with_capacity(self.disabled_options.len() + self.enabled_options.len());
         for option in &self.enabled_options {
@@ -459,8 +467,8 @@ impl builtins::Command for CompOptCommand {
             return Ok(ExecutionExitCode::InvalidUsage.into());
         }
 
-        // -D, -E, and -I select a special spec, which, like bash, messages name by bash's name
-        // for it.
+        // -D, -E, and -I select a special spec, which, like bash, messages name
+        // by bash's name for it.
         let special = [
             (self.update_default, SpecialSpec::Default),
             (self.update_empty, SpecialSpec::EmptyLine),
@@ -478,7 +486,8 @@ impl builtins::Command for CompOptCommand {
         };
 
         if !names.is_empty() {
-            // Like bash, a spec that doesn't exist is an error, rather than being created.
+            // Like bash, a spec that doesn't exist is an error, rather than
+            // being created.
             let mut result = ExecutionResult::success();
             for name in names {
                 if let Some(spec) = context.shell.completion_config_mut().get_mut(name) {

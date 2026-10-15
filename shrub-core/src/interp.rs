@@ -1,9 +1,10 @@
-use shrub_parser::ast::{self, CommandPrefixOrSuffixItem};
-use itertools::Itertools;
 use std::borrow::Cow;
 use std::collections::VecDeque;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+
+use itertools::Itertools;
+use shrub_parser::ast::{self, CommandPrefixOrSuffixItem};
 
 use crate::arithmetic::{self, ExpandAndEvaluate};
 use crate::commands::{self, CommandArg};
@@ -64,9 +65,9 @@ impl ExecutionParameters {
         self.try_fd(shell, openfiles::OpenFiles::STDIN_FD)
     }
 
-    /// Returns the standard output file; usable with `write!` et al. In the event that
-    /// no such file is available, returns a valid implementation of `std::io::Write`
-    /// that fails all I/O requests.
+    /// Returns the standard output file; usable with `write!` et al. In the
+    /// event that no such file is available, returns a valid implementation
+    /// of `std::io::Write` that fails all I/O requests.
     ///
     ///
     /// # Arguments
@@ -90,9 +91,9 @@ impl ExecutionParameters {
         self.try_fd(shell, openfiles::OpenFiles::STDOUT_FD)
     }
 
-    /// Returns the standard error file; usable with `write!` et al. In the event that
-    /// no such file is available, returns a valid implementation of `std::io::Write`
-    /// that fails all I/O requests.
+    /// Returns the standard error file; usable with `write!` et al. In the
+    /// event that no such file is available, returns a valid implementation
+    /// of `std::io::Write` that fails all I/O requests.
     ///
     /// # Arguments
     ///
@@ -131,8 +132,9 @@ impl ExecutionParameters {
             openfiles::OpenFileEntry::Open(f) => Some(f.clone()),
             openfiles::OpenFileEntry::NotPresent => None,
             openfiles::OpenFileEntry::NotSpecified => {
-                // We didn't have this fd specified one way or the other; we fallback
-                // to what's represented in the shell's open files.
+                // We didn't have this fd specified one way or the other; we
+                // fallback to what's represented in the shell's
+                // open files.
                 shell.persistent_open_files().try_fd(fd).cloned()
             }
         }
@@ -211,8 +213,9 @@ impl Execute for ast::Program {
         let mut result = ExecutionResult::success();
 
         for command in &self.complete_commands {
-            // Execute the command and handle any errors without immediately propagating them.
-            // This allows interactive shells to continue executing subsequent commands even after
+            // Execute the command and handle any errors without immediately
+            // propagating them. This allows interactive shells to
+            // continue executing subsequent commands even after
             // errors.
             match command.execute(shell, params).await {
                 Ok(exec_result) => result = exec_result,
@@ -283,7 +286,8 @@ fn spawn_async_ao_list_in_task<'a, SE: extensions::ShellExtensions>(
     let mut cloned_params = params.clone();
     let cloned_ao_list = ao_list.clone();
 
-    // Mark the child shell as not interactive; we don't want it messing with the terminal too much.
+    // Mark the child shell as not interactive; we don't want it messing with
+    // the terminal too much.
     cloned_shell.options_mut().interactive = false;
 
     // Redirect stdin to null, per spec.
@@ -313,7 +317,8 @@ impl Execute for ast::AndOrList {
     ) -> Result<ExecutionResult, error::Error> {
         let has_operators = !self.additional.is_empty();
 
-        // For the first command, suppress errexit if there are more commands after it
+        // For the first command, suppress errexit if there are more commands
+        // after it
         let mut first_params = params.clone();
         if has_operators {
             first_params.suppress_errexit = true;
@@ -344,8 +349,9 @@ impl Execute for ast::AndOrList {
                 continue;
             }
 
-            // For the last command in the chain, use original params (errexit not suppressed)
-            // For earlier commands, suppress errexit
+            // For the last command in the chain, use original params (errexit
+            // not suppressed) For earlier commands, suppress
+            // errexit
             let mut params = params.clone();
 
             let is_last = index == self.additional.len() - 1;
@@ -381,11 +387,12 @@ impl Execute for ast::Pipeline {
             params.suppress_errexit = true;
         }
 
-        // Spawn all the processes required for the pipeline, connecting outputs/inputs with pipes
-        // as needed.
+        // Spawn all the processes required for the pipeline, connecting
+        // outputs/inputs with pipes as needed.
         let spawn_results = spawn_pipeline_processes(self, shell, &params).await?;
 
-        // Wait for the processes. This also has a side effect of updating pipeline status.
+        // Wait for the processes. This also has a side effect of updating
+        // pipeline status.
         let mut result =
             wait_for_pipeline_processes_and_update_status(self, spawn_results, shell, &params)
                 .await?;
@@ -398,10 +405,11 @@ impl Execute for ast::Pipeline {
         // Update exit status.
         shell.set_last_exit_status(result.exit_code.into());
 
-        // Fire the ERR trap if the pipeline failed in a non-conditional context.
-        // We reuse `suppress_errexit` here because bash suppresses the ERR trap in
-        // exactly the same contexts it suppresses errexit (conditionals, `!`-prefixed
-        // pipelines, etc.).
+        // Fire the ERR trap if the pipeline failed in a non-conditional
+        // context. We reuse `suppress_errexit` here because bash
+        // suppresses the ERR trap in exactly the same contexts it
+        // suppresses errexit (conditionals, `!`-prefixed pipelines,
+        // etc.).
         if !result.is_success() && !params.suppress_errexit && !self.bang {
             if shell.traps().handles(crate::traps::TrapSignal::Err) {
                 shell
@@ -454,8 +462,8 @@ async fn spawn_pipeline_processes(
     let mut spawn_results = VecDeque::new();
     let mut process_group_id: Option<i32> = None;
 
-    // Create pipes to use between commands, but only bother doing so if there's more than one
-    // command.
+    // Create pipes to use between commands, but only bother doing so if there's
+    // more than one command.
     if pipeline_len > 1 {
         pipe_readers.reserve_exact(pipeline_len - 1);
         pipe_writers.reserve_exact(pipeline_len - 1);
@@ -465,18 +473,21 @@ async fn spawn_pipeline_processes(
             pipe_readers.push(Some(reader.into()));
             pipe_writers.push(Some(writer.into()));
         }
-        // Push `None` to the readers; it will be popped off by the *first* command, which will
-        // mean that command gets its stdin from the execution parameters' current stdin.
+        // Push `None` to the readers; it will be popped off by the *first*
+        // command, which will mean that command gets its stdin from the
+        // execution parameters' current stdin.
         pipe_readers.push(None);
     }
 
     for (current_pipeline_index, command) in pipeline.seq.iter().enumerate() {
         //
-        // We run a command directly in the current shell if either of the following is true:
+        // We run a command directly in the current shell if either of the
+        // following is true:
         //     * There's only one command in the pipeline.
-        //     * This is the *last* command in the pipeline, the lastpipe option is enabled, and job
-        //       monitoring is disabled.
-        // Otherwise, we spawn a separate subshell for each command in the pipeline.
+        //     * This is the *last* command in the pipeline, the lastpipe option
+        //       is enabled, and job monitoring is disabled.
+        // Otherwise, we spawn a separate subshell for each command in the
+        // pipeline.
         //
 
         let run_in_current_shell = pipeline_len == 1
@@ -496,7 +507,8 @@ async fn spawn_pipeline_processes(
         }
 
         let pipeline_context = if !run_in_current_shell {
-            // Make sure that all commands in the pipeline are in the same process group.
+            // Make sure that all commands in the pipeline are in the same
+            // process group.
             if current_pipeline_index > 0 {
                 cmd_params.process_group_policy = ProcessGroupPolicy::SameProcessGroup;
             }
@@ -588,8 +600,8 @@ async fn wait_for_pipeline_processes_and_update_status(
         sys::terminal::move_self_to_foreground()?;
     }
 
-    // If there were stopped jobs, then encapsulate the pipeline as a managed job and hand it
-    // off to the job manager.
+    // If there were stopped jobs, then encapsulate the pipeline as a managed
+    // job and hand it off to the job manager.
     if !stopped_children.is_empty() {
         let job = shell.jobs_mut().add_as_current(jobs::Job::new(
             stopped_children,
@@ -617,7 +629,8 @@ impl<SE: extensions::ShellExtensions> ExecuteInPipeline<SE> for ast::Command {
             return Ok(ExecutionSpawnResult::Completed(ExecutionResult::success()));
         }
 
-        // Updates the shell with information about the currently executing command.
+        // Updates the shell with information about the currently executing
+        // command.
         pipeline_context.shell.set_current_cmd(self);
 
         match self {
@@ -672,16 +685,18 @@ impl Execute for ast::CompoundCommand {
                 list.execute(shell, params).await
             }
             Self::Subshell(ast::SubshellCommand { list, .. }) => {
-                // Clone off a new subshell, and run the body of the subshell there.
-                // TODO(source-info): Do we need to reset the line number?
+                // Clone off a new subshell, and run the body of the subshell
+                // there. TODO(source-info): Do we need to reset
+                // the line number?
                 let mut subshell = shell.clone();
 
-                // Handle errors within the subshell context to prevent fatal errors
-                // from propagating to the parent shell.
+                // Handle errors within the subshell context to prevent fatal
+                // errors from propagating to the parent shell.
                 let subshell_result = match list.execute(&mut subshell, params).await {
                     Ok(result) => result,
                     Err(error) => {
-                        // Display the error to stderr, but prevent fatal error propagation
+                        // Display the error to stderr, but prevent fatal error
+                        // propagation
                         let mut stderr = params.stderr(shell);
                         let _ = shell.display_error(&mut stderr, &error);
 
@@ -690,8 +705,9 @@ impl Execute for ast::CompoundCommand {
                     }
                 };
 
-                // Preserve the subshell's exit code, but don't honor any of its requests to exit
-                // the shell, break out of loops, etc.
+                // Preserve the subshell's exit code, but don't honor any of its
+                // requests to exit the shell, break out of
+                // loops, etc.
                 Ok(ExecutionResult::from(subshell_result.exit_code))
             }
             Self::ForClause(f) => f.execute(shell, params).await,
@@ -726,7 +742,8 @@ impl Execute for ast::CoprocessCommand {
             return Ok(ExecutionResult::success());
         }
 
-        // Resolve the name of the variable that will receive the coprocess's file descriptors.
+        // Resolve the name of the variable that will receive the coprocess's
+        // file descriptors.
         let name = self
             .name
             .as_ref()
@@ -744,8 +761,9 @@ impl Execute for ast::CoprocessCommand {
         let (stdin_reader, stdin_writer) = sys::pipes::pipe()?;
         let (stdout_reader, stdout_writer) = sys::pipes::pipe()?;
 
-        // Allocate new fds in the (parent) shell for the read end of the coprocess's stdout
-        // and the write end of the coprocess's stdin.
+        // Allocate new fds in the (parent) shell for the read end of the
+        // coprocess's stdout and the write end of the coprocess's
+        // stdin.
         let stdout_fd = shell.open_files_mut().add(stdout_reader.into())?;
         let stdin_fd = shell.open_files_mut().add(stdin_writer.into())?;
 
@@ -790,7 +808,8 @@ impl Execute for ast::CoprocessCommand {
             .env_mut()
             .set_global(name.clone(), ShellVariable::new(arr_value))?;
 
-        // Set the job ID for the coprocess in a separate variable with the _PID suffix.
+        // Set the job ID for the coprocess in a separate variable with the _PID
+        // suffix.
         let pid_name = format!("{name}_PID");
         shell
             .env_mut()
@@ -809,8 +828,8 @@ impl Execute for ast::ForClauseCommand {
     ) -> Result<ExecutionResult, error::Error> {
         let mut result = ExecutionResult::success();
 
-        // If we were given explicit words to iterate over, then expand them all, with splitting
-        // enabled.
+        // If we were given explicit words to iterate over, then expand them
+        // all, with splitting enabled.
         let expanded_values = if let Some(unexpanded_values) = &self.values {
             expand_words(shell, params, unexpanded_values).await?
         } else {
@@ -873,8 +892,8 @@ impl Execute for ast::CaseClauseCommand {
         shell: &mut Shell<impl extensions::ShellExtensions>,
         params: &ExecutionParameters,
     ) -> Result<ExecutionResult, error::Error> {
-        // N.B. One would think it makes sense to trace the expanded value being switched
-        // on, but that's not it.
+        // N.B. One would think it makes sense to trace the expanded value being
+        // switched on, but that's not it.
         if shell.options().print_commands_and_arguments {
             shell
                 .trace_command(params, std::format!("case {} in", self.value))
@@ -913,7 +932,8 @@ impl Execute for ast::CaseClauseCommand {
                 ExecutionResult::success()
             };
 
-            // Check for early return (return/exit) or loop control flow (break/continue)
+            // Check for early return (return/exit) or loop control flow
+            // (break/continue)
             if !result.is_normal_flow() {
                 break;
             }
@@ -961,7 +981,8 @@ impl Execute for ast::IfClauseCommand {
                         let else_condition_result =
                             else_condition.execute(shell, &condition_params).await?;
 
-                        // Check if the elif condition caused non-normal control flow.
+                        // Check if the elif condition caused non-normal control
+                        // flow.
                         if !else_condition_result.is_normal_flow() {
                             return Ok(else_condition_result);
                         }
@@ -1015,8 +1036,9 @@ impl Execute for (WhileOrUntil, &ast::WhileOrUntilClauseCommand) {
             if !condition_result.is_normal_flow() {
                 result = condition_result;
 
-                // If the condition has break/continue, the while/until loop itself
-                // consumes one level. We need to decrement the level before returning.
+                // If the condition has break/continue, the while/until loop
+                // itself consumes one level. We need to
+                // decrement the level before returning.
                 result.next_control_flow = result.next_control_flow.try_decrement_loop_levels();
                 break;
             }
@@ -1078,7 +1100,8 @@ impl Execute for ast::ArithmeticForClauseCommand {
 
         loop {
             if let Some(condition) = &self.condition {
-                // An empty condition (e.g., `for (( ; ; ))`) means "always true".
+                // An empty condition (e.g., `for (( ; ; ))`) means "always
+                // true".
                 if !condition.value.is_empty() && condition.eval(shell, params, true).await? == 0 {
                     break;
                 }
@@ -1131,8 +1154,8 @@ impl Execute for ast::FunctionDefinition {
             );
         }
 
-        // The function definition's source context should be the same as the current frame
-        // so we directly pass that through.
+        // The function definition's source context should be the same as the
+        // current frame so we directly pass that through.
         let source_info = shell
             .call_stack()
             .current_frame()
@@ -1198,19 +1221,25 @@ impl<SE: extensions::ShellExtensions> ExecuteInPipeline<SE> for ast::SimpleComma
                 }
                 CommandPrefixOrSuffixItem::AssignmentWord(assignment, word) => {
                     if args.is_empty() {
-                        // If we haven't yet seen any arguments, then this must be a proper
-                        // scoped assignment. Add it to the list we're accumulating.
+                        // If we haven't yet seen any arguments, then this must
+                        // be a proper
+                        // scoped assignment. Add it to the list we're
+                        // accumulating.
                         assignments.push(assignment);
                     } else {
                         if command_takes_assignments {
-                            // This looks like an assignment, and the command being invoked is a
-                            // well-known builtin that takes arguments that need to function like
-                            // assignments (but which are processed by the builtin).
+                            // This looks like an assignment, and the command
+                            // being invoked is a
+                            // well-known builtin that takes arguments that need
+                            // to function like
+                            // assignments (but which are processed by the
+                            // builtin).
                             let expanded =
                                 expand_assignment(&mut context.shell, &params, assignment).await?;
                             args.push(CommandArg::Assignment(expanded));
                         } else {
-                            // This *looks* like an assignment, but it's really a string we should
+                            // This *looks* like an assignment, but it's really
+                            // a string we should
                             // fully treat as a regular looking
                             // argument.
                             let mut next_args = expansion::full_expand_and_split_word(
@@ -1233,18 +1262,22 @@ impl<SE: extensions::ShellExtensions> ExecuteInPipeline<SE> for ast::SimpleComma
 
                     if args.is_empty() {
                         if let Some(cmd_name) = next_args.first() {
-                            // Aliases are only expanded when `expand_aliases` is enabled; it's
+                            // Aliases are only expanded when `expand_aliases`
+                            // is enabled; it's
                             // enabled by default for interactive shells.
                             if context.shell.options().expand_aliases
                                 && let Some(alias_value) =
                                     context.shell.aliases().get(cmd_name.as_str())
                             {
                                 //
-                                // TODO(#57): This is a total hack; aliases are supposed to be
+                                // TODO(#57): This is a total hack; aliases are
+                                // supposed to be
                                 // handled much earlier in the process.
                                 //
-                                // N.B. Tokenizing first releases our borrow of the shell's aliases,
-                                // so we can take a mutable borrow of the shell to expand the words.
+                                // N.B. Tokenizing first releases our borrow of
+                                // the shell's aliases,
+                                // so we can take a mutable borrow of the shell
+                                // to expand the words.
                                 let alias_words = tokenize_alias_body(&context.shell, alias_value);
                                 let mut alias_pieces =
                                     expand_words(&mut context.shell, &params, alias_words).await?;
@@ -1255,8 +1288,10 @@ impl<SE: extensions::ShellExtensions> ExecuteInPipeline<SE> for ast::SimpleComma
                                 next_args = alias_pieces;
                             }
 
-                            // Check if we're going to be invoking a special declaration builtin.
-                            // That will change how we parse and process args. (An alias with an
+                            // Check if we're going to be invoking a special
+                            // declaration builtin.
+                            // That will change how we parse and process args.
+                            // (An alias with an
                             // empty body leaves us with no words at all.)
                             if let Some(first_arg) = next_args.first()
                                 && context
@@ -1312,8 +1347,9 @@ impl<SE: extensions::ShellExtensions> ExecuteInPipeline<SE> for ast::SimpleComma
         } else {
             // No command to run; assignments must be applied to this shell.
             for assignment in assignments {
-                // Apply the assignment. Don't mark as fatal - let errors be handled
-                // at the program level so multiple complete_commands can execute independently.
+                // Apply the assignment. Don't mark as fatal - let errors be
+                // handled at the program level so multiple
+                // complete_commands can execute independently.
                 apply_assignment(
                     assignment,
                     &mut context.shell,
@@ -1330,10 +1366,11 @@ impl<SE: extensions::ShellExtensions> ExecuteInPipeline<SE> for ast::SimpleComma
             // argument".
             context.shell.update_last_arg_variable(None);
 
-            // We need to set the last exit status to indicate assignment success,
-            // but only if there was no status set during expansion. We use the
-            // status count captured before expansion to detect if command
-            // substitution (or other expansion) set an exit status.
+            // We need to set the last exit status to indicate assignment
+            // success, but only if there was no status set during
+            // expansion. We use the status count captured before
+            // expansion to detect if command substitution (or other
+            // expansion) set an exit status.
             if status_change_count_before_expansion == context.shell.last_exit_status_change_count()
             {
                 context.shell.set_last_exit_status(0);
@@ -1353,11 +1390,13 @@ async fn execute_command(
     assignments: &[&ast::Assignment],
     args: Vec<CommandArg>,
 ) -> Result<ExecutionSpawnResult, error::Error> {
-    // Run the command in a new ephemeral environment scope, for its variable assignments.
+    // Run the command in a new ephemeral environment scope, for its variable
+    // assignments.
     let mut scoped;
     let mut shell = match context.shell {
         commands::ShellForCommand::ParentShell(shell) => {
-            // The scope is left however the command ends, even if it's cancelled.
+            // The scope is left however the command ends, even if it's
+            // cancelled.
             scoped = shell.enter_scope(EnvironmentScope::Command);
             commands::ShellForCommand::ParentShell(&mut scoped)
         }
@@ -1402,20 +1441,23 @@ async fn execute_command(
     cmd.execute().await
 }
 
-/// Tokenizes the body of an alias into the unexpanded words that should replace the aliased command
-/// name.
+/// Tokenizes the body of an alias into the unexpanded words that should replace
+/// the aliased command name.
 ///
-/// This only handles alias bodies that amount to a simple sequence of words; bodies containing
-/// operators (pipes, redirections, `&&`, ...) and recursive expansion of chained aliases require
-/// alias substitution to happen in the tokenizer instead (see issue #57).
+/// This only handles alias bodies that amount to a simple sequence of words;
+/// bodies containing operators (pipes, redirections, `&&`, ...) and recursive
+/// expansion of chained aliases require alias substitution to happen in the
+/// tokenizer instead (see issue #57).
 fn tokenize_alias_body(
     shell: &Shell<impl extensions::ShellExtensions>,
     alias_value: &str,
 ) -> Vec<String> {
-    // Tokenize the body the same way the shell would tokenize any other input it's given.
+    // Tokenize the body the same way the shell would tokenize any other input
+    // it's given.
     let options = shell.parser_options().tokenizer_options();
 
-    // If we can't tokenize the body, fall back to naively splitting it on whitespace.
+    // If we can't tokenize the body, fall back to naively splitting it on
+    // whitespace.
     shrub_parser::tokenize_str_with_options(alias_value, &options).map_or_else(
         |_| {
             alias_value
@@ -1427,13 +1469,15 @@ fn tokenize_alias_body(
     )
 }
 
-/// Expands the given words, with splitting enabled, yielding the fields they expand to.
+/// Expands the given words, with splitting enabled, yielding the fields they
+/// expand to.
 async fn expand_words(
     shell: &mut Shell<impl extensions::ShellExtensions>,
     params: &ExecutionParameters,
     words: impl IntoIterator<Item = impl AsRef<str>>,
 ) -> Result<Vec<String>, error::Error> {
-    // N.B. Expansion needs `&mut shell`, so the words have to be expanded in sequence.
+    // N.B. Expansion needs `&mut shell`, so the words have to be expanded in
+    // sequence.
     let mut fields = vec![];
     for word in words {
         fields.extend(expansion::full_expand_and_split_word(shell, params, word).await?);
@@ -1499,7 +1543,8 @@ async fn expand_assignment_value(
                             .into();
                     expanded_values.push((Some(expanded_key), expanded_value));
                 } else {
-                    // Array elements are treated as regular words, not assignments
+                    // Array elements are treated as regular words, not
+                    // assignments
                     let split_expanded_value =
                         expansion::full_expand_and_split_word(shell, params, value).await?;
                     for expanded_value in split_expanded_value {
@@ -1524,8 +1569,8 @@ async fn apply_assignment(
     required_scope: Option<EnvironmentScope>,
     creation_scope: EnvironmentScope,
 ) -> Result<(), error::Error> {
-    // Figure out if we are trying to assign to a variable or assign to an element of an existing
-    // array.
+    // Figure out if we are trying to assign to a variable or assign to an
+    // element of an existing array.
     let mut array_index;
     let variable_name = match &assignment.name {
         ast::AssignmentName::VariableName(name) => {
@@ -1563,7 +1608,8 @@ async fn apply_assignment(
                             .await?;
                     elements.push((key, value));
                 } else {
-                    // Array elements are treated as regular words, not assignments
+                    // Array elements are treated as regular words, not
+                    // assignments
                     let values =
                         expansion::full_expand_and_split_word(shell, params, unexpanded_value)
                             .await?;
@@ -1585,10 +1631,10 @@ async fn apply_assignment(
 
     // See if we need to eval an array index.
     if let Some(idx) = &array_index {
-        // An array subscript is arithmetically evaluated unless the target is an
-        // associative array (in which case the subscript is used as a literal key).
-        // A scalar or unset/untyped variable becomes an indexed array, so its
-        // subscript still needs to be evaluated.
+        // An array subscript is arithmetically evaluated unless the target is
+        // an associative array (in which case the subscript is used as
+        // a literal key). A scalar or unset/untyped variable becomes an
+        // indexed array, so its subscript still needs to be evaluated.
         let will_be_indexed_array =
             if let Some((_, existing_value)) = shell.env().get(variable_name) {
                 !matches!(
@@ -1612,8 +1658,8 @@ async fn apply_assignment(
     // Read option before taking mutable borrow on env.
     let export_variables_on_modification = shell.options().export_variables_on_modification;
 
-    // Like bash, a variable for one command can't override a readonly one: report that and
-    // skip this assignment. The command still runs.
+    // Like bash, a variable for one command can't override a readonly one:
+    // report that and skip this assignment. The command still runs.
     if required_scope.is_some()
         && shell
             .env()
@@ -1625,9 +1671,10 @@ async fn apply_assignment(
         return Ok(());
     }
 
-    // See if we can find an existing value associated with the variable. A variable for one
-    // command (e.g. `FOO=1 cmd`) can only be one already set for that same command, in its
-    // own scope -- not one set for a command it was called from.
+    // See if we can find an existing value associated with the variable. A
+    // variable for one command (e.g. `FOO=1 cmd`) can only be one already
+    // set for that same command, in its own scope -- not one set for a
+    // command it was called from.
     let lookup = required_scope.map_or(
         EnvironmentLookup::Anywhere,
         EnvironmentLookup::OnlyInCurrent,
@@ -1679,8 +1726,9 @@ async fn apply_assignment(
             ShellValueLiteral::Scalar(s) => {
                 export = export || shell.options().export_variables_on_modification;
 
-                // A new variable for a command (e.g. `FOO+=x cmd`) appends to the value the
-                // variable has where it's visible, as that variable would (e.g. adding, for
+                // A new variable for a command (e.g. `FOO+=x cmd`) appends to
+                // the value the variable has where it's
+                // visible, as that variable would (e.g. adding, for
                 // an integer); the result is a plain string.
                 let s = match shell.env().get(variable_name.as_str()) {
                     Some((_, visible)) if assignment.append => {
@@ -1748,7 +1796,8 @@ pub(crate) async fn setup_redirect(
                                 .options()
                                 .disallow_overwriting_regular_files_via_output_redirection
                             {
-                                // First check to see if the path points to an existing regular
+                                // First check to see if the path points to an
+                                // existing regular
                                 // file.
                                 if !expanded_file_path.is_file() {
                                     options.create(true);
@@ -1851,14 +1900,16 @@ pub(crate) async fn setup_redirect(
                             .parse::<ShellFd>()
                             .map_err(|_| error::ErrorKind::InvalidRedirection)?;
 
-                        // Reference the same open file as the source fd (shared handle; no OS-level duplication).
+                        // Reference the same open file as the source fd (shared
+                        // handle; no OS-level duplication).
                         let Some(target_file) = params.try_fd(shell, source_fd_num) else {
                             return Err(error::ErrorKind::BadFileDescriptor(source_fd_num).into());
                         };
 
                         params.open_files.set_fd(fd_num, target_file);
                     } else if fd_num == 1 && !dash {
-                        // Special case for compatibility: redirect stdout and stderr to the file
+                        // Special case for compatibility: redirect stdout and
+                        // stderr to the file
                         // given by `expanded`.
                         setup_redirect_output_and_error_to(
                             shell, params, &expanded, false, /* append? */
@@ -1933,7 +1984,8 @@ pub(crate) async fn setup_redirect(
     Ok(())
 }
 
-/// Sets up redirection of both stdout and stderr to the same file, given by `file_path`.
+/// Sets up redirection of both stdout and stderr to the same file, given by
+/// `file_path`.
 ///
 /// # Arguments
 ///
@@ -2014,8 +2066,8 @@ fn setup_process_substitution(
         }
     };
 
-    // Asynchronously spawn off the subshell; we intentionally don't block on its
-    // completion.
+    // Asynchronously spawn off the subshell; we intentionally don't block on
+    // its completion.
     let subshell_cmd = subshell_cmd.to_owned();
     sys::tasks::spawn(async move {
         // Intentionally ignore the result of the subshell command.
@@ -2059,7 +2111,8 @@ fn setup_open_file_with_contents(contents: &str) -> Result<OpenFile, error::Erro
     Ok(reader.into())
 }
 
-// Sizes depend on the platform's types, so they're only checked where they were measured.
+// Sizes depend on the platform's types, so they're only checked where they were
+// measured.
 #[cfg(test)]
 #[cfg(target_os = "linux")] // ast-grep-ignore: platform-cfg-outside-sys
 #[allow(clippy::panic_in_result_fn, reason = "assertions in a fallible test")]
@@ -2067,11 +2120,11 @@ mod tests {
     use super::*;
     use crate::{ProfileLoadBehavior, RcLoadBehavior};
 
-    /// Every simple command allocates these futures, so keep them small. A rarely
-    /// taken branch can grow one by a kilobyte if it holds a `Shell` across an
-    /// `.await`, and clippy's `large_futures` can't see futures whose layout
-    /// depends on `SE`. The limits leave room for compiler updates; if one is
-    /// exceeded, find out why before raising it.
+    /// Every simple command allocates these futures, so keep them small. A
+    /// rarely taken branch can grow one by a kilobyte if it holds a `Shell`
+    /// across an `.await`, and clippy's `large_futures` can't see futures
+    /// whose layout depends on `SE`. The limits leave room for compiler
+    /// updates; if one is exceeded, find out why before raising it.
     #[tokio::test]
     async fn futures_for_a_simple_command_stay_small() -> anyhow::Result<()> {
         let mut shell = Shell::builder()

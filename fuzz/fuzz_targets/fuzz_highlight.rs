@@ -3,9 +3,9 @@
 #![allow(clippy::unwrap_used)]
 #![allow(clippy::panic)]
 
-use libfuzzer_sys::fuzz_target;
 use std::sync::LazyLock;
 
+use libfuzzer_sys::fuzz_target;
 use shrub_interactive::highlighting::{Highlighted, highlight_command};
 
 static TOKIO_RT: LazyLock<tokio::runtime::Runtime> =

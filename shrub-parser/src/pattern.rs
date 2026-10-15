@@ -4,15 +4,18 @@ use crate::error;
 
 /// Represents the kind of an extended glob.
 pub enum ExtendedGlobKind {
-    /// The `+` extended glob; matches one or more occurrences of the inner pattern.
+    /// The `+` extended glob; matches one or more occurrences of the inner
+    /// pattern.
     Plus,
     /// The `@` extended glob; allows matching an alternation of inner patterns.
     At,
     /// The `!` extended glob; matches the negation of the inner pattern.
     Exclamation,
-    /// The `?` extended glob; matches zero or one occurrence of the inner pattern.
+    /// The `?` extended glob; matches zero or one occurrence of the inner
+    /// pattern.
     Question,
-    /// The `*` extended glob; matches zero or more occurrences of the inner pattern.
+    /// The `*` extended glob; matches zero or more occurrences of the inner
+    /// pattern.
     Star,
 }
 
@@ -21,7 +24,8 @@ pub enum ExtendedGlobKind {
 /// # Arguments
 ///
 /// * `pattern` - The shell pattern to convert.
-/// * `enable_extended_globbing` - Whether to enable extended globbing (extglob).
+/// * `enable_extended_globbing` - Whether to enable extended globbing
+///   (extglob).
 pub fn pattern_to_regex_str(
     pattern: &str,
     enable_extended_globbing: bool,
@@ -31,8 +35,8 @@ pub fn pattern_to_regex_str(
     Ok(regex_str)
 }
 
-/// Formats a range between two bracket expression members, returning `None` if the
-/// range is reversed (and therefore matches nothing).
+/// Formats a range between two bracket expression members, returning `None` if
+/// the range is reversed (and therefore matches nothing).
 fn bracket_range(from: (String, char), to: (String, char)) -> Option<String> {
     let (from_str, from_c) = from;
     let (to_str, to_c) = to;
@@ -223,13 +227,15 @@ peg::parser! {
 /// # Arguments
 ///
 /// * `pattern` - The shell pattern to check.
-/// * `enable_extended_globbing` - Whether to enable extended globbing (extglob).
+/// * `enable_extended_globbing` - Whether to enable extended globbing
+///   (extglob).
 pub fn pattern_has_glob_metacharacters(pattern: &str, enable_extended_globbing: bool) -> bool {
     pattern_to_regex_translator::has_glob_metacharacters(pattern, enable_extended_globbing)
         .unwrap_or(false)
 }
 
-/// Returns whether or not a given character needs to be escaped in a regular expression.
+/// Returns whether or not a given character needs to be escaped in a regular
+/// expression.
 ///
 /// # Arguments
 ///
@@ -244,8 +250,9 @@ pub const fn regex_char_needs_escaping(c: char) -> bool {
 #[cfg(test)]
 #[expect(clippy::panic_in_result_fn)]
 mod tests {
-    use super::*;
     use anyhow::Result;
+
+    use super::*;
 
     #[test]
     fn test_bracket_exprs() -> Result<()> {
@@ -265,8 +272,8 @@ mod tests {
         assert_eq!(pattern_to_regex_str(r"[a\-b]", true)?, r"[a\-b]");
         assert_eq!(pattern_to_regex_str(r"[a\-\*]", true)?, r"[a\-\*]");
 
-        // A ']' in the first member position (after any '!' or '^') is a member of the
-        // bracket expression, not its terminator.
+        // A ']' in the first member position (after any '!' or '^') is a member
+        // of the bracket expression, not its terminator.
         assert_eq!(pattern_to_regex_str("[]]", true)?, r"[\]]");
         assert_eq!(pattern_to_regex_str("[][]", true)?, r"[\]\[]");
         assert_eq!(pattern_to_regex_str("[]abc[]", true)?, r"[\]abc\[]");

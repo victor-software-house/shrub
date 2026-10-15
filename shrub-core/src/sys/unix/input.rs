@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::sync::LazyLock;
+
 use terminfo::capability as cap;
 
 use crate::{error, interfaces};
@@ -67,8 +68,8 @@ fn build_terminfo_key_map() -> HashMap<Vec<u8>, interfaces::Key> {
 pub(crate) static TERMINFO_KEY_MAP: LazyLock<HashMap<Vec<u8>, interfaces::Key>> =
     LazyLock::new(build_terminfo_key_map);
 
-/// Translates a key code (byte sequence) into a `Key` enum value. Returns `None`
-/// if the key code is not recognized.
+/// Translates a key code (byte sequence) into a `Key` enum value. Returns
+/// `None` if the key code is not recognized.
 ///
 /// # Arguments
 ///

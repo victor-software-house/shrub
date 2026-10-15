@@ -29,7 +29,8 @@ impl ExecutionResult {
 
     /// Returns a new `ExecutionResult` reflecting a process that was stopped.
     pub fn stopped() -> Self {
-        // TODO(jobs): Decide how to sort this out in a platform-independent way.
+        // TODO(jobs): Decide how to sort this out in a platform-independent
+        // way.
         const SIGTSTP: std::os::raw::c_int = 20;
 
         #[expect(clippy::cast_possible_truncation)]
@@ -118,13 +119,13 @@ impl From<std::process::Output> for ExecutionResult {
     fn from(output: std::process::Output) -> Self {
         if let Some(code) = output.status.code() {
             #[expect(clippy::cast_sign_loss)]
-            return Self::new((code & 0xFF) as u8);
+            return Self::new((code & 0xff) as u8);
         }
 
         #[cfg(unix)] // ast-grep-ignore: platform-cfg-outside-sys
         if let Some(signal) = output.status.signal() {
             #[expect(clippy::cast_sign_loss)]
-            return Self::new((signal & 0xFF) as u8 + 128);
+            return Self::new((signal & 0xff) as u8 + 128);
         }
 
         tracing::error!("unhandled process exit");
@@ -209,14 +210,15 @@ pub enum ExecutionControlFlow {
     Normal,
     /// Break out of an enclosing loop.
     BreakLoop {
-        /// Identifies which level of nested loops to break out of. 0 indicates the innermost loop,
-        /// 1 indicates the next outer loop, and so on.
+        /// Identifies which level of nested loops to break out of. 0 indicates
+        /// the innermost loop, 1 indicates the next outer loop, and so
+        /// on.
         levels: usize,
     },
     /// Continue to the next iteration of an enclosing loop.
     ContinueLoop {
-        /// Identifies which level of nested loops to continue. 0 indicates the innermost loop,
-        /// 1 indicates the next outer loop, and so on.
+        /// Identifies which level of nested loops to continue. 0 indicates the
+        /// innermost loop, 1 indicates the next outer loop, and so on.
         levels: usize,
     },
     /// Return from the current function or script.
@@ -227,8 +229,8 @@ pub enum ExecutionControlFlow {
 
 impl ExecutionControlFlow {
     /// Attempts to decrement the loop levels for `BreakLoop` or `ContinueLoop`.
-    /// If the levels reach zero, transitions to `Normal`. If the control flow is not
-    /// a loop break or continue, no changes are made.
+    /// If the levels reach zero, transitions to `Normal`. If the control flow
+    /// is not a loop break or continue, no changes are made.
     #[must_use]
     pub const fn try_decrement_loop_levels(&self) -> Self {
         match self {
@@ -252,7 +254,8 @@ pub enum ExecutionSpawnResult {
     Completed(ExecutionResult),
     /// Indicates that a process was started and had not yet completed.
     StartedProcess(processes::ChildProcess),
-    /// Indicates that a task was started to handle the execution asynchronously.
+    /// Indicates that a task was started to handle the execution
+    /// asynchronously.
     StartedTask(tasks::TaskHandle<Result<ExecutionResult, error::Error>>),
 }
 
@@ -267,8 +270,8 @@ impl ExecutionSpawnResult {
     pub async fn wait(self) -> Result<ExecutionWaitResult, error::Error> {
         let result = match self {
             Self::StartedProcess(mut child) => {
-                // Wait for the process to exit or for a relevant signal, whichever happens
-                // first.
+                // Wait for the process to exit or for a relevant signal,
+                // whichever happens first.
                 match child.wait().await? {
                     processes::ProcessWaitResult::Completed(output) => {
                         ExecutionWaitResult::Completed(ExecutionResult::from(output))

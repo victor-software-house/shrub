@@ -5,8 +5,8 @@ use std::io::Read;
 use crate::{Shell, extensions, trace_categories};
 
 impl<SE: extensions::ShellExtensions> Shell<SE> {
-    /// Parses the given reader as a shell program, returning the resulting Abstract Syntax Tree
-    /// for the program.
+    /// Parses the given reader as a shell program, returning the resulting
+    /// Abstract Syntax Tree for the program.
     pub fn parse<R: Read>(
         &self,
         reader: R,
@@ -17,8 +17,8 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
         parser.parse_program()
     }
 
-    /// Parses the given string as a shell program, returning the resulting Abstract Syntax Tree
-    /// for the program.
+    /// Parses the given string as a shell program, returning the resulting
+    /// Abstract Syntax Tree for the program.
     ///
     /// # Arguments
     ///
@@ -31,8 +31,9 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
         parse_string_impl(&s, &self.parser_options())
     }
 
-    /// Returns the options that should be used for parsing shell programs; reflects
-    /// the current configuration state of the shell and may change over time.
+    /// Returns the options that should be used for parsing shell programs;
+    /// reflects the current configuration state of the shell and may change
+    /// over time.
     pub const fn parser_options(&self) -> shrub_parser::ParserOptions {
         shrub_parser::ParserOptions {
             enable_extended_globbing: self.options.extended_globbing,

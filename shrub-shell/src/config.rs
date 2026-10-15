@@ -1,23 +1,24 @@
 //! Configuration file support for the shrub shell.
 //!
-//! This module provides TOML-based configuration file loading with the following features:
+//! This module provides TOML-based configuration file loading with the
+//! following features:
 //! - Forward-compatible: unknown fields are ignored
-//! - Graceful degradation: parse errors are logged but don't prevent shell startup
+//! - Graceful degradation: parse errors are logged but don't prevent shell
+//!   startup
 //! - Layered configuration: defaults < config file < command-line arguments
 
-use shrub_interactive::UIOptions;
+use std::borrow::Cow;
+use std::path::{Path, PathBuf};
+
 use etcetera::BaseStrategy;
-use std::{
-    borrow::Cow,
-    path::{Path, PathBuf},
-};
+use shrub_interactive::UIOptions;
 
 use crate::args::CommandLineArgs;
 
 /// Root configuration structure for the shrub shell.
 ///
-/// All fields are optional to support forward compatibility and partial configuration.
-/// Unknown fields in the TOML file are silently ignored.
+/// All fields are optional to support forward compatibility and partial
+/// configuration. Unknown fields in the TOML file are silently ignored.
 #[derive(Debug, Default, Clone, serde::Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
@@ -41,7 +42,8 @@ pub struct UiConfig {
 
 /// Experimental features configuration.
 ///
-/// These options control unstable features that may change or be removed in future versions.
+/// These options control unstable features that may change or be removed in
+/// future versions.
 #[derive(Debug, Default, Clone, serde::Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
@@ -71,7 +73,8 @@ impl Config {
     #[must_use]
     pub fn to_ui_options(&self, args: &CommandLineArgs) -> UIOptions {
         // Get clap's defaults by parsing an empty argument list.
-        // This lets us detect which CLI values were explicitly set vs. defaulted.
+        // This lets us detect which CLI values were explicitly set vs.
+        // defaulted.
         let defaults = CommandLineArgs::default_values();
 
         let enable_highlighting = merge_bool_setting(
@@ -104,8 +107,8 @@ impl Config {
 ///
 /// Priority: CLI (if explicitly set) > config file > default.
 ///
-/// Since boolean CLI flags can't distinguish between "explicitly set to false" and
-/// "not provided" (both result in `false`), we use a heuristic:
+/// Since boolean CLI flags can't distinguish between "explicitly set to false"
+/// and "not provided" (both result in `false`), we use a heuristic:
 /// - If the CLI value differs from the default, the user explicitly provided it
 /// - Otherwise, use the config value if present, or fall back to the default
 const fn merge_bool_setting(
@@ -145,12 +148,15 @@ impl ConfigLoadResult {
     /// Consumes the result and returns the configuration.
     ///
     /// If an error occurred:
-    /// - For explicit paths (user-provided via `--config`): returns `Err` with a formatted error
-    /// - For default paths: logs a warning and returns the default configuration
+    /// - For explicit paths (user-provided via `--config`): returns `Err` with
+    ///   a formatted error
+    /// - For default paths: logs a warning and returns the default
+    ///   configuration
     ///
     /// # Errors
     ///
-    /// Returns an error if an explicit config path was provided and loading failed.
+    /// Returns an error if an explicit config path was provided and loading
+    /// failed.
     pub fn into_config_or_log(self) -> Result<Config, String> {
         let Some(err) = self.error else {
             return Ok(self.config);
@@ -246,9 +252,10 @@ pub fn load_from_path(path: &Path) -> ConfigLoadResult {
 ///
 /// # Returns
 ///
-/// A `ConfigLoadResult` containing the configuration and any errors encountered.
-/// If `explicit_path` is provided and loading fails, the result will have
-/// `explicit_path: true` to indicate that the error should be treated as fatal.
+/// A `ConfigLoadResult` containing the configuration and any errors
+/// encountered. If `explicit_path` is provided and loading fails, the result
+/// will have `explicit_path: true` to indicate that the error should be treated
+/// as fatal.
 pub fn load_config(disabled: bool, explicit_path: Option<&Path>) -> ConfigLoadResult {
     if disabled {
         return ConfigLoadResult::default();
@@ -351,9 +358,11 @@ mod tests {
 
     #[test]
     fn load_config_nonexistent_default() {
-        // When using default path and file doesn't exist, should return defaults without error
+        // When using default path and file doesn't exist, should return
+        // defaults without error
         let result = load_config(false, None);
-        // We may or may not get a path depending on platform, but shouldn't error
+        // We may or may not get a path depending on platform, but shouldn't
+        // error
         assert!(result.error.is_none());
     }
 
@@ -373,8 +382,9 @@ mod tests {
 
         assert!(!ui.disable_bracketed_paste);
         assert!(!ui.disable_color);
-        // Note: whether highlighting is enabled by default depends on the compile-time
-        // DEFAULT_ENABLE_HIGHLIGHTING constant (true with reedline, false without)
+        // Note: whether highlighting is enabled by default depends on the
+        // compile-time DEFAULT_ENABLE_HIGHLIGHTING constant (true with
+        // reedline, false without)
         assert!(!ui.terminal_shell_integration);
         assert!(!ui.zsh_style_hooks);
     }
@@ -418,7 +428,8 @@ mod tests {
         )
         .unwrap();
 
-        // CLI explicitly enables highlighting and zsh-hooks (differs from default)
+        // CLI explicitly enables highlighting and zsh-hooks (differs from
+        // default)
         let ui = config.to_ui_options(&args);
 
         assert!(!ui.disable_highlighting); // CLI enabled highlighting

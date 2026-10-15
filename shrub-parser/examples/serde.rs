@@ -1,9 +1,12 @@
-//! Example demonstrating AST serialization and deserialization with the `serde` feature.
+//! Example demonstrating AST serialization and deserialization with the `serde`
+//! feature.
 //!
-//! Run with: `cargo run --package shrub-parser --example serde --features serde`
+//! Run with: `cargo run --package shrub-parser --example serde --features
+//! serde`
+
+use std::io::BufReader;
 
 use shrub_parser::{Parser, ParserOptions};
-use std::io::BufReader;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Parse a simple shell command

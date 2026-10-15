@@ -8,8 +8,8 @@ pub struct Config;
 
 #[allow(clippy::unused_self)]
 impl Config {
-    /// Creates a new `Config` from the actual terminal attributes of the terminal associated
-    /// with the given file descriptor.
+    /// Creates a new `Config` from the actual terminal attributes of the
+    /// terminal associated with the given file descriptor.
     ///
     /// # Arguments
     ///
@@ -18,7 +18,8 @@ impl Config {
         Ok(Self)
     }
 
-    /// Applies the terminal settings to the terminal associated with the given file descriptor.
+    /// Applies the terminal settings to the terminal associated with the given
+    /// file descriptor.
     ///
     /// # Arguments
     ///
@@ -27,12 +28,13 @@ impl Config {
         Ok(())
     }
 
-    /// Applies the given high-level terminal settings to this configuration. Does not modify any
-    /// terminal itself.
+    /// Applies the given high-level terminal settings to this configuration.
+    /// Does not modify any terminal itself.
     ///
     /// # Arguments
     ///
-    /// * `_settings` - The high-level terminal settings to apply to this configuration.
+    /// * `_settings` - The high-level terminal settings to apply to this
+    ///   configuration.
     pub fn update(&mut self, _settings: &terminal::Settings) {}
 }
 
@@ -71,14 +73,16 @@ pub fn move_self_to_foreground() -> Result<(), std::io::Error> {
     Ok(())
 }
 
-/// Tries to get the path of the terminal device associated with the attached terminal.
+/// Tries to get the path of the terminal device associated with the attached
+/// terminal.
 ///
 /// This is a stub implementation that always returns `None`.
 pub fn try_get_terminal_device_path() -> Option<std::path::PathBuf> {
     None
 }
 
-/// Returns the width, in columns, of the terminal associated with the given file.
+/// Returns the width, in columns, of the terminal associated with the given
+/// file.
 ///
 /// This is a stub implementation that always returns `None`.
 pub const fn get_columns(_file: &openfiles::OpenFile) -> Option<usize> {

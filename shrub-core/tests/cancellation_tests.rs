@@ -1,6 +1,6 @@
-//! Tests that cancelling a command partway through -- dropping its future, as a front end
-//! does when the user hits Ctrl-C during completion -- leaves the shell as it was before
-//! the command started.
+//! Tests that cancelling a command partway through -- dropping its future, as a
+//! front end does when the user hits Ctrl-C during completion -- leaves the
+//! shell as it was before the command started.
 
 #![cfg(unix)]
 #![cfg(test)]

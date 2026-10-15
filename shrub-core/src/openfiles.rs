@@ -5,9 +5,7 @@ use std::io::IsTerminal;
 use std::process::Stdio;
 use std::sync::Arc;
 
-use crate::ShellFd;
-use crate::error;
-use crate::sys;
+use crate::{ShellFd, error, sys};
 
 /// A trait representing a stream that can be read from and written to.
 /// This is used for custom stream implementations in `OpenFile`.
@@ -31,13 +29,15 @@ pub trait Stream: std::io::Read + std::io::Write + Send + Sync {
 
 /// Represents a file open in a shell context.
 ///
-/// File- and pipe-backed variants hold their handle behind an [`Arc`], so cloning an `OpenFile`
-/// shares the underlying descriptor by reference count. The shell opens a fresh context for each
-/// subshell, command substitution, background job, and function call and runs them as in-process
-/// tasks against one process-wide descriptor table (rather than via `fork(2)` like a traditional
-/// shell); sharing the descriptor keeps deeply nested or highly concurrent execution from
-/// exhausting that table. A descriptor is duplicated for real only when an independently owned
-/// copy is needed to hand to an external child process — see [`OpenFile::try_clone_to_owned`] and
+/// File- and pipe-backed variants hold their handle behind an [`Arc`], so
+/// cloning an `OpenFile` shares the underlying descriptor by reference count.
+/// The shell opens a fresh context for each subshell, command substitution,
+/// background job, and function call and runs them as in-process tasks against
+/// one process-wide descriptor table (rather than via `fork(2)` like a
+/// traditional shell); sharing the descriptor keeps deeply nested or highly
+/// concurrent execution from exhausting that table. A descriptor is duplicated
+/// for real only when an independently owned copy is needed to hand to an
+/// external child process — see [`OpenFile::try_clone_to_owned`] and
 /// the `Stdio` conversion below.
 pub enum OpenFile {
     /// The original standard input this process was started with.
@@ -91,7 +91,8 @@ impl<'de> serde::Deserialize<'de> for OpenFile {
             _ => return Err(serde::de::Error::custom("invalid open file")),
         }
 
-        // TODO(serde): Figure out something better to do with open pipes and files.
+        // TODO(serde): Figure out something better to do with open pipes and
+        // files.
         null().map_err(serde::de::Error::custom)
     }
 }
@@ -133,8 +134,9 @@ impl std::fmt::Display for OpenFile {
 }
 
 impl OpenFile {
-    /// Converts the open file into an `OwnedFd`. For shared file/pipe handles this materializes
-    /// a real duplicate via `dup(2)` so the caller receives an independently owned descriptor.
+    /// Converts the open file into an `OwnedFd`. For shared file/pipe handles
+    /// this materializes a real duplicate via `dup(2)` so the caller
+    /// receives an independently owned descriptor.
     #[cfg(unix)] // ast-grep-ignore: platform-cfg-outside-sys
     pub(crate) fn try_clone_to_owned(self) -> Result<std::os::fd::OwnedFd, error::Error> {
         use std::os::fd::AsFd as _;
@@ -154,7 +156,8 @@ impl OpenFile {
     ///
     /// # Errors
     ///
-    /// Returns an error if the operation is not supported for the underlying file type.
+    /// Returns an error if the operation is not supported for the underlying
+    /// file type.
     #[cfg(unix)] // ast-grep-ignore: platform-cfg-outside-sys
     pub fn try_borrow_as_fd(&self) -> Result<std::os::fd::BorrowedFd<'_>, error::Error> {
         use std::os::fd::AsFd as _;
@@ -233,10 +236,12 @@ impl TryFrom<OpenFile> for Stdio {
     type Error = error::Error;
 
     fn try_from(open_file: OpenFile) -> Result<Self, Self::Error> {
-        // File and pipe handles are shared behind an `Arc`, so the descriptor cannot be moved
-        // out; duplicate it to give the child an independently owned descriptor. Duplication can
-        // fail (e.g. under descriptor exhaustion), so the conversion is fallible and the error is
-        // surfaced to the caller rather than silently degrading the child's streams.
+        // File and pipe handles are shared behind an `Arc`, so the descriptor
+        // cannot be moved out; duplicate it to give the child an
+        // independently owned descriptor. Duplication can fail (e.g.
+        // under descriptor exhaustion), so the conversion is fallible and the
+        // error is surfaced to the caller rather than silently
+        // degrading the child's streams.
         match open_file {
             OpenFile::Stdin(_) | OpenFile::Stdout(_) | OpenFile::Stderr(_) => Ok(Self::inherit()),
             OpenFile::File(f) => Ok(f.try_clone()?.into()),
@@ -306,7 +311,8 @@ impl std::io::Write for OpenFile {
 pub enum OpenFileEntry<'a> {
     /// File descriptor is present and has a valid associated `OpenFile`.
     Open(&'a OpenFile),
-    /// File descriptor is explicitly marked as not being mapped to any `OpenFile`.
+    /// File descriptor is explicitly marked as not being mapped to any
+    /// `OpenFile`.
     NotPresent,
     /// File descriptor is not specified in any way; it may be provided by a
     /// parent context of some kind.
@@ -334,8 +340,8 @@ impl OpenFiles {
     /// Maximum file descriptor number allowed.
     const MAX_FD: ShellFd = 1024;
 
-    /// Creates a new `OpenFiles` instance populated with stdin, stdout, and stderr
-    /// from the host environment.
+    /// Creates a new `OpenFiles` instance populated with stdin, stdout, and
+    /// stderr from the host environment.
     pub(crate) fn new() -> Self {
         Self {
             files: HashMap::from([
@@ -346,12 +352,14 @@ impl OpenFiles {
         }
     }
 
-    /// Updates the open files from the provided iterator of (fd number, `OpenFile`) pairs.
-    /// Any existing entries for the provided file descriptors will be overwritten.
+    /// Updates the open files from the provided iterator of (fd number,
+    /// `OpenFile`) pairs. Any existing entries for the provided file
+    /// descriptors will be overwritten.
     ///
     /// # Arguments
     ///
-    /// * `files`: An iterator of (fd number, `OpenFile`) pairs to update the open files with.
+    /// * `files`: An iterator of (fd number, `OpenFile`) pairs to update the
+    ///   open files with.
     pub fn update_from(&mut self, files: impl Iterator<Item = (ShellFd, OpenFile)>) {
         for (fd, file) in files {
             let _ = self.files.insert(fd, Some(file));
@@ -373,9 +381,9 @@ impl OpenFiles {
         self.files.get(&Self::STDERR_FD).and_then(|f| f.as_ref())
     }
 
-    /// Tries to remove an open file by its file descriptor. If the file descriptor
-    /// is not used, `None` will be returned; otherwise, the removed file will
-    /// be returned.
+    /// Tries to remove an open file by its file descriptor. If the file
+    /// descriptor is not used, `None` will be returned; otherwise, the
+    /// removed file will be returned.
     ///
     /// Arguments:
     ///
@@ -394,8 +402,9 @@ impl OpenFiles {
         self.files.get(&fd).and_then(|f| f.as_ref())
     }
 
-    /// Tries to lookup the `OpenFile` associated with a file descriptor. Returns
-    /// an `OpenFileEntry` representing the state of the file descriptor.
+    /// Tries to lookup the `OpenFile` associated with a file descriptor.
+    /// Returns an `OpenFileEntry` representing the state of the file
+    /// descriptor.
     ///
     /// Arguments:
     ///
@@ -414,9 +423,9 @@ impl OpenFiles {
         self.files.contains_key(&fd)
     }
 
-    /// Associates the given file descriptor with the provided file. If the file descriptor
-    /// is already in use, the previous file will be returned; otherwise, `None`
-    /// will be returned.
+    /// Associates the given file descriptor with the provided file. If the file
+    /// descriptor is already in use, the previous file will be returned;
+    /// otherwise, `None` will be returned.
     ///
     /// Arguments:
     ///

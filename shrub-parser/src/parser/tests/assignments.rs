@@ -1,8 +1,9 @@
 //! Tests for assignment parsing.
 
+use anyhow::Result;
+
 use super::{ParseResult, test_with_snapshot};
 use crate::assert_snapshot_redacted;
-use anyhow::Result;
 
 // Scalar assignments
 

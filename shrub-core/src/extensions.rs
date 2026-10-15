@@ -25,7 +25,8 @@ pub type DefaultShellExtensions = ShellExtensionsImpl<DefaultErrorFormatter>;
 
 /// Trait for defining shell error behaviors.
 pub trait ErrorFormatter: Clone + Default + Send + Sync + 'static {
-    /// Format the given error for display within the context of the provided shell.
+    /// Format the given error for display within the context of the provided
+    /// shell.
     ///
     /// # Arguments
     ///

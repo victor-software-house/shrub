@@ -198,14 +198,16 @@ pub struct RuntimeOptions {
     pub sh_mode: bool,
     /// Whether to treat external commands as session leaders.
     pub external_cmd_leads_session: bool,
-    /// Whether externally spawned commands are killed when their spawning shell is dropped.
+    /// Whether externally spawned commands are killed when their spawning shell
+    /// is dropped.
     pub kill_external_commands_on_drop: bool,
     /// Maximum function call depth.
     pub max_function_call_depth: Option<usize>,
 }
 
 impl RuntimeOptions {
-    /// Creates a default set of runtime options based on the given creation options.
+    /// Creates a default set of runtime options based on the given creation
+    /// options.
     ///
     /// # Arguments
     ///
@@ -297,7 +299,8 @@ impl RuntimeOptions {
         options
     }
 
-    /// Returns a string representing the current `set`-style option flags set in the shell.
+    /// Returns a string representing the current `set`-style option flags set
+    /// in the shell.
     pub fn option_flags(&self) -> String {
         let mut cs = vec![];
 

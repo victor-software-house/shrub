@@ -1,6 +1,7 @@
 //! Source info.
 
-use std::{path::PathBuf, sync::Arc};
+use std::path::PathBuf;
+use std::sync::Arc;
 
 /// Source context.
 #[derive(Clone, Debug, Default)]
@@ -8,8 +9,8 @@ use std::{path::PathBuf, sync::Arc};
 pub struct SourceInfo {
     /// The name of the source.
     pub source: String,
-    /// Optionally indicates a starting location after the beginning of the source.
-    /// If `None`, the start is the beginning of the source.
+    /// Optionally indicates a starting location after the beginning of the
+    /// source. If `None`, the start is the beginning of the source.
     pub start: Option<Arc<crate::SourcePosition>>,
 }
 

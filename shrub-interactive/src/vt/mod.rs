@@ -1,7 +1,7 @@
 //! A line-editing input backend that needs nothing from the terminal but bytes.
 //!
-//! Keys are decoded from standard input, and the line is drawn on standard error,
-//! with VT100-style escape sequences or with backspaces alone.
+//! Keys are decoded from standard input, and the line is drawn on standard
+//! error, with VT100-style escape sequences or with backspaces alone.
 
 mod completion_list;
 mod input_backend;

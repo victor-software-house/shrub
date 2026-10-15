@@ -27,7 +27,8 @@ impl ShellOptionDef {
         Self { getter, setter }
     }
 
-    /// Retrieves the current value of this option from the given runtime options.
+    /// Retrieves the current value of this option from the given runtime
+    /// options.
     ///
     /// # Arguments
     ///

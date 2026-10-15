@@ -4,26 +4,16 @@ use std::borrow::Cow;
 use std::cmp::min;
 use std::io::Write as _;
 
-use shrub_parser::word::{ParameterTransformOp, SubstringMatchKind};
 use itertools::Itertools;
+use shrub_parser::word::{ParameterTransformOp, SubstringMatchKind};
 
-use crate::ExecutionParameters;
-use crate::arithmetic;
 use crate::arithmetic::ExpandAndEvaluate;
-use crate::braceexpansion;
-use crate::commands;
-use crate::env;
-use crate::error;
-use crate::escape;
-use crate::extensions;
-use crate::patterns;
-use crate::prompt;
 use crate::shell::Shell;
-use crate::sys;
-use crate::trace_categories;
-use crate::variables::ShellValueUnsetType;
-use crate::variables::ShellVariable;
-use crate::variables::{self, ShellValue};
+use crate::variables::{self, ShellValue, ShellValueUnsetType, ShellVariable};
+use crate::{
+    ExecutionParameters, arithmetic, braceexpansion, commands, env, error, escape, extensions,
+    patterns, prompt, sys, trace_categories,
+};
 
 mod fieldsplit;
 
@@ -54,11 +44,11 @@ pub(crate) struct ExpanderOptions {
     pub tilde_expand: bool,
     /// Whether to perform brace-expansion.
     pub brace_expand: bool,
-    /// Whether to perform command substitutions. If disabled, command substitutions
-    /// are replaced with an empty string.
+    /// Whether to perform command substitutions. If disabled, command
+    /// substitutions are replaced with an empty string.
     pub execute_command_substitutions: bool,
-    /// Whether to perform pathname expansion (globbing). If disabled, glob patterns
-    /// are returned as literal strings.
+    /// Whether to perform pathname expansion (globbing). If disabled, glob
+    /// patterns are returned as literal strings.
     pub pathname_expand: bool,
     /// How to handle backslash-escape sequences encountered outside of any
     /// explicit quoting. See [`UnquotedBackslashHandling`] for details.
@@ -84,28 +74,30 @@ impl Default for ExpanderOptions {
 /// consumes both characters, leaving nothing.
 pub(crate) const DOUBLE_QUOTED_ESCAPE_CHARS: &[char] = &['\\', '$', '`', '"', '\n'];
 
-/// Describes what a parameter's expansion is a list of. Operators whose behavior depends
-/// on that shape -- `${#x}` and `${x:offset:length}` today -- consult this to decide
-/// whether they address characters or elements, via the methods below.
+/// Describes what a parameter's expansion is a list of. Operators whose
+/// behavior depends on that shape -- `${#x}` and `${x:offset:length}` today --
+/// consult this to decide whether they address characters or elements, via the
+/// methods below.
 #[derive(Clone, Debug)]
 enum ExpansionKind {
     /// A single string; addressed by character.
     String,
-    /// The elements of an indexed array, along with their subscripts in ascending order.
-    /// The subscripts matter because bash addresses these by subscript rather than by
-    /// position, which only makes a difference when the array is sparse.
+    /// The elements of an indexed array, along with their subscripts in
+    /// ascending order. The subscripts matter because bash addresses these
+    /// by subscript rather than by position, which only makes a difference
+    /// when the array is sparse.
     IndexedArray(Vec<u64>),
-    /// Elements with no indices to address them by: an associative array, the positional
-    /// parameters, or a generated list of names.
+    /// Elements with no indices to address them by: an associative array, the
+    /// positional parameters, or a generated list of names.
     ElementList,
-    /// A scalar that was written `${x[@]}` or `${x[*]}`. bash counts it as a single
-    /// element but slices it as a string.
+    /// A scalar that was written `${x[@]}` or `${x[*]}`. bash counts it as a
+    /// single element but slices it as a string.
     ScalarAsArray,
 }
 
 impl ExpansionKind {
-    /// Returns whether `${x:offset:length}` rejects a negative length, which bash does for
-    /// every real array form.
+    /// Returns whether `${x:offset:length}` rejects a negative length, which
+    /// bash does for every real array form.
     const fn is_array(&self) -> bool {
         matches!(self, Self::IndexedArray(_) | Self::ElementList)
     }
@@ -115,16 +107,18 @@ impl ExpansionKind {
         matches!(self, Self::String)
     }
 
-    /// Returns whether `${x:offset:length}` addresses characters rather than elements.
-    /// bash slices a scalar as a string even when it was written `${x[@]}`, so this is not
-    /// the same question as [`Self::counts_chars`].
+    /// Returns whether `${x:offset:length}` addresses characters rather than
+    /// elements. bash slices a scalar as a string even when it was written
+    /// `${x[@]}`, so this is not the same question as
+    /// [`Self::counts_chars`].
     const fn slices_chars(&self) -> bool {
         matches!(self, Self::String | Self::ScalarAsArray)
     }
 
-    /// Returns the size of the space that `${x:offset:length}` offsets live in, which a
-    /// negative offset counts back from. For an indexed array that is subscript space, one
-    /// past the highest subscript; a sparse array's is wider than its element count.
+    /// Returns the size of the space that `${x:offset:length}` offsets live in,
+    /// which a negative offset counts back from. For an indexed array that
+    /// is subscript space, one past the highest subscript; a sparse array's
+    /// is wider than its element count.
     fn offset_space(&self, len: i64) -> i64 {
         match self {
             Self::IndexedArray(subscripts) => subscripts.last().map_or(0, |&last| {
@@ -134,9 +128,9 @@ impl ExpansionKind {
         }
     }
 
-    /// Returns the lowest offset that is out of range. bash validates the offset before it
-    /// ever looks at the length, and yields an empty slice for anything at or past this
-    /// point.
+    /// Returns the lowest offset that is out of range. bash validates the
+    /// offset before it ever looks at the length, and yields an empty slice
+    /// for anything at or past this point.
     fn offset_limit(&self, len: i64) -> i64 {
         match self {
             // An offset of exactly the length is in range for a string, and for elements
@@ -147,9 +141,10 @@ impl ExpansionKind {
         }
     }
 
-    /// Translates an in-range offset into a position in the element list. For an indexed
-    /// array bash selects the first element whose subscript is at least the offset; the
-    /// length then counts elements positionally from there.
+    /// Translates an in-range offset into a position in the element list. For
+    /// an indexed array bash selects the first element whose subscript is
+    /// at least the offset; the length then counts elements positionally
+    /// from there.
     fn offset_to_position(&self, offset: i64) -> i64 {
         match self {
             Self::IndexedArray(subscripts) => {
@@ -211,10 +206,11 @@ impl Expansion {
         } else if non_empty {
             ParameterState::NonZeroLength
         } else if self.fields.is_empty() {
-            // An array referenced via [@]/[*] that yields no fields (i.e. an empty
-            // array) is treated as unset by bash for the +/- conditional operators.
-            // This is distinct from a scalar holding an empty string, which has a
-            // single (empty) field and remains a defined empty string.
+            // An array referenced via [@]/[*] that yields no fields (i.e. an
+            // empty array) is treated as unset by bash for the +/-
+            // conditional operators. This is distinct from a scalar
+            // holding an empty string, which has a single (empty)
+            // field and remains a defined empty string.
             ParameterState::Undefined
         } else {
             ParameterState::DefinedEmptyString
@@ -251,8 +247,8 @@ impl Expansion {
     fn polymorphic_subslice(&self, index: usize, end: usize) -> Self {
         let len = end - index;
 
-        // If we're addressing elements, then interpret `index` and `end` as indices
-        // into the elements.
+        // If we're addressing elements, then interpret `index` and `end` as
+        // indices into the elements.
         if !self.kind.slices_chars() {
             let actual_len = min(len, self.fields.len() - index);
             let fields = self.fields[index..(index + actual_len)].to_vec();
@@ -264,10 +260,12 @@ impl Expansion {
                 kind: self.kind.clone(),
             }
         } else {
-            // Otherwise, interpret `index` and `end` as indices into the string contents.
+            // Otherwise, interpret `index` and `end` as indices into the string
+            // contents.
             let mut fields = vec![];
 
-            // Keep track of how far away the interesting data is from the current read offset.
+            // Keep track of how far away the interesting data is from the
+            // current read offset.
             let mut dist_to_slice = index;
             // Keep track of how many characters are left to be copied.
             let mut left = len;
@@ -282,22 +280,25 @@ impl Expansion {
                         break;
                     }
 
-                    // Get the inner string of the piece, and figure out how many
-                    // characters are in it; make sure to get the *character count*
+                    // Get the inner string of the piece, and figure out how
+                    // many characters are in it; make sure
+                    // to get the *character count*
                     // and not just call `.len()` to get the byte count.
                     let piece_str = piece.as_str();
                     let piece_char_count = piece_str.chars().count();
 
-                    // If the interesting data isn't even in this piece yet, then
-                    // continue until we find it.
+                    // If the interesting data isn't even in this piece yet,
+                    // then continue until we find it.
                     if dist_to_slice >= piece_char_count {
                         dist_to_slice -= piece_char_count;
                         continue;
                     }
 
-                    // Figure out how far into this piece we're interested in copying.
+                    // Figure out how far into this piece we're interested in
+                    // copying.
                     let desired_offset_into_this_piece = dist_to_slice;
-                    // Figure out how many characters we're going to use from *this* piece.
+                    // Figure out how many characters we're going to use from
+                    // *this* piece.
                     let len_from_this_piece =
                         min(left, piece_char_count - desired_offset_into_this_piece);
 
@@ -388,11 +389,11 @@ impl From<String> for WordField {
 enum ExpansionPiece {
     /// Quoted text: never field-split, never treated as a pattern.
     Unsplittable(String),
-    /// The unquoted result of a parameter expansion, command substitution or arithmetic
-    /// expansion: field-split on IFS, then treated as a pattern.
+    /// The unquoted result of a parameter expansion, command substitution or
+    /// arithmetic expansion: field-split on IFS, then treated as a pattern.
     Splittable(String),
-    /// Unquoted literal text of the word itself: never field-split (bash only splits the
-    /// results of expansions), but still treated as a pattern.
+    /// Unquoted literal text of the word itself: never field-split (bash only
+    /// splits the results of expansions), but still treated as a pattern.
     UnquotedLiteral(String),
     /// An empty element of an unquoted array or positional-parameter expansion.
     EmptyListElement {
@@ -479,8 +480,8 @@ pub(crate) async fn basic_expand_pattern(
     params: &ExecutionParameters,
     word_str: impl AsRef<str>,
 ) -> Result<patterns::Pattern, error::Error> {
-    // When expanding patterns, we do not want backslash removal to occur in unquoted
-    // contexts, as that would interfere with pattern syntax.
+    // When expanding patterns, we do not want backslash removal to occur in
+    // unquoted contexts, as that would interfere with pattern syntax.
     let options = ExpanderOptions {
         // Bash performs no brace expansion in this context.
         brace_expand: false,
@@ -571,8 +572,9 @@ pub(crate) async fn basic_expand_word_with_options(
     expander.basic_expand_to_str(word_str.as_ref()).await
 }
 
-/// Apply tilde-expansion, parameter expansion, command substitution, and arithmetic expansion;
-/// then perform field splitting and pathname expansion on the result.
+/// Apply tilde-expansion, parameter expansion, command substitution, and
+/// arithmetic expansion; then perform field splitting and pathname expansion on
+/// the result.
 ///
 /// # Arguments
 ///
@@ -588,8 +590,9 @@ pub(crate) async fn full_expand_and_split_word(
     expander.full_expand_with_splitting(word_str.as_ref()).await
 }
 
-/// Apply tilde-expansion, parameter expansion, command substitution, and arithmetic expansion;
-/// then perform field splitting and pathname expansion on the result.
+/// Apply tilde-expansion, parameter expansion, command substitution, and
+/// arithmetic expansion; then perform field splitting and pathname expansion on
+/// the result.
 ///
 /// # Arguments
 ///
@@ -632,8 +635,9 @@ pub(crate) async fn basic_expand_assignment_word(
 ///
 /// * `shell` - The shell in which to perform the assignment.
 /// * `params` - The execution parameters to use during the assignment.
-/// * `name` - The name of the parameter to assign to. May be a variable name, or a more complex,
-///   assignable parameter expression (e.g., an array element).
+/// * `name` - The name of the parameter to assign to. May be a variable name,
+///   or a more complex, assignable parameter expression (e.g., an array
+///   element).
 /// * `value` - The value to assign to the parameter.
 pub async fn assign_to_named_parameter(
     shell: &mut Shell<impl extensions::ShellExtensions>,
@@ -665,7 +669,8 @@ struct WordExpander<'a, SE: extensions::ShellExtensions> {
     unquoted_backslash_handling: UnquotedBackslashHandling,
     /// Whether we are currently expanding inside a double-quoted context.
     in_double_quotes: bool,
-    /// Whether to use heredoc expansion semantics (literal quotes, no brace expansion).
+    /// Whether to use heredoc expansion semantics (literal quotes, no brace
+    /// expansion).
     heredoc_mode: bool,
 }
 
@@ -710,7 +715,8 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
         }
     }
 
-    /// Apply tilde-expansion, parameter expansion, command substitution, and arithmetic expansion.
+    /// Apply tilde-expansion, parameter expansion, command substitution, and
+    /// arithmetic expansion.
     pub async fn basic_expand_to_str(&mut self, word: &str) -> Result<String, error::Error> {
         let expansion = self.basic_expand(word).await?;
         Ok(self.fields_to_string(expansion))
@@ -804,17 +810,19 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
             .set_case_insensitive(self.shell.options().case_insensitive_conditionals))
     }
 
-    /// Apply tilde-expansion, parameter expansion, command substitution, and arithmetic expansion;
-    /// yield pieces that could be further processed.
+    /// Apply tilde-expansion, parameter expansion, command substitution, and
+    /// arithmetic expansion; yield pieces that could be further processed.
     async fn basic_expand(&mut self, word: &str) -> Result<Expansion, error::Error> {
         tracing::debug!(target: trace_categories::EXPANSION, "Basic expanding: '{word}'");
 
-        // Quick short circuit to avoid more expensive parsing. The characters below are
-        // understood to be the *only* ones indicative of *possible* expansion. There's
-        // still a possibility no expansion needs to be done, but that's okay; we'll still
+        // Quick short circuit to avoid more expensive parsing. The characters
+        // below are understood to be the *only* ones indicative of
+        // *possible* expansion. There's still a possibility no
+        // expansion needs to be done, but that's okay; we'll still
         // yield a correct result.
         let expansion_chars: &[char] = if self.heredoc_mode {
-            // Heredoc bodies treat quotes as literal; only $, `, and \ trigger expansion.
+            // Heredoc bodies treat quotes as literal; only $, `, and \ trigger
+            // expansion.
             &['$', '`', '\\']
         } else {
             &['$', '`', '\\', '\'', '\"', '~', '{']
@@ -825,18 +833,20 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
             )));
         }
 
-        // Apply brace expansion first, before anything else (not applicable to heredoc bodies).
-        // Bash performs it before every other expansion and each result is a word of its
-        // own; that is what keeps the results separate when IFS lacks a space.
+        // Apply brace expansion first, before anything else (not applicable to
+        // heredoc bodies). Bash performs it before every other
+        // expansion and each result is a word of its own; that is what
+        // keeps the results separate when IFS lacks a space.
         let Some(brace_words) = self.brace_expand_if_needed(word) else {
             return self.expand_unbraced_word(word).await;
         };
 
         tracing::debug!(target: trace_categories::EXPANSION, "  => brace expanded to {brace_words:?}");
 
-        // A single result (e.g. `{2..2}`) keeps the inner expansion's properties, such as
-        // the `concatenate` flag of "${arr[@]}". With several results each one contributes
-        // its fields and array semantics don't propagate.
+        // A single result (e.g. `{2..2}`) keeps the inner expansion's
+        // properties, such as the `concatenate` flag of "${arr[@]}".
+        // With several results each one contributes its fields and
+        // array semantics don't propagate.
         if let [only] = brace_words.as_slice() {
             return self.expand_unbraced_word(only).await;
         }
@@ -852,11 +862,13 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
         })
     }
 
-    /// Apply tilde-expansion, parameter expansion, command substitution and arithmetic
-    /// expansion to a word that contains no brace expression (or is one result of one).
+    /// Apply tilde-expansion, parameter expansion, command substitution and
+    /// arithmetic expansion to a word that contains no brace expression (or
+    /// is one result of one).
     async fn expand_unbraced_word(&mut self, word: &str) -> Result<Expansion, error::Error> {
-        // Heredoc mode only affects top-level parsing (literal quotes); recursive
-        // expansion of parameter words (e.g., ${var:-"default"}) uses normal semantics.
+        // Heredoc mode only affects top-level parsing (literal quotes);
+        // recursive expansion of parameter words (e.g.,
+        // ${var:-"default"}) uses normal semantics.
         let pieces = if self.heredoc_mode {
             self.heredoc_mode = false;
             shrub_parser::word::parse_heredoc(word, &self.parser_options)?
@@ -872,37 +884,43 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
         Ok(coalesce_expansions(expansions))
     }
 
-    /// Expand a word used inside a parameter expansion (like the word in ${param:+word}).
-    /// When we're already inside double-quotes, we preserve literal backslashes and quotes
-    /// (except those escaped in ways valid in double-quotes) but still expand parameters,
+    /// Expand a word used inside a parameter expansion (like the word in
+    /// ${param:+word}). When we're already inside double-quotes, we
+    /// preserve literal backslashes and quotes (except those escaped in
+    /// ways valid in double-quotes) but still expand parameters,
     /// command substitutions, and arithmetic.
     async fn expand_parameter_word(&mut self, word: &str) -> Result<Expansion, error::Error> {
         let mut expansion = if self.in_double_quotes {
-            // When inside double-quotes, we need to parse the word with double-quote semantics.
-            // If the word already starts with a double-quote, we need to remove those quotes
-            // and expand what's inside with normal (non-double-quote) semantics.
+            // When inside double-quotes, we need to parse the word with
+            // double-quote semantics. If the word already starts
+            // with a double-quote, we need to remove those quotes
+            // and expand what's inside with normal (non-double-quote)
+            // semantics.
             if let Some(stripped) = word.strip_prefix('"')
                 && let Some(inner) = stripped.strip_suffix('"')
             {
-                // Remove the surrounding double-quotes and expand the content normally
-                // This requires us to temporarily clear in_double_quotes so the inner
+                // Remove the surrounding double-quotes and expand the content
+                // normally This requires us to temporarily
+                // clear in_double_quotes so the inner
                 // content gets normal processing.
                 let previously_in_double_quotes = self.in_double_quotes;
                 self.in_double_quotes = false;
 
-                // Now perform the expansion and make sure to restore the previous state,
-                // even if the expansion fails.
+                // Now perform the expansion and make sure to restore the
+                // previous state, even if the expansion fails.
                 let result = self.basic_expand(inner).await;
                 self.in_double_quotes = previously_in_double_quotes;
 
                 result?
             } else {
-                // Not double-quoted - wrap in double-quotes to get double-quote parsing semantics
+                // Not double-quoted - wrap in double-quotes to get double-quote
+                // parsing semantics
                 let wrapped = std::format!("\"{word}\"");
                 self.basic_expand(&wrapped).await?
             }
         } else {
-            // When not inside double-quotes, perform normal expansion with quote removal
+            // When not inside double-quotes, perform normal expansion with
+            // quote removal
             self.basic_expand(word).await?
         };
 
@@ -919,11 +937,12 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
         Ok(expansion)
     }
 
-    /// Performs brace expansion on the word, yielding the resulting words, or `None` if
-    /// the word contains no brace expression.
+    /// Performs brace expansion on the word, yielding the resulting words, or
+    /// `None` if the word contains no brace expression.
     fn brace_expand_if_needed(&self, word: &str) -> Option<Vec<String>> {
-        // We perform a non-authoritative check to see if the string *may* contain braces
-        // to expand. There may be false positives, but must be no false negatives.
+        // We perform a non-authoritative check to see if the string *may*
+        // contain braces to expand. There may be false positives, but
+        // must be no false negatives.
         if self.disable_brace_expansion
             || !self.shell.options().perform_brace_expansion
             || !may_contain_braces_to_expand(word)
@@ -943,8 +962,8 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
 
         tracing::debug!(target: trace_categories::EXPANSION, "Brace expansion pieces: {brace_expansion_pieces:?}");
 
-        // An alternative that expands to nothing yields no word at all (like any other
-        // unquoted empty expansion); `{a,}` is just `a`.
+        // An alternative that expands to nothing yields no word at all (like
+        // any other unquoted empty expansion); `{a,}` is just `a`.
         let words = braceexpansion::generate_and_combine_brace_expansions(brace_expansion_pieces)
             .into_iter()
             .filter(|s| !s.is_empty())
@@ -953,8 +972,9 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
         Some(words)
     }
 
-    /// Apply tilde-expansion, parameter expansion, command substitution, and arithmetic expansion;
-    /// then perform field splitting and pathname expansion.
+    /// Apply tilde-expansion, parameter expansion, command substitution, and
+    /// arithmetic expansion; then perform field splitting and pathname
+    /// expansion.
     pub async fn full_expand_with_splitting(
         &mut self,
         word: &str,
@@ -965,8 +985,9 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
         // Then split.
         let fields: Vec<WordField> = fieldsplit::split_fields(&self.shell.ifs(), basic_expansion);
 
-        // Now expand pathnames if necessary. This also unquotes as a side effect.
-        // We also know a length that the vector may be at minimally.
+        // Now expand pathnames if necessary. This also unquotes as a side
+        // effect. We also know a length that the vector may be at
+        // minimally.
         let mut result = Vec::with_capacity(fields.len());
         for field in fields {
             if self.disable_pathname_expansion || self.shell.options().disable_filename_globbing {
@@ -1048,7 +1069,8 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                 self.in_double_quotes = true;
 
                 // Process pieces; don't inspect the result yet, so we can make
-                // sure we restore the previous value of the 'in_double_quotes' flag.
+                // sure we restore the previous value of the 'in_double_quotes'
+                // flag.
                 let result = self.process_double_quoted_pieces(pieces).await;
 
                 // Restore the previous state
@@ -1057,8 +1079,9 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                 // Now we can inspect the result.
                 let mut fields = result?;
 
-                // If there were no pieces, then make sure we yield a single field containing an
-                // empty, unsplittable string.
+                // If there were no pieces, then make sure we yield a single
+                // field containing an empty, unsplittable
+                // string.
                 if pieces_is_empty {
                     fields.push(WordField::from(ExpansionPiece::Unsplittable(String::new())));
                 }
@@ -1087,7 +1110,8 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                     String::new()
                 };
 
-                // Strips null bytes from command substitution output for compatibility.
+                // Strips null bytes from command substitution output for
+                // compatibility.
                 if cmd_output.contains('\0') {
                     writeln!(
                         self.params.stderr(self.shell),
@@ -1104,8 +1128,9 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
             }
             shrub_parser::word::WordPiece::EscapeSequence(s) => {
                 let Some(escaped) = s.strip_prefix('\\') else {
-                    // We don't ever expect this case, as it breaks our invariant--but
-                    // we handle it to avoid panicking.
+                    // We don't ever expect this case, as it breaks our
+                    // invariant--but we handle it to avoid
+                    // panicking.
                     return Ok(Expansion::from(ExpansionPiece::Unsplittable(s)));
                 };
 
@@ -1239,8 +1264,8 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                     .flatten()
                     .collect();
 
-                // If there were no pieces, make sure there's an empty string after
-                // concatenation.
+                // If there were no pieces, make sure there's an empty string
+                // after concatenation.
                 if concatenated.is_empty() {
                     concatenated.push(ExpansionPiece::Splittable(String::new()));
                 }
@@ -1460,7 +1485,8 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
             } => {
                 let mut expanded_parameter = self.expand_parameter(&parameter, indirect).await?;
 
-                // If this is ${@:...} then make sure $0 is in the array being sliced.
+                // If this is ${@:...} then make sure $0 is in the array being
+                // sliced.
                 if matches!(
                     parameter,
                     shrub_parser::word::Parameter::Special(
@@ -1480,24 +1506,28 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                 #[expect(clippy::cast_possible_wrap)]
                 let expanded_parameter_len = expanded_parameter.slice_len() as i64;
 
-                // bash has nothing to slice when the parameter is unset, or when it
-                // expanded to no fields at all -- an empty array, say -- and yields an
-                // empty slice without validating the offset or the length.
+                // bash has nothing to slice when the parameter is unset, or
+                // when it expanded to no fields at all -- an
+                // empty array, say -- and yields an empty slice
+                // without validating the offset or the length.
                 if matches!(expanded_parameter.classify(), ParameterState::Undefined) {
                     return Ok(expanded_parameter.polymorphic_subslice(0, 0));
                 }
 
-                // A negative offset counts back from the end of the offset space: -1
-                // addresses the last character or position, or -- for an indexed array --
+                // A negative offset counts back from the end of the offset
+                // space: -1 addresses the last character or
+                // position, or -- for an indexed array --
                 // the highest subscript.
                 let mut expanded_offset = offset.eval(self.shell, self.params, false).await?;
                 if expanded_offset < 0 {
                     expanded_offset += expanded_parameter.kind.offset_space(expanded_parameter_len);
                 }
 
-                // bash validates the offset before it looks at the length: an offset that is
-                // out of range -- still negative after counting back from the end, or at or
-                // past the end -- yields an empty slice, whatever the length says.
+                // bash validates the offset before it looks at the length: an
+                // offset that is out of range -- still negative
+                // after counting back from the end, or at or
+                // past the end -- yields an empty slice, whatever the length
+                // says.
                 if expanded_offset < 0
                     || expanded_offset
                         >= expanded_parameter.kind.offset_limit(expanded_parameter_len)
@@ -1505,18 +1535,21 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                     return Ok(expanded_parameter.polymorphic_subslice(0, 0));
                 }
 
-                // Offsets are validated in the space they were written in; from here on we
-                // need a position in the element list.
+                // Offsets are validated in the space they were written in; from
+                // here on we need a position in the element
+                // list.
                 let expanded_offset = expanded_parameter.kind.offset_to_position(expanded_offset);
 
                 let end_offset = if let Some(length) = length {
                     let expanded_length = length.eval(self.shell, self.params, false).await?;
 
                     if expanded_length < 0 {
-                        // For a string, a negative length says where the slice *ends*,
-                        // counting back from the end of the value, instead of how long it
-                        // is: `${s:2:-2}` on `abcdefgh` ends at index 6, giving `cdef`. bash
-                        // has no such reading for an array, and rejects a negative length
+                        // For a string, a negative length says where the slice
+                        // *ends*, counting back from
+                        // the end of the value, instead of how long it
+                        // is: `${s:2:-2}` on `abcdefgh` ends at index 6, giving
+                        // `cdef`. bash has no such
+                        // reading for an array, and rejects a negative length
                         // there outright.
                         let end_offset = expanded_parameter_len + expanded_length;
                         if expanded_parameter.kind.is_array() || end_offset < expanded_offset {
@@ -1608,8 +1641,9 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                 let came_from_undefined = expanded_parameter.undefined;
 
                 //
-                // For typing reasons (issues with FnMut and our mut use of self), we can't use
-                // transform_expansion. Instead, we inline its logic here.
+                // For typing reasons (issues with FnMut and our mut use of
+                // self), we can't use transform_expansion.
+                // Instead, we inline its logic here.
                 //
 
                 let mut transformed_fields = vec![];
@@ -1698,7 +1732,8 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                     .set_extended_globbing(self.parser_options.enable_extended_globbing)
                     .set_case_insensitive(self.shell.options().case_insensitive_conditionals);
 
-                // If no replacement was provided, then we replace with an empty string.
+                // If no replacement was provided, then we replace with an empty
+                // string.
                 let replacement = replacement.unwrap_or(String::new());
                 let expanded_replacement = self.basic_expand_to_str(&replacement).await?;
 
@@ -1984,8 +2019,9 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
             }
             shrub_parser::word::Parameter::NamedWithAllIndices { name, concatenate } => {
                 if let Some((_, var)) = self.shell.env().get(name) {
-                    // Resolve a dynamic value once, so the kind and the element values
-                    // can't disagree: a getter like RANDOM's changes on every read.
+                    // Resolve a dynamic value once, so the kind and the element
+                    // values can't disagree: a getter like
+                    // RANDOM's changes on every read.
                     let resolved;
                     let value = match var.value() {
                         ShellValue::Dynamic { getter, .. } => {
@@ -2239,11 +2275,13 @@ fn coalesce_expansions(expansions: Vec<Expansion>) -> Expansion {
                 }
             }
 
-            // TODO(expansion): What if expansions have different concatenation values?
+            // TODO(expansion): What if expansions have different concatenation
+            // values?
             acc.concatenate = expansion.concatenate;
-            // The last kind wins, like `concatenate` above. An IndexedArray kind's
-            // subscripts no longer describe the merged fields; nothing slices a coalesced
-            // expansion today, and `polymorphic_subslice` must not until that's fixed.
+            // The last kind wins, like `concatenate` above. An IndexedArray
+            // kind's subscripts no longer describe the merged
+            // fields; nothing slices a coalesced expansion today,
+            // and `polymorphic_subslice` must not until that's fixed.
             acc.kind = expansion.kind;
 
             acc
@@ -2322,8 +2360,9 @@ fn may_contain_braces_to_expand(s: &str) -> bool {
 #[expect(clippy::panic_in_result_fn)]
 #[cfg(test)]
 mod tests {
-    use super::*;
     use anyhow::Result;
+
+    use super::*;
 
     #[tokio::test]
     async fn test_full_expansion() -> Result<()> {
@@ -2334,7 +2373,8 @@ mod tests {
             full_expand_and_split_word(&mut shell, &params, "\"\"").await?,
             vec![""]
         );
-        // Literal text is never field-split (the parser would not produce such a word).
+        // Literal text is never field-split (the parser would not produce such
+        // a word).
         assert_eq!(
             full_expand_and_split_word(&mut shell, &params, "a b").await?,
             vec!["a b"]
@@ -2373,12 +2413,14 @@ mod tests {
         shell.options_mut().expand_non_matching_patterns_to_null = true; // shopt -s nullglob
         let params = shell.default_exec_params();
 
-        // Quoted empty string must always produce exactly one empty-string field.
+        // Quoted empty string must always produce exactly one empty-string
+        // field.
         assert_eq!(
             full_expand_and_split_word(&mut shell, &params, "\"\"").await?,
             vec![""]
         );
-        // Unquoted empty string (no characters at all) should still produce no fields.
+        // Unquoted empty string (no characters at all) should still produce no
+        // fields.
         assert_eq!(
             full_expand_and_split_word(&mut shell, &params, "").await?,
             Vec::<String>::new()

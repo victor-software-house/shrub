@@ -22,14 +22,14 @@ impl Renderer {
         }
     }
 
-    /// Draws `prompt` followed by `text`, and puts the cursor at byte offset `cursor`
-    /// of `text`. Replaces what was drawn last time, if anything.
+    /// Draws `prompt` followed by `text`, and puts the cursor at byte offset
+    /// `cursor` of `text`. Replaces what was drawn last time, if anything.
     ///
     /// # Arguments
     ///
     /// * `out` - The terminal.
-    /// * `prompt` - The prompt, on a single line; may contain escape sequences, with
-    ///   any other non-printing text between `\x01` and `\x02` markers.
+    /// * `prompt` - The prompt, on a single line; may contain escape sequences,
+    ///   with any other non-printing text between `\x01` and `\x02` markers.
     /// * `text` - The line being edited.
     /// * `cursor` - The cursor's byte offset in `text`.
     /// * `columns` - The terminal's width.
@@ -48,8 +48,8 @@ impl Renderer {
         }
     }
 
-    /// Redraws the line with the cursor at its end, then moves to the start of the
-    /// next row, leaving the line in place for whatever comes next.
+    /// Redraws the line with the cursor at its end, then moves to the start of
+    /// the next row, leaving the line in place for whatever comes next.
     pub fn finish(
         &mut self,
         out: &mut impl Write,
@@ -64,9 +64,10 @@ impl Renderer {
         }
     }
 
-    /// Moves to the start of a row of its own to start drawing, as zsh does, so the
-    /// line doesn't overwrite output that didn't end with a newline. Without cursor
-    /// addressing, the line is drawn on from wherever the cursor is.
+    /// Moves to the start of a row of its own to start drawing, as zsh does, so
+    /// the line doesn't overwrite output that didn't end with a newline.
+    /// Without cursor addressing, the line is drawn on from wherever the
+    /// cursor is.
     ///
     /// # Arguments
     ///
@@ -91,8 +92,8 @@ impl Renderer {
 /// Draws with VT100-style escape sequences.
 ///
 /// Each change redraws the whole line, from the start of the prompt. That keeps
-/// the logic simple and correct when the line wraps across rows, at a cost that's
-/// negligible for lines people type.
+/// the logic simple and correct when the line wraps across rows, at a cost
+/// that's negligible for lines people type.
 #[derive(Default)]
 pub(crate) struct VtRenderer {
     /// How many rows the cursor is below the row the prompt starts on.
@@ -100,14 +101,14 @@ pub(crate) struct VtRenderer {
 }
 
 impl VtRenderer {
-    /// Draws `prompt` followed by `text`, and puts the cursor at byte offset `cursor`
-    /// of `text`. Replaces what was drawn last time, if anything.
+    /// Draws `prompt` followed by `text`, and puts the cursor at byte offset
+    /// `cursor` of `text`. Replaces what was drawn last time, if anything.
     ///
     /// # Arguments
     ///
     /// * `out` - The terminal.
-    /// * `prompt` - The prompt, on a single line; may contain escape sequences, with
-    ///   any other non-printing text between `\x01` and `\x02` markers.
+    /// * `prompt` - The prompt, on a single line; may contain escape sequences,
+    ///   with any other non-printing text between `\x01` and `\x02` markers.
     /// * `text` - The line being edited.
     /// * `cursor` - The cursor's byte offset in `text`.
     /// * `columns` - The terminal's width.
@@ -133,17 +134,18 @@ impl VtRenderer {
         let (end_row, end_column) =
             position_after(shown_prompt.chars().chain(text.chars()), columns);
         if end_column == 0 && end_row > 0 {
-            // The line ends at the right margin, where terminals leave the cursor until
-            // something else is written; put it at the start of the next row, where
-            // `position_after` has it.
+            // The line ends at the right margin, where terminals leave the
+            // cursor until something else is written; put it at the
+            // start of the next row, where `position_after` has it.
             seq.push('\n');
         }
 
         let before_cursor = text.get(..cursor).unwrap_or_default();
         let (mut target_row, mut target_column) =
             position_after(shown_prompt.chars().chain(before_cursor.chars()), columns);
-        // The char at the cursor may not fit on what's left of the row, in which case
-        // it's drawn at the start of the next; put the cursor on it there.
+        // The char at the cursor may not fit on what's left of the row, in
+        // which case it's drawn at the start of the next; put the
+        // cursor on it there.
         if let Some(c) = text.get(cursor..).and_then(|rest| rest.chars().next())
             && !fits(target_column, char_width(c), columns)
         {
@@ -161,8 +163,8 @@ impl VtRenderer {
         out.flush()
     }
 
-    /// Redraws the line with the cursor at its end, then moves to the start of the
-    /// next row, leaving the line in place for whatever comes next.
+    /// Redraws the line with the cursor at its end, then moves to the start of
+    /// the next row, leaving the line in place for whatever comes next.
     pub fn finish(
         &mut self,
         out: &mut impl Write,
@@ -172,7 +174,8 @@ impl VtRenderer {
     ) -> std::io::Result<()> {
         self.draw(out, prompt, text, text.len(), columns)?;
 
-        // If the line ended at the right margin, the cursor is already on a new row.
+        // If the line ended at the right margin, the cursor is already on a new
+        // row.
         let shown_prompt = visible_text(prompt);
         let (row, column) =
             position_after(shown_prompt.chars().chain(text.chars()), columns.max(1));
@@ -184,8 +187,8 @@ impl VtRenderer {
         out.flush()
     }
 
-    /// Erases what was drawn, leaving the cursor where the prompt started, for the
-    /// next draw to start from.
+    /// Erases what was drawn, leaving the cursor where the prompt started, for
+    /// the next draw to start from.
     pub fn erase(&mut self, out: &mut impl Write) -> std::io::Result<()> {
         let mut seq = String::new();
         move_up(&mut seq, self.cursor_row);
@@ -196,11 +199,11 @@ impl VtRenderer {
         out.flush()
     }
 
-    /// Moves to the start of the next row, unless the cursor is at the start of one.
-    /// A row's worth of spaces from its first column leaves the cursor at the right
-    /// margin of that row, waiting to wrap, so a carriage return goes back to its
-    /// start; from any later column, they wrap onto the next row, leaving what was
-    /// before them in place.
+    /// Moves to the start of the next row, unless the cursor is at the start of
+    /// one. A row's worth of spaces from its first column leaves the cursor
+    /// at the right margin of that row, waiting to wrap, so a carriage
+    /// return goes back to its start; from any later column, they wrap onto
+    /// the next row, leaving what was before them in place.
     pub fn start_on_own_row(out: &mut impl Write, columns: usize) -> std::io::Result<()> {
         let mut seq = " ".repeat(columns.max(1));
         seq.push('\r');
@@ -290,8 +293,8 @@ impl BackspaceRenderer {
             }
         };
 
-        // Rewrite the rest of the line, blank whatever's left of the old one, and
-        // move back to the cursor.
+        // Rewrite the rest of the line, blank whatever's left of the old one,
+        // and move back to the cursor.
         let rewritten = &text[from..];
         let blanks = old_cells.saturating_sub(cells(rewritten));
         seq.push_str(rewritten);
@@ -307,9 +310,9 @@ impl BackspaceRenderer {
         out.flush()
     }
 
-    /// Leaves the line as drawn (bringing it up to date if need be) and moves to
-    /// the next row from wherever the cursor is, as readline does on a terminal
-    /// like this.
+    /// Leaves the line as drawn (bringing it up to date if need be) and moves
+    /// to the next row from wherever the cursor is, as readline does on a
+    /// terminal like this.
     fn finish(&mut self, out: &mut impl Write, prompt: &str, text: &str) -> std::io::Result<()> {
         if self
             .shown
@@ -363,10 +366,10 @@ fn push_backspaces(seq: &mut String, count: usize) {
 }
 
 /// Returns where the cursor is, as a row and column, after writing `chars` from
-/// the start of a row on a terminal `columns` wide. As on a terminal, a char that
-/// doesn't fit on what's left of a row (e.g., a wide char in the last column)
-/// starts the next row, and a row once full leaves the cursor at the start of the
-/// next.
+/// the start of a row on a terminal `columns` wide. As on a terminal, a char
+/// that doesn't fit on what's left of a row (e.g., a wide char in the last
+/// column) starts the next row, and a row once full leaves the cursor at the
+/// start of the next.
 fn position_after(chars: impl Iterator<Item = char>, columns: usize) -> (usize, usize) {
     let (mut row, mut column) = (0, 0);
     for width in chars.map(char_width).filter(|&width| width > 0) {
@@ -381,8 +384,8 @@ fn position_after(chars: impl Iterator<Item = char>, columns: usize) -> (usize, 
     (row, column)
 }
 
-/// Whether a char `width` cells wide fits at `column` of a row `columns` wide. A
-/// char too wide for any row is still put at a row's start.
+/// Whether a char `width` cells wide fits at `column` of a row `columns` wide.
+/// A char too wide for any row is still put at a row's start.
 const fn fits(column: usize, width: usize, columns: usize) -> bool {
     column == 0 || column + width <= columns
 }
@@ -398,10 +401,10 @@ fn move_up(seq: &mut String, rows: usize) {
     }
 }
 
-/// Returns `text` as it's shown: with control chars in caret notation (e.g., `^J`
-/// for a newline), as readline shows them, so that they take the cells they're
-/// measured to and don't act on the terminal. Also returns `cursor`, a byte
-/// offset in `text`, as one in what's returned.
+/// Returns `text` as it's shown: with control chars in caret notation (e.g.,
+/// `^J` for a newline), as readline shows them, so that they take the cells
+/// they're measured to and don't act on the terminal. Also returns `cursor`, a
+/// byte offset in `text`, as one in what's returned.
 fn shown_text(text: &str, cursor: usize) -> (Cow<'_, str>, usize) {
     if !text.chars().any(char::is_control) {
         return (Cow::Borrowed(text), cursor);
@@ -490,15 +493,15 @@ mod tests {
         vt100::Parser::new(24, u16::try_from(columns).unwrap(), 0)
     }
 
-    /// Plays `output` on `terminal`, translating newlines to CR LF, as terminals do
-    /// in raw mode.
+    /// Plays `output` on `terminal`, translating newlines to CR LF, as
+    /// terminals do in raw mode.
     fn play(terminal: &mut vt100::Parser, output: &[u8]) {
         let output = std::str::from_utf8(output).unwrap().replace('\n', "\r\n");
         terminal.process(output.as_bytes());
     }
 
-    /// Returns the rows `terminal` shows, up to the last that isn't blank, and the
-    /// cursor's row and column.
+    /// Returns the rows `terminal` shows, up to the last that isn't blank, and
+    /// the cursor's row and column.
     fn shown(terminal: &vt100::Parser) -> (Vec<String>, (usize, usize)) {
         let screen = terminal.screen();
         let mut rows: Vec<String> = screen
@@ -512,8 +515,8 @@ mod tests {
         (rows, (usize::from(row), usize::from(column)))
     }
 
-    /// Starts lines below output that didn't end with a newline, and where output
-    /// that did end with one left the cursor.
+    /// Starts lines below output that didn't end with a newline, and where
+    /// output that did end with one left the cursor.
     #[test]
     fn starts_lines_on_their_own_rows() -> std::io::Result<()> {
         const COLUMNS: usize = 8;
@@ -539,8 +542,8 @@ mod tests {
         Ok(())
     }
 
-    /// Draws `text` after a prompt on a narrow screen, as a sequence of edits, and
-    /// checks the screen and cursor after each.
+    /// Draws `text` after a prompt on a narrow screen, as a sequence of edits,
+    /// and checks the screen and cursor after each.
     #[test]
     fn redraws_in_place_across_wrapped_rows() -> std::io::Result<()> {
         const COLUMNS: usize = 5;
@@ -583,10 +586,10 @@ mod tests {
         Ok(())
     }
 
-    /// Returns the cell where a terminal that's `columns` wide draws the char after
-    /// `before`, wrapping as it does if that char doesn't fit on the row. For a char
-    /// that takes no cells (e.g., a combining accent), it's the cell where the next
-    /// char that does would go.
+    /// Returns the cell where a terminal that's `columns` wide draws the char
+    /// after `before`, wrapping as it does if that char doesn't fit on the
+    /// row. For a char that takes no cells (e.g., a combining accent), it's
+    /// the cell where the next char that does would go.
     fn cell_after(before: &str, next: char, columns: usize) -> (usize, usize) {
         let probe = if next.width().unwrap_or(0) == 0 {
             'X'
@@ -610,11 +613,11 @@ mod tests {
             .unwrap()
     }
 
-    /// Draws lines of wide, narrow, and combining chars on narrow terminals, with
-    /// the cursor at each char in turn, and checks against a terminal emulator that
-    /// the line shows in full and the cursor is on the char it's at: where the
-    /// terminal draws that char, which for a wide char that doesn't fit on what's
-    /// left of a row is the start of the next.
+    /// Draws lines of wide, narrow, and combining chars on narrow terminals,
+    /// with the cursor at each char in turn, and checks against a terminal
+    /// emulator that the line shows in full and the cursor is on the char
+    /// it's at: where the terminal draws that char, which for a wide char
+    /// that doesn't fit on what's left of a row is the start of the next.
     #[test]
     fn places_the_cursor_on_wide_and_combining_chars_across_rows() -> std::io::Result<()> {
         for prompt in ["$ ", "界> ", "\x01\x1b[1m\x02$\x1b[0m "] {
@@ -630,8 +633,9 @@ mod tests {
                     let mut terminal = terminal(columns);
                     let shown_prompt = visible_text(prompt);
                     let case = format!("{prompt:?} {text:?} in {columns} columns");
-                    // The rows lose the spaces at their ends, including the prompt's
-                    // when what follows it wraps; the texts have none of their own.
+                    // The rows lose the spaces at their ends, including the
+                    // prompt's when what follows it wraps;
+                    // the texts have none of their own.
                     let expected = format!("{shown_prompt}{text}").replace(' ', "");
                     let without_spaces = |rows: &[String]| rows.concat().replace(' ', "");
 
@@ -653,8 +657,8 @@ mod tests {
                         );
                     }
 
-                    // Finishing leaves the line in place, and the cursor at the start
-                    // of the row after it.
+                    // Finishing leaves the line in place, and the cursor at the
+                    // start of the row after it.
                     let mut out = vec![];
                     renderer.finish(&mut out, prompt, text, columns)?;
                     play(&mut terminal, &out);
@@ -669,8 +673,8 @@ mod tests {
 
     /// Draws lines in turn with backspaces alone, and checks that the terminal
     /// shows each, with the cursor in place, however it differs from the last:
-    /// shorter, longer, changed mid-line, with chars that take two cells or none,
-    /// or with a different prompt.
+    /// shorter, longer, changed mid-line, with chars that take two cells or
+    /// none, or with a different prompt.
     #[test]
     fn redraws_with_backspaces() -> std::io::Result<()> {
         let mut renderer = BackspaceRenderer::default();
@@ -814,7 +818,8 @@ mod tests {
             (Cow::Owned("a^Jb^I^[[m^?\u{FFFD}é".to_owned()), 3)
         );
 
-        // Both styles draw them so, with the cursor after them where it should be.
+        // Both styles draw them so, with the cursor after them where it should
+        // be.
         for style in [Style::Vt, Style::Basic] {
             let mut renderer = Renderer::new(style);
             let mut out = vec![];

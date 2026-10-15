@@ -2,7 +2,8 @@
 
 use futures::FutureExt as _;
 
-use crate::{error, tasks::TaskHandle};
+use crate::error;
+use crate::tasks::TaskHandle;
 
 /// Starts running a future concurrently with the caller.
 ///

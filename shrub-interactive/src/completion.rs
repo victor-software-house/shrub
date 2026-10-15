@@ -14,7 +14,8 @@ pub(crate) async fn complete_async(
     let completion_future = shell.complete(line, pos);
     tokio::pin!(completion_future);
 
-    // Wait for the completions to come back or interruption, whichever happens first.
+    // Wait for the completions to come back or interruption, whichever happens
+    // first.
     let result = tokio::select! {
         result = &mut completion_future => {
             result
@@ -109,7 +110,8 @@ fn postprocess_completion_candidate(
                 _ => escape::QuoteMode::BackslashEscape,
             };
 
-            // Like bash, leave a `~` unquoted, so a `~user` completion still expands.
+            // Like bash, leave a `~` unquoted, so a `~user` completion still
+            // expands.
             let options = escape::QuoteOptions::builder()
                 .preferred_mode(quote_mode)
                 .leave_tilde(true)

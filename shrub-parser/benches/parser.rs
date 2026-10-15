@@ -2,15 +2,16 @@
 //!
 //! Compares parsing approaches:
 //! 1. PEG parser (tokenize + peg parse)
-//! 2. `Winnow_str` parser (direct string parse) - when winnow-parser feature enabled
+//! 2. `Winnow_str` parser (direct string parse) - when winnow-parser feature
+//!    enabled
 
 #![allow(missing_docs)]
 #![allow(clippy::unwrap_used)]
 
 #[cfg(unix)]
 mod unix {
-    use shrub_parser::Token;
     use criterion::Criterion;
+    use shrub_parser::Token;
 
     fn uncached_tokenize(content: &str) -> Vec<shrub_parser::Token> {
         shrub_parser::uncached_tokenize_str(content, &shrub_parser::TokenizerOptions::default())
@@ -177,8 +178,8 @@ backtick=`echo (nested parens)`
         // ========================================================================
         // FULL PIPELINE BENCHMARKS (tokenize + parse)
         // ========================================================================
-        // These benchmarks measure the complete parsing pipeline from string to AST,
-        // allowing fair comparison between different approaches:
+        // These benchmarks measure the complete parsing pipeline from string to
+        // AST, allowing fair comparison between different approaches:
         // - tokenize_and_parse_peg: Legacy tokenizer + PEG parser
         // - parse_winnow_str: Direct string parsing (no separate tokenization)
 
@@ -231,7 +232,8 @@ backtick=`echo (nested parens)`
         // EXTENDED TEST EXPRESSION BENCHMARKS
         // ========================================================================
         // Benchmarks for the refactored extended test ([[ ]]) parser
-        // Tests various patterns: simple, binary, regex, logical operators, nesting
+        // Tests various patterns: simple, binary, regex, logical operators,
+        // nesting
 
         #[cfg(feature = "winnow-parser")]
         {

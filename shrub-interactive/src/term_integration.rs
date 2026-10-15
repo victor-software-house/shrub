@@ -12,8 +12,8 @@ pub(crate) struct TerminalIntegration {
 
 #[allow(dead_code)]
 impl TerminalIntegration {
-    /// Starts terminal integration, emitting the sequence that announces it, and returns the
-    /// utility the interactive loop reports events to.
+    /// Starts terminal integration, emitting the sequence that announces it,
+    /// and returns the utility the interactive loop reports events to.
     ///
     /// # Arguments
     ///
@@ -24,9 +24,10 @@ impl TerminalIntegration {
         Ok(integration)
     }
 
-    /// Returns a utility that integrates with nothing: it reports no capabilities, so every
-    /// event handler below does nothing and every sequence it composes is empty. This is what
-    /// a shell gets when integration is switched off, so it need not ask whether it has one.
+    /// Returns a utility that integrates with nothing: it reports no
+    /// capabilities, so every event handler below does nothing and every
+    /// sequence it composes is empty. This is what a shell gets when
+    /// integration is switched off, so it need not ask whether it has one.
     pub fn disabled() -> Self {
         Self {
             term: term_detection::TerminalInfo::default(),
@@ -34,9 +35,10 @@ impl TerminalIntegration {
     }
 
     //
-    // Event handlers: these are called at the points in the interactive loop that the
-    // terminal wants to know about; each does what the event calls for. A terminal that
-    // reports no support has nothing to say at any of them, so every handler is inert.
+    // Event handlers: these are called at the points in the interactive loop
+    // that the terminal wants to know about; each does what the event calls
+    // for. A terminal that reports no support has nothing to say at any of
+    // them, so every handler is inert.
     //
 
     /// Called after a command line has been read and before it runs.
@@ -57,17 +59,18 @@ impl TerminalIntegration {
         Self::write(self.post_exec_command(exit_code).as_ref())
     }
 
-    /// Writes a sequence to standard output, flushing so the terminal sees it before whatever
-    /// the shell does next. Writing nothing still flushes; that costs nothing and keeps the
-    /// inert case from being a separate path.
+    /// Writes a sequence to standard output, flushing so the terminal sees it
+    /// before whatever the shell does next. Writing nothing still flushes;
+    /// that costs nothing and keeps the inert case from being a separate
+    /// path.
     fn write(seq: &str) -> std::io::Result<()> {
         let mut stdout = std::io::stdout();
         stdout.write_all(seq.as_bytes())?;
         stdout.flush()
     }
 
-    /// Returns the terminal escape sequence that should be emitted to initialize terminal
-    /// integration.
+    /// Returns the terminal escape sequence that should be emitted to
+    /// initialize terminal integration.
     pub fn initialize(&self) -> Cow<'_, str> {
         if self.term.supports_osc_633 {
             "\x1b]633;P;HasRichCommandDetection=True\x1b\\".into()
@@ -76,10 +79,11 @@ impl TerminalIntegration {
         }
     }
 
-    /// Returns a composed prompt bracketed with the sequences that mark where a prompt starts
-    /// and ends, and that report the working directory -- or the prompt as given, when there is
-    /// nothing to add. Returned rather than composed in place so the untouched prompt costs
-    /// nothing, not even the copy that concatenating three empty strings onto it would make.
+    /// Returns a composed prompt bracketed with the sequences that mark where a
+    /// prompt starts and ends, and that report the working directory -- or
+    /// the prompt as given, when there is nothing to add. Returned rather
+    /// than composed in place so the untouched prompt costs nothing, not
+    /// even the copy that concatenating three empty strings onto it would make.
     ///
     /// # Arguments
     ///
@@ -99,7 +103,8 @@ impl TerminalIntegration {
         .concat()
     }
 
-    /// Returns the terminal escape sequence that should be emitted before the prompt.
+    /// Returns the terminal escape sequence that should be emitted before the
+    /// prompt.
     pub fn pre_prompt(&self) -> Cow<'_, str> {
         if self.term.supports_osc_633 {
             "\x1b]633;A\x1b\\".into()
@@ -108,7 +113,8 @@ impl TerminalIntegration {
         }
     }
 
-    /// Returns the terminal escape sequence to report the current working directory.
+    /// Returns the terminal escape sequence to report the current working
+    /// directory.
     pub fn report_cwd(&self, cwd: &std::path::Path) -> Cow<'_, str> {
         if self.term.supports_osc_633 {
             let escaped_cwd_str = osc_633_escape(cwd.to_string_lossy().as_ref());
@@ -118,8 +124,9 @@ impl TerminalIntegration {
         }
     }
 
-    /// Returns the terminal escape sequence that should be emitted before executing a command,
-    /// but after the prompt and the user has finished entering input.
+    /// Returns the terminal escape sequence that should be emitted before
+    /// executing a command, but after the prompt and the user has finished
+    /// entering input.
     ///
     /// # Arguments
     ///
@@ -142,7 +149,8 @@ impl TerminalIntegration {
         }
     }
 
-    /// Returns the terminal escape sequence that should be emitted after executing a command.
+    /// Returns the terminal escape sequence that should be emitted after
+    /// executing a command.
     pub fn post_exec_command(&self, exit_code: i32) -> Cow<'_, str> {
         if self.term.supports_osc_633 {
             std::format!("\x1b]633;D;{exit_code}\x1b\\").into()
@@ -151,7 +159,8 @@ impl TerminalIntegration {
         }
     }
 
-    /// Returns the terminal escape sequence that should be emitted after the prompt.
+    /// Returns the terminal escape sequence that should be emitted after the
+    /// prompt.
     pub fn post_prompt(&self) -> Cow<'_, str> {
         if self.term.supports_osc_633 {
             "\x1b]633;B\x1b\\".into()
@@ -160,7 +169,8 @@ impl TerminalIntegration {
         }
     }
 
-    /// Returns the terminal escape sequence that should be emitted before the continuation prompt.
+    /// Returns the terminal escape sequence that should be emitted before the
+    /// continuation prompt.
     pub fn pre_input_line_continuation(&self) -> Cow<'_, str> {
         if self.term.supports_osc_633 {
             "\x1b]633;F\x1b\\".into()
@@ -169,8 +179,8 @@ impl TerminalIntegration {
         }
     }
 
-    /// Returns the terminal escape sequence that should be emitted after the input line
-    /// continuation.
+    /// Returns the terminal escape sequence that should be emitted after the
+    /// input line continuation.
     pub fn post_input_line_continuation(&self) -> Cow<'_, str> {
         if self.term.supports_osc_633 {
             "\x1b]633;G\x1b\\".into()
@@ -179,7 +189,8 @@ impl TerminalIntegration {
         }
     }
 
-    /// Returns the terminal escape sequence that should be emitted before the right-side prompt.
+    /// Returns the terminal escape sequence that should be emitted before the
+    /// right-side prompt.
     pub fn pre_right_prompt(&self) -> Cow<'_, str> {
         if self.term.supports_osc_633 {
             "\x1b]633;H\x1b\\".into()
@@ -188,7 +199,8 @@ impl TerminalIntegration {
         }
     }
 
-    /// Returns the terminal escape sequence that should be emitted after the right-side prompt.
+    /// Returns the terminal escape sequence that should be emitted after the
+    /// right-side prompt.
     pub fn post_right_prompt(&self) -> Cow<'_, str> {
         if self.term.supports_osc_633 {
             "\x1b]633;I\x1b\\".into()

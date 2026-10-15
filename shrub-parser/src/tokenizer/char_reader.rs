@@ -1,7 +1,8 @@
 //! Reading the tokenizer's input with two chars of lookahead.
 
-/// An iterator (of the chars of input) that can peek two items ahead: one more than
-/// [`std::iter::Peekable`], to see whether a backslash starts a line continuation.
+/// An iterator (of the chars of input) that can peek two items ahead: one more
+/// than [`std::iter::Peekable`], to see whether a backslash starts a line
+/// continuation.
 pub(super) struct CharReader<I: Iterator> {
     iter: std::iter::Peekable<I>,
     /// The next item, if taken from `iter` to peek past it (only ever briefly).

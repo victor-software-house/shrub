@@ -1,6 +1,7 @@
+use std::path::Path;
+
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::path::Path;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct TestCaseSet {

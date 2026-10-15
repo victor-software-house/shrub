@@ -29,7 +29,8 @@ pub struct ParserOptions {
     pub posix_mode: bool,
     /// Whether or not to enable maximal compatibility with the `sh` shell.
     pub sh_mode: bool,
-    /// Whether or not to perform tilde expansion for tildes at the start of words.
+    /// Whether or not to perform tilde expansion for tildes at the start of
+    /// words.
     pub tilde_expansion_at_word_start: bool,
     /// Whether or not to perform tilde expansion for tildes after colons.
     pub tilde_expansion_after_colon: bool,
@@ -120,7 +121,8 @@ impl<R: std::io::BufRead> Parser<R> {
         /// Whether or not to enable maximal compatibility with the `sh` shell.
         sh_mode: bool,
         #[builder(default = true)]
-        /// Whether or not to perform tilde expansion for tildes at the start of words.
+        /// Whether or not to perform tilde expansion for tildes at the start of
+        /// words.
         tilde_expansion_at_word_start: bool,
         #[builder(default = false)]
         /// Whether or not to perform tilde expansion for tildes after colons.
@@ -175,8 +177,8 @@ impl<R: std::io::BufRead> Parser<R> {
         }
     }
 
-    /// Parses a function definition body from the input. The body is expected to be
-    /// preceded by "()", but no function name.
+    /// Parses a function definition body from the input. The body is expected
+    /// to be preceded by "()", but no function name.
     pub fn parse_function_parens_and_body(
         &mut self,
     ) -> Result<ast::FunctionBody, crate::error::ParseError> {
@@ -187,7 +189,8 @@ impl<R: std::io::BufRead> Parser<R> {
     }
 
     fn tokenize(&mut self) -> Result<Vec<Token>, crate::error::ParseError> {
-        // First we tokenize the input, according to the policy implied by provided options.
+        // First we tokenize the input, according to the policy implied by
+        // provided options.
         let mut tokenizer = Tokenizer::new(&mut self.reader, &self.options.tokenizer_options());
 
         tracing::debug!(target: "tokenize", "Tokenizing...");
@@ -221,7 +224,8 @@ impl<R: std::io::BufRead> Parser<R> {
     }
 }
 
-/// Parses a sequence of tokens into the abstract syntax tree (AST) of a shell program.
+/// Parses a sequence of tokens into the abstract syntax tree (AST) of a shell
+/// program.
 ///
 /// # Arguments
 ///
@@ -235,8 +239,9 @@ pub fn parse_tokens(
     parse_result_to_error(parse_result, tokens)
 }
 
-/// Tokenizes and parses text as a compound assignment value, returning its element words. Returns
-/// `None` if the text is not a well-formed compound value.
+/// Tokenizes and parses text as a compound assignment value, returning its
+/// element words. Returns `None` if the text is not a well-formed compound
+/// value.
 ///
 /// # Arguments
 ///

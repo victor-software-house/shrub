@@ -1,6 +1,7 @@
-use shrub_core::{ExecutionResult, builtins, error, history};
-use clap::Parser;
 use std::io::Write;
+
+use clap::Parser;
+use shrub_core::{ExecutionResult, builtins, error, history};
 
 /// Process command history list.
 #[derive(Parser)]
@@ -116,7 +117,8 @@ impl FcCommand {
         let cmd_line = if let Some(spec) = cmd_spec {
             Self::find_command_by_specifier(history, spec)?
         } else {
-            // No spec means use the previous command (excluding the fc command itself)
+            // No spec means use the previous command (excluding the fc command
+            // itself)
             let effective_count = effective_history_count(history);
             history
                 .get(effective_count.saturating_sub(1))
@@ -134,8 +136,9 @@ impl FcCommand {
         // Echo the command to stderr.
         writeln!(context.stderr(), "{final_cmd}")?;
 
-        // Remove the fc command from history before executing the substituted command
-        // This matches bash behavior where the fc command is replaced by the executed command
+        // Remove the fc command from history before executing the substituted
+        // command This matches bash behavior where the fc command is
+        // replaced by the executed command
         let history_mut = context
             .shell
             .history_mut()
@@ -201,8 +204,9 @@ impl FcCommand {
         ))
     }
 
-    /// Resolves a position specifier (number or string prefix) to a history index.
-    /// NOTE: The returned index may still be out of range if the history is empty.
+    /// Resolves a position specifier (number or string prefix) to a history
+    /// index. NOTE: The returned index may still be out of range if the
+    /// history is empty.
     ///
     /// # Arguments
     ///
@@ -212,8 +216,8 @@ impl FcCommand {
         history: &history::History,
         spec: &str,
     ) -> Result<usize, shrub_core::Error> {
-        // Try to parse it as a number. If it's not parseable, then we need to assume
-        // it's a string prefix we need to search for.
+        // Try to parse it as a number. If it's not parseable, then we need to
+        // assume it's a string prefix we need to search for.
         let Ok(num) = spec.parse::<i64>() else {
             // Not a number, treat as string prefix
             return Self::find_command_by_prefix(history, spec);
@@ -248,8 +252,9 @@ impl FcCommand {
         Ok(result)
     }
 
-    /// Finds the command matching the given specifier (number or string prefix). Returns
-    /// the command line. Returns an error if no such command can be found in the history.
+    /// Finds the command matching the given specifier (number or string
+    /// prefix). Returns the command line. Returns an error if no such
+    /// command can be found in the history.
     ///
     /// # Arguments
     ///
@@ -278,7 +283,8 @@ impl FcCommand {
         history: &history::History,
         prefix: &str,
     ) -> Result<usize, shrub_core::Error> {
-        // Search backwards for a command starting with the prefix (excluding fc command itself)
+        // Search backwards for a command starting with the prefix (excluding fc
+        // command itself)
         let effective_count = effective_history_count(history);
 
         for idx in (0..effective_count).rev() {

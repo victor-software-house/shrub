@@ -1,8 +1,9 @@
 //! Facilities for implementing and managing builtins
 
+use std::io::Write;
+
 use clap::builder::styling;
 pub use futures::future::BoxFuture;
-use std::io::Write;
 
 use crate::{BuiltinError, CommandArg, commands, error, extensions, results};
 
@@ -50,9 +51,10 @@ pub trait Command: clap::Parser {
 
             let (lower, _) = args.size_hint();
 
-            // N.B. clap doesn't support named options like '+x'. To work around this, we
-            // establish a pattern of renaming them. Arguments after `--` aren't options, so
-            // they're left alone (e.g. a command name starting with '+').
+            // N.B. clap doesn't support named options like '+x'. To work around
+            // this, we establish a pattern of renaming them.
+            // Arguments after `--` aren't options, so they're left
+            // alone (e.g. a command name starting with '+').
             let mut updated_args = Vec::with_capacity(lower);
             let mut options_ended = false;
             for arg in args {
@@ -70,7 +72,8 @@ pub trait Command: clap::Parser {
         }
     }
 
-    /// Returns whether or not the command takes options with a leading '+' or '-' character.
+    /// Returns whether or not the command takes options with a leading '+' or
+    /// '-' character.
     fn takes_plus_options() -> bool {
         false
     }
@@ -122,8 +125,8 @@ pub trait Command: clap::Parser {
     }
 }
 
-/// Trait implemented by built-in shell commands that take specially handled declarations
-/// as arguments.
+/// Trait implemented by built-in shell commands that take specially handled
+/// declarations as arguments.
 pub trait DeclarationCommand: Command {
     /// Stores the declarations within the command instance.
     ///
@@ -300,22 +303,24 @@ fn shrub_help_styles() -> clap::builder::Styles {
 /// # Returns
 ///
 /// * a parsed struct T from [`clap::Parser::parse_from`]
-/// * the remain iterator `args` with `--` and the rest arguments if they present otherwise None
+/// * the remain iterator `args` with `--` and the rest arguments if they
+///   present otherwise None
 ///
 /// # Examples
 /// ```
-///    use clap::{builder::styling, Parser};
-///    #[derive(Parser)]
-///    struct CommandLineArgs {
-///       #[clap(allow_hyphen_values = true, num_args=1..)]
-///       script_args: Vec<String>,
-///    }
+/// use clap::Parser;
+/// use clap::builder::styling;
+/// #[derive(Parser)]
+/// struct CommandLineArgs {
+///     #[clap(allow_hyphen_values = true, num_args=1..)]
+///     script_args: Vec<String>,
+/// }
 ///
-///    let (mut parsed_args, raw_args) =
-///        shrub_core::builtins::parse_known::<CommandLineArgs, _>(std::env::args());
-///    if raw_args.is_some() {
-///        parsed_args.script_args = raw_args.unwrap().collect();
-///    }
+/// let (mut parsed_args, raw_args) =
+///     shrub_core::builtins::parse_known::<CommandLineArgs, _>(std::env::args());
+/// if raw_args.is_some() {
+///     parsed_args.script_args = raw_args.unwrap().collect();
+/// }
 /// ```
 pub fn parse_known<T: clap::Parser, S>(
     args: impl IntoIterator<Item = S>,
@@ -324,9 +329,9 @@ where
     S: Into<std::ffi::OsString> + Clone + PartialEq<&'static str>,
 {
     let mut args = args.into_iter();
-    // the best way to save `--` is to get it out with a side effect while `clap` iterates over the
-    // args this way we can be 100% sure that we have '--' and the remaining args
-    // and we will iterate only once
+    // the best way to save `--` is to get it out with a side effect while
+    // `clap` iterates over the args this way we can be 100% sure that we
+    // have '--' and the remaining args and we will iterate only once
     let mut hyphen = None;
     let args_before_hyphen = args.by_ref().take_while(|a| {
         let is_hyphen = *a == "--";

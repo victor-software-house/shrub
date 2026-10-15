@@ -2,40 +2,44 @@
 //!
 //! Bash treats the characters in `IFS` as two kinds of delimiter:
 //!
-//! - *IFS whitespace* (space, tab, newline and the rest of the C locale's `isspace` set)
-//!   is "soft". A run of it, however long, is one separator, and any of it at the start
-//!   or end of a value is simply dropped. `"  a   b  "` splits to `a` and `b`.
-//! - Every other character in `IFS` is "hard". Each occurrence is a separator in its
-//!   own right, so two in a row enclose an empty field, and one at the very start leaves
-//!   an empty field in front of it. With `IFS=:`, `a::b` is `a`, an empty field, `b`.
+//! - *IFS whitespace* (space, tab, newline and the rest of the C locale's
+//!   `isspace` set) is "soft". A run of it, however long, is one separator, and
+//!   any of it at the start or end of a value is simply dropped. `"  a   b  "`
+//!   splits to `a` and `b`.
+//! - Every other character in `IFS` is "hard". Each occurrence is a separator
+//!   in its own right, so two in a row enclose an empty field, and one at the
+//!   very start leaves an empty field in front of it. With `IFS=:`, `a::b` is
+//!   `a`, an empty field, `b`.
 //!
-//! The two mix by absorption: whitespace on either side of a hard delimiter belongs to
-//! that delimiter, so `a : b` under `IFS=': '` is two fields, not three. A hard delimiter
-//! at the very end closes the field before it but does not open an empty one after it.
+//! The two mix by absorption: whitespace on either side of a hard delimiter
+//! belongs to that delimiter, so `a : b` under `IFS=': '` is two fields, not
+//! three. A hard delimiter at the very end closes the field before it but does
+//! not open an empty one after it.
 
 use super::{Expansion, ExpansionPiece, WordField};
 
 /// Where the splitter is relative to the field boundaries it has emitted.
 enum SplitState {
-    /// A field is open: at least one piece has gone into it. That piece may be an
-    /// unquoted character or an unsplittable (quoted) piece, which can be empty, as in
-    /// `""`. The next delimiter closes the field; anything else extends it.
+    /// A field is open: at least one piece has gone into it. That piece may be
+    /// an unquoted character or an unsplittable (quoted) piece, which can
+    /// be empty, as in `""`. The next delimiter closes the field; anything
+    /// else extends it.
     InField,
-    /// No field is open. The last delimiter was whitespace, so the run can still absorb
-    /// one hard delimiter without closing an empty field.
+    /// No field is open. The last delimiter was whitespace, so the run can
+    /// still absorb one hard delimiter without closing an empty field.
     AfterWhitespace,
-    /// No field is open, and the run cannot absorb another hard delimiter. This is the
-    /// initial state and the state right after a hard delimiter. A hard delimiter here
-    /// closes an empty field.
+    /// No field is open, and the run cannot absorb another hard delimiter. This
+    /// is the initial state and the state right after a hard delimiter. A
+    /// hard delimiter here closes an empty field.
     AfterDelimiter,
 }
 
-/// Returns whether `c` is IFS whitespace, i.e. a member of the C locale's `isspace` set,
-/// which is what bash consults.
+/// Returns whether `c` is IFS whitespace, i.e. a member of the C locale's
+/// `isspace` set, which is what bash consults.
 ///
-/// Neither standard predicate matches that set: [`char::is_ascii_whitespace`] leaves out
-/// vertical tab, and [`char::is_whitespace`] takes in the Unicode spaces (U+00A0 and
-/// friends), which bash treats as hard delimiters.
+/// Neither standard predicate matches that set: [`char::is_ascii_whitespace`]
+/// leaves out vertical tab, and [`char::is_whitespace`] takes in the Unicode
+/// spaces (U+00A0 and friends), which bash treats as hard delimiters.
 const fn is_ifs_whitespace(c: char) -> bool {
     matches!(
         c,
@@ -45,16 +49,18 @@ const fn is_ifs_whitespace(c: char) -> bool {
     )
 }
 
-/// Splits an expansion's fields on the characters in `ifs`, following bash's rules
-/// (see the module docs). Only [`ExpansionPiece::Splittable`] text is examined;
-/// quoted text and the word's own literal text always stay in the field they are in.
+/// Splits an expansion's fields on the characters in `ifs`, following bash's
+/// rules (see the module docs). Only [`ExpansionPiece::Splittable`] text is
+/// examined; quoted text and the word's own literal text always stay in the
+/// field they are in.
 pub(super) fn split_fields(ifs: &str, expansion: Expansion) -> Vec<WordField> {
     let mut fields: Vec<WordField> = vec![];
     let mut current_field = WordField::new();
     let has_hard_delimiter = ifs.chars().any(|c| !is_ifs_whitespace(c));
 
-    // Each incoming field is split on its own, so a delimiter run never reaches across
-    // the boundary between two of them (e.g. two elements of `${arr[@]}`).
+    // Each incoming field is split on its own, so a delimiter run never reaches
+    // across the boundary between two of them (e.g. two elements of
+    // `${arr[@]}`).
     for existing_field in expansion.fields {
         let mut state = SplitState::AfterDelimiter;
         let preserve_empty_list_element = matches!(
@@ -78,8 +84,9 @@ pub(super) fn split_fields(ifs: &str, expansion: Expansion) -> Vec<WordField> {
                 }
                 ExpansionPiece::Splittable(s) => {
                     for c in s.chars() {
-                        // An ordinary character extends the open field, or opens one.
-                        // It joins the trailing splittable piece if there is one, so a
+                        // An ordinary character extends the open field, or
+                        // opens one. It joins the
+                        // trailing splittable piece if there is one, so a
                         // field's text stays in as few pieces as possible.
                         if !ifs.contains(c) {
                             match current_field.0.last_mut() {
@@ -92,8 +99,9 @@ pub(super) fn split_fields(ifs: &str, expansion: Expansion) -> Vec<WordField> {
                             continue;
                         }
 
-                        // A delimiter. What it does depends on whether it is soft
-                        // (whitespace) or hard, and on where the last field ended.
+                        // A delimiter. What it does depends on whether it is
+                        // soft (whitespace) or hard,
+                        // and on where the last field ended.
                         state = match (state, is_ifs_whitespace(c)) {
                             // Either kind closes an open field. The kind decides whether
                             // the run that follows can still absorb a hard delimiter.
@@ -122,8 +130,9 @@ pub(super) fn split_fields(ifs: &str, expansion: Expansion) -> Vec<WordField> {
             }
         }
 
-        // Only an open field is left to flush. Ending on a delimiter adds nothing, so a
-        // trailing `:` never yields a trailing empty field.
+        // Only an open field is left to flush. Ending on a delimiter adds
+        // nothing, so a trailing `:` never yields a trailing empty
+        // field.
         if matches!(state, SplitState::InField) {
             fields.push(std::mem::take(&mut current_field));
         } else if preserve_empty_list_element && has_hard_delimiter {
@@ -169,7 +178,8 @@ mod tests {
 
     #[test]
     fn splits_like_bash() {
-        // (IFS, input fields, expected fields). Every expectation was checked against bash.
+        // (IFS, input fields, expected fields). Every expectation was checked
+        // against bash.
         let cases: Vec<(&str, Pieces, Pieces)> = vec![
             // Whitespace collapses and is dropped at either end.
             (

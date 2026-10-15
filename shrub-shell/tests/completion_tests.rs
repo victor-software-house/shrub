@@ -5,17 +5,19 @@
 #![cfg(test)]
 #![allow(clippy::panic_in_result_fn)]
 
+use std::path::PathBuf;
+
 use anyhow::Result;
 use assert_fs::prelude::*;
 use shrub_builtins::ShellBuilderExt;
-use std::path::PathBuf;
 
 /// Returns each candidate in `completions`.
 fn candidate_texts(completions: &shrub_core::completion::Completions) -> Vec<String> {
     completions.candidates.clone()
 }
 
-/// Returns the range of the line that the only candidate in `completions` replaces.
+/// Returns the range of the line that the only candidate in `completions`
+/// replaces.
 fn replaced_range(
     completions: &shrub_core::completion::Completions,
 ) -> Result<std::ops::Range<usize>> {
@@ -102,7 +104,8 @@ impl TestShell {
         Ok(self.shell.complete(line, pos).await?)
     }
 
-    /// Completes `input` at its `|`, which marks the cursor (or at its end, if it has none).
+    /// Completes `input` at its `|`, which marks the cursor (or at its end, if
+    /// it has none).
     async fn complete_at_marker(
         &mut self,
         input: &str,
@@ -418,8 +421,8 @@ async fn complete_command_option() -> Result<()> {
     Ok(())
 }
 
-/// Tests completion with some well-known programs that have been good manual test cases
-/// for us in the past.
+/// Tests completion with some well-known programs that have been good manual
+/// test cases for us in the past.
 #[test_with::file(/usr/share/bash-completion/bash_completion)]
 #[tokio::test(flavor = "multi_thread")]
 async fn complete_path_args_to_well_known_programs() -> Result<()> {
@@ -477,7 +480,8 @@ async fn complete_quoted_filenames() -> Result<()> {
     Ok(())
 }
 
-/// Tests that interactive completion sets `COMP_KEY` and `COMP_TYPE` to 9 (TAB).
+/// Tests that interactive completion sets `COMP_KEY` and `COMP_TYPE` to 9
+/// (TAB).
 #[tokio::test(flavor = "multi_thread")]
 async fn interactive_completion_sets_comp_key_and_comp_type() -> Result<()> {
     let mut shell = shrub_core::Shell::builder()
@@ -531,9 +535,9 @@ complete -F _test_comp mycmd
     Ok(())
 }
 
-/// Tests completing right after a word-break char (e.g. `--opt=`): like readline, the
-/// word being completed is the empty one after the `=`, even though `COMP_WORDS`
-/// still sees `=` as its own word.
+/// Tests completing right after a word-break char (e.g. `--opt=`): like
+/// readline, the word being completed is the empty one after the `=`, even
+/// though `COMP_WORDS` still sees `=` as its own word.
 #[tokio::test(flavor = "multi_thread")]
 async fn complete_after_word_break_char() -> Result<()> {
     let mut test_shell = TestShell::new().await?;
@@ -565,7 +569,8 @@ complete -W "root" mycmd2
     assert_eq!(replaced_range(&completions)?, line.len()..line.len());
     assert_eq!(candidate_texts(&completions), ["root"]);
 
-    // Cursor inside a run of word-break chars: still the empty word at the cursor.
+    // Cursor inside a run of word-break chars: still the empty word at the
+    // cursor.
     let line = "mycmd2 a:=val";
     let cursor = "mycmd2 a:".len();
     let completions = test_shell.complete(line, cursor).await?;
@@ -583,9 +588,9 @@ complete -W "root" mycmd2
     Ok(())
 }
 
-/// Checks what a completion function sees for the word being completed (`$2`), the one
-/// before it (`$3`), and `COMP_WORDS`/`COMP_CWORD`, for each input with the cursor at
-/// its `|`.
+/// Checks what a completion function sees for the word being completed (`$2`),
+/// the one before it (`$3`), and `COMP_WORDS`/`COMP_CWORD`, for each input with
+/// the cursor at its `|`.
 async fn check_completion_function_args(cases: &[(&str, &str)]) -> Result<()> {
     let mut test_shell = TestShell::new().await?;
     test_shell
@@ -613,8 +618,8 @@ complete -F _test_comp mycmd
     Ok(())
 }
 
-// Expected values in the tests below were captured from bash 5.3 by pressing Tab at the
-// cursor.
+// Expected values in the tests below were captured from bash 5.3 by pressing
+// Tab at the cursor.
 
 #[tokio::test(flavor = "multi_thread")]
 #[allow(clippy::too_many_lines)]
@@ -726,8 +731,9 @@ async fn completion_function_args_match_bash() -> Result<()> {
     .await
 }
 
-/// Like bash, `COMP_WORDS` should keep a command or parameter substitution together as
-/// one word, even though readline's word to complete (`$2`) doesn't.
+/// Like bash, `COMP_WORDS` should keep a command or parameter substitution
+/// together as one word, even though readline's word to complete (`$2`)
+/// doesn't.
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "TODO(completions): group $(...), ${...}, and `...` in COMP_WORDS"]
 #[allow(
@@ -772,8 +778,9 @@ async fn completion_function_args_match_bash_in_substitutions() -> Result<()> {
     .await
 }
 
-/// Like bash, completion should only see the simple command containing the cursor: after
-/// the last command separator, and past any leading variable assignments.
+/// Like bash, completion should only see the simple command containing the
+/// cursor: after the last command separator, and past any leading variable
+/// assignments.
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "TODO(completions): scope completion to the current simple command "]
 async fn completion_function_args_match_bash_in_command_sequences() -> Result<()> {
@@ -792,7 +799,8 @@ async fn completion_function_args_match_bash_in_command_sequences() -> Result<()
     .await
 }
 
-/// The cursor position is a byte offset, which must be a char boundary in the line.
+/// The cursor position is a byte offset, which must be a char boundary in the
+/// line.
 #[tokio::test(flavor = "multi_thread")]
 async fn completion_position_must_be_char_boundary() -> Result<()> {
     let mut test_shell = TestShell::new().await?;
@@ -804,8 +812,8 @@ async fn completion_position_must_be_char_boundary() -> Result<()> {
     Ok(())
 }
 
-/// Tests the range completions replace when the word being completed is in an open quote:
-/// the candidates replace that quote too.
+/// Tests the range completions replace when the word being completed is in an
+/// open quote: the candidates replace that quote too.
 #[tokio::test(flavor = "multi_thread")]
 async fn completion_range_in_open_quote() -> Result<()> {
     let mut test_shell = TestShell::new().await?;
@@ -825,8 +833,9 @@ async fn completion_range_in_open_quote() -> Result<()> {
     Ok(())
 }
 
-/// Like bash, a completion command (`complete -C`) gets the `COMP_*` variables exported to
-/// it, and they aren't left set afterwards. Running it doesn't change `$?`.
+/// Like bash, a completion command (`complete -C`) gets the `COMP_*` variables
+/// exported to it, and they aren't left set afterwards. Running it doesn't
+/// change `$?`.
 #[tokio::test(flavor = "multi_thread")]
 async fn completion_command_gets_comp_vars() -> Result<()> {
     let mut test_shell = TestShell::new().await?;
@@ -848,8 +857,8 @@ async fn completion_command_gets_comp_vars() -> Result<()> {
     Ok(())
 }
 
-/// Like bash, a completion function's `COMP_*` variables aren't left set afterwards, but
-/// what it leaves in other variables is.
+/// Like bash, a completion function's `COMP_*` variables aren't left set
+/// afterwards, but what it leaves in other variables is.
 #[tokio::test(flavor = "multi_thread")]
 async fn completion_function_vars_are_not_left_set() -> Result<()> {
     let mut test_shell = TestShell::new().await?;
@@ -875,9 +884,10 @@ async fn completion_function_vars_are_not_left_set() -> Result<()> {
     Ok(())
 }
 
-/// Like bash, the empty-line spec (`complete -E`) applies when there's nothing before the
-/// cursor and it isn't at the start of a word; otherwise, at the start of a line, the
-/// initial-word spec (`complete -I`) does. Expected values were captured from bash 5.3.
+/// Like bash, the empty-line spec (`complete -E`) applies when there's nothing
+/// before the cursor and it isn't at the start of a word; otherwise, at the
+/// start of a line, the initial-word spec (`complete -I`) does. Expected values
+/// were captured from bash 5.3.
 #[tokio::test(flavor = "multi_thread")]
 async fn empty_line_spec_completes_empty_line() -> Result<()> {
     let mut test_shell = TestShell::new().await?;
@@ -902,8 +912,8 @@ async fn empty_line_spec_completes_empty_line() -> Result<()> {
     Ok(())
 }
 
-/// Completion gives up, with no candidates, if a completion function keeps asking for it to
-/// restart.
+/// Completion gives up, with no candidates, if a completion function keeps
+/// asking for it to restart.
 #[tokio::test(flavor = "multi_thread")]
 async fn completion_that_keeps_restarting_gives_up() -> Result<()> {
     let mut test_shell = TestShell::new().await?;
@@ -917,10 +927,11 @@ async fn completion_that_keeps_restarting_gives_up() -> Result<()> {
     Ok(())
 }
 
-/// Like bash, a completion function for a special spec gets bash's name for it as `$1`;
-/// with no words on the line, `COMP_WORDS` is empty and `COMP_CWORD` is -1; and when
-/// completing the first word, `$3` is that word. Tests each input with the cursor at its
-/// `|`; expected values were captured from bash 5.3.
+/// Like bash, a completion function for a special spec gets bash's name for it
+/// as `$1`; with no words on the line, `COMP_WORDS` is empty and `COMP_CWORD`
+/// is -1; and when completing the first word, `$3` is that word. Tests each
+/// input with the cursor at its `|`; expected values were captured from bash
+/// 5.3.
 #[tokio::test(flavor = "multi_thread")]
 async fn special_spec_function_args_match_bash() -> Result<()> {
     let mut test_shell = TestShell::new().await?;
@@ -976,8 +987,9 @@ complete -D -F _test_comp
     Ok(())
 }
 
-/// Like bash, the `file` action makes a completion's candidates file names, and so does the
-/// `directory` action if it finds any. Expected values were captured from bash 5.3.
+/// Like bash, the `file` action makes a completion's candidates file names, and
+/// so does the `directory` action if it finds any. Expected values were
+/// captured from bash 5.3.
 #[tokio::test(flavor = "multi_thread")]
 async fn file_and_directory_actions_complete_file_names() -> Result<()> {
     let mut test_shell = TestShell::new().await?;
@@ -1006,8 +1018,8 @@ async fn file_and_directory_actions_complete_file_names() -> Result<()> {
     Ok(())
 }
 
-/// Like bash, `compopt` changes the options of the completion in progress, which a
-/// `compgen` call from the completion function doesn't disturb.
+/// Like bash, `compopt` changes the options of the completion in progress,
+/// which a `compgen` call from the completion function doesn't disturb.
 #[tokio::test(flavor = "multi_thread")]
 async fn compopt_survives_compgen_in_completion_function() -> Result<()> {
     let mut test_shell = TestShell::new().await?;
@@ -1025,9 +1037,9 @@ async fn compopt_survives_compgen_in_completion_function() -> Result<()> {
     Ok(())
 }
 
-/// Like bash, a subshell of a completion function is in the completion too (so `compopt`
-/// succeeds there), but `compopt` there changes only the subshell's options, not the
-/// completion's.
+/// Like bash, a subshell of a completion function is in the completion too (so
+/// `compopt` succeeds there), but `compopt` there changes only the subshell's
+/// options, not the completion's.
 #[tokio::test(flavor = "multi_thread")]
 async fn compopt_in_subshell_does_not_change_completion() -> Result<()> {
     let mut test_shell = TestShell::new().await?;
@@ -1043,10 +1055,10 @@ async fn compopt_in_subshell_does_not_change_completion() -> Result<()> {
     Ok(())
 }
 
-/// A completion that's cancelled (e.g. by Ctrl-C) while its completion function runs leaves
-/// nothing of it behind: the function's call, its variables (and the `COMP_*` ones set for
-/// it), the block on traps, or the completion in progress (so `compopt` acts as it does
-/// outside one).
+/// A completion that's cancelled (e.g. by Ctrl-C) while its completion function
+/// runs leaves nothing of it behind: the function's call, its variables (and
+/// the `COMP_*` ones set for it), the block on traps, or the completion in
+/// progress (so `compopt` acts as it does outside one).
 #[tokio::test(flavor = "multi_thread")]
 async fn cancelled_completion_leaves_nothing_behind() -> Result<()> {
     let mut test_shell = TestShell::new().await?;
@@ -1091,7 +1103,8 @@ async fn native_complete_variable_names() -> Result<()> {
     let results: Vec<String> = completions.candidates.into_iter().collect();
     assert_eq!(results, ["$TESTVAR1", "$TESTVAR2"]);
 
-    // Variable completions should not be treated as filenames (to avoid escaping $)
+    // Variable completions should not be treated as filenames (to avoid
+    // escaping $)
     assert!(
         !completions.options.treat_as_filenames,
         "variable completions should not be treated as filenames"
@@ -1116,7 +1129,8 @@ async fn native_complete_variable_names_with_braces() -> Result<()> {
     let results: Vec<String> = completions.candidates.into_iter().collect();
     assert_eq!(results, ["${TESTVAR1}", "${TESTVAR2}"]);
 
-    // Variable completions should not be treated as filenames (to avoid escaping $)
+    // Variable completions should not be treated as filenames (to avoid
+    // escaping $)
     assert!(
         !completions.options.treat_as_filenames,
         "variable completions should not be treated as filenames"
@@ -1139,7 +1153,8 @@ async fn native_complete_path_after_variable() -> Result<()> {
     test_shell.set_var("MYDIR", &temp_path)?;
 
     // Complete files after variable expansion.
-    // The completion system expands variables before completing, so results use expanded paths.
+    // The completion system expands variables before completing, so results use
+    // expanded paths.
     let completions = test_shell
         .complete_end_of_line_full("ls $MYDIR/file")
         .await?;
@@ -1159,8 +1174,8 @@ async fn native_complete_path_after_variable() -> Result<()> {
     Ok(())
 }
 
-/// Like bash, `compopt -o nosort` in a completion function keeps the candidates in the order
-/// generated.
+/// Like bash, `compopt -o nosort` in a completion function keeps the candidates
+/// in the order generated.
 #[tokio::test(flavor = "multi_thread")]
 async fn compopt_nosort_applies_to_completion_in_progress() -> Result<()> {
     let mut test_shell = TestShell::new().await?;
@@ -1175,8 +1190,9 @@ async fn compopt_nosort_applies_to_completion_in_progress() -> Result<()> {
     Ok(())
 }
 
-/// A `compgen` call in a completion function doesn't leak its options (e.g. its own
-/// `nosort`) into the completion: like bash, the candidates are still sorted.
+/// A `compgen` call in a completion function doesn't leak its options (e.g. its
+/// own `nosort`) into the completion: like bash, the candidates are still
+/// sorted.
 #[tokio::test(flavor = "multi_thread")]
 async fn compgen_in_completion_function_keeps_sorting() -> Result<()> {
     let mut test_shell = TestShell::new().await?;
@@ -1191,8 +1207,9 @@ async fn compgen_in_completion_function_keeps_sorting() -> Result<()> {
     Ok(())
 }
 
-/// Like bash, a `complete -X` pattern's leading `!` is interpreted when completing, not
-/// when the spec is registered: with extglob on by then, `!(...)` is an extglob pattern.
+/// Like bash, a `complete -X` pattern's leading `!` is interpreted when
+/// completing, not when the spec is registered: with extglob on by then,
+/// `!(...)` is an extglob pattern.
 #[tokio::test(flavor = "multi_thread")]
 async fn completion_filter_is_interpreted_when_completing() -> Result<()> {
     let mut test_shell = TestShell::new().await?;

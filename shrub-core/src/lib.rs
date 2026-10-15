@@ -1,5 +1,5 @@
-//! Core implementation of the shrub shell. Implements the shell's abstraction, its interpreter, and
-//! various facilities used internally by the shell.
+//! Core implementation of the shrub shell. Implements the shell's abstraction,
+//! its interpreter, and various facilities used internally by the shell.
 
 pub mod arithmetic;
 mod braceexpansion;

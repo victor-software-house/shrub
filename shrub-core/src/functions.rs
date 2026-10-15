@@ -1,6 +1,7 @@
 //! Structures for managing function registrations and calls.
 
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
+use std::sync::Arc;
 
 /// An environment for defined, named functions.
 #[derive(Clone, Default)]

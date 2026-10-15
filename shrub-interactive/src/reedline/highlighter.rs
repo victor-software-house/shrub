@@ -1,5 +1,6 @@
-use crate::{highlighting, refs};
 use nu_ansi_term::{Color, Style};
+
+use crate::{highlighting, refs};
 
 mod styles {
     use super::{Color, Style};
@@ -124,8 +125,9 @@ fn kind_to_style(kind: highlighting::HighlightKind) -> Style {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use reedline::Highlighter;
+
+    use super::*;
 
     #[test]
     fn plain_text_highlighter_uses_terminal_default_colors() {

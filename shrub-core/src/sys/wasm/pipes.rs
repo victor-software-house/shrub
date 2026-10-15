@@ -26,7 +26,8 @@ struct Pipe(Mutex<PipeState>);
 
 impl Pipe {
     fn lock(&self) -> std::sync::MutexGuard<'_, PipeState> {
-        // The state is never left inconsistent, so a poisoned lock is still usable.
+        // The state is never left inconsistent, so a poisoned lock is still
+        // usable.
         self.0
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)

@@ -1,11 +1,10 @@
 use std::io::{BufRead, IsTerminal, Write};
 
-use crate::{
-    InputBackend, ShellError,
-    input_backend::{InteractivePrompt, ReadResult},
-};
+use crate::input_backend::{InteractivePrompt, ReadResult};
+use crate::{InputBackend, ShellError};
 
-/// Represents a minimal shell input backend, capable of taking commands from standard input.
+/// Represents a minimal shell input backend, capable of taking commands from
+/// standard input.
 #[derive(Default)]
 pub struct MinimalInputBackend;
 
@@ -27,13 +26,15 @@ impl InputBackend for MinimalInputBackend {
 }
 
 impl MinimalInputBackend {
-    /// Reads lines from the given reader until they form a complete shell program.
-    /// Compound commands, here documents, and backslash continuations all span lines,
-    /// so a single line is often not a program on its own.
+    /// Reads lines from the given reader until they form a complete shell
+    /// program. Compound commands, here documents, and backslash
+    /// continuations all span lines, so a single line is often not a
+    /// program on its own.
     ///
     /// # Arguments
     ///
-    /// * `shell_ref` - The shell whose parsing options decide when input is complete.
+    /// * `shell_ref` - The shell whose parsing options decide when input is
+    ///   complete.
     /// * `prompt` - The prompt to display, or `None` to display nothing.
     /// * `reader` - The source to read lines from.
     /// * `writer` - Where prompts are written.
@@ -57,8 +58,8 @@ impl MinimalInputBackend {
                 writer.flush()?;
             }
 
-            // Nothing more is coming; run what we have and let the parser complain if
-            // it's still incomplete.
+            // Nothing more is coming; run what we have and let the parser
+            // complain if it's still incomplete.
             let Some(line) = Self::read_input_line(reader)? else {
                 break;
             };
@@ -90,8 +91,10 @@ impl MinimalInputBackend {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Cursor;
+    use std::sync::Arc;
+
     use super::*;
-    use std::{io::Cursor, sync::Arc};
 
     async fn test_shell_ref() -> crate::ShellRef {
         Arc::new(tokio::sync::Mutex::new(
@@ -150,7 +153,8 @@ mod tests {
 
     #[tokio::test]
     async fn returns_incomplete_input_at_end_of_input() {
-        // Truncated mid-construct: hand it over anyway so the parser reports the error.
+        // Truncated mid-construct: hand it over anyway so the parser reports
+        // the error.
         assert_reads("if true\nthen\n", "if true\nthen\n").await;
     }
 

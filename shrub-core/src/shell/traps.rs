@@ -1,6 +1,7 @@
 //! Trap handling for the shell.
 
-use crate::{ExecutionParameters, ExecutionResult, ProcessGroupPolicy, error, traps::TrapSignal};
+use crate::traps::TrapSignal;
+use crate::{ExecutionParameters, ExecutionResult, ProcessGroupPolicy, error};
 
 impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
     /// Runs any exit steps for the shell.
@@ -19,15 +20,18 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
     ///
     /// Behavior varies by signal type:
     ///
-    /// * **Per-signal recursion guard** — each trap guards against its own self-recursion, but
-    ///   different traps *can* fire from within each other's handlers (matching bash semantics).
+    /// * **Per-signal recursion guard** — each trap guards against its own
+    ///   self-recursion, but different traps *can* fire from within each
+    ///   other's handlers (matching bash semantics).
     ///
-    /// * **Inheritance** — in functions and subshells, some traps are only inherited when the
-    ///   corresponding shell option is enabled (e.g. `errtrace` / `set -E` for `ERR`, `functrace` /
-    ///   `set -T` for `DEBUG`/`RETURN`).
+    /// * **Inheritance** — in functions and subshells, some traps are only
+    ///   inherited when the corresponding shell option is enabled (e.g.
+    ///   `errtrace` / `set -E` for `ERR`, `functrace` / `set -T` for
+    ///   `DEBUG`/`RETURN`).
     ///
-    /// * **`$?` preservation** — `last_exit_status` is saved before and restored after the handler
-    ///   runs so the trap does not clobber the status that triggered it.
+    /// * **`$?` preservation** — `last_exit_status` is saved before and
+    ///   restored after the handler runs so the trap does not clobber the
+    ///   status that triggered it.
     ///
     /// # Arguments
     ///
@@ -67,7 +71,8 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
         let mut params = params.clone();
         params.process_group_policy = ProcessGroupPolicy::SameProcessGroup;
 
-        // The guard leaves the handler, restoring `$?`, once this finishes -- or is cancelled.
+        // The guard leaves the handler, restoring `$?`, once this finishes --
+        // or is cancelled.
         self.enter_trap_handler(signal, Some(&handler))
             .run_string(&handler.command, &handler.source_info, &params)
             .await

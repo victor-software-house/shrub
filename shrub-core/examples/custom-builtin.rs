@@ -1,4 +1,5 @@
-//! Example of implementing a custom builtin command for a shrub-core based shell.
+//! Example of implementing a custom builtin command for a shrub-core based
+//! shell.
 //!
 //! This example demonstrates best practices for:
 //! - Creating a custom builtin command using the `Command` trait
@@ -12,17 +13,17 @@
 //! cargo run --package shrub-core --example custom-builtin
 //! ```
 
-use anyhow::Result;
-use clap::Parser;
 use std::io::Write;
 
+use anyhow::Result;
+use clap::Parser;
 use shrub_core::{ExecutionResult, builtins};
 
 //
 // Step 1 (optional): Define a custom error type for your builtin
 // ==============================================
-// We recommend using `thiserror` to create descriptive error types that can be converted
-// to appropriate exit codes.
+// We recommend using `thiserror` to create descriptive error types that can be
+// converted to appropriate exit codes.
 //
 
 #[derive(Debug, thiserror::Error)]
@@ -31,8 +32,8 @@ enum GreetError {
     #[error("repeat count out of range")]
     RepeatCountOutOfRange,
 
-    /// A shell error occurred during execution; we transparently forward error display
-    /// to the underlying error.
+    /// A shell error occurred during execution; we transparently forward error
+    /// display to the underlying error.
     #[error(transparent)]
     ShellError(#[from] shrub_core::Error),
 
@@ -45,9 +46,9 @@ enum GreetError {
 // type in your command implementation.
 impl shrub_core::BuiltinError for GreetError {}
 
-// If you define a custom error type, you must map each error variant to an appropriate
-// exit code. This ensures the shell interpreter will translate a returned error to
-// the appropriate code during execution.
+// If you define a custom error type, you must map each error variant to an
+// appropriate exit code. This ensures the shell interpreter will translate a
+// returned error to the appropriate code during execution.
 impl From<&GreetError> for shrub_core::ExecutionExitCode {
     fn from(value: &GreetError) -> Self {
         match value {
@@ -61,9 +62,10 @@ impl From<&GreetError> for shrub_core::ExecutionExitCode {
 //
 // Step 2 (recommended): Define your builtin command arguments
 // ==============================================
-// We recommend using the `clap` crate and the derive-able `clap::Parser` to define
-// command-line arguments and options. This will simplify the work you need to do
-// to provide helpful usage information and auto-generated argument validation.
+// We recommend using the `clap` crate and the derive-able `clap::Parser` to
+// define command-line arguments and options. This will simplify the work you
+// need to do to provide helpful usage information and auto-generated argument
+// validation.
 //
 
 /// Greet the user with a friendly message.
@@ -81,8 +83,8 @@ struct GreetCommand {
 //
 
 impl builtins::Command for GreetCommand {
-    // Specify the error type you will use; this will either be your custom type or
-    // the default-provided `shrub_core::Error` type.
+    // Specify the error type you will use; this will either be your custom type
+    // or the default-provided `shrub_core::Error` type.
     type Error = GreetError;
 
     async fn execute<SE: shrub_core::ShellExtensions>(
@@ -94,9 +96,9 @@ impl builtins::Command for GreetCommand {
             return Err(GreetError::RepeatCountOutOfRange);
         }
 
-        // For demonstration, we expand a greeting string using shell variable expansion.
-        // This is a bit contrived, but it shows how to wrap errors coming back from
-        // `shrub_core`.
+        // For demonstration, we expand a greeting string using shell variable
+        // expansion. This is a bit contrived, but it shows how to wrap
+        // errors coming back from `shrub_core`.
         let greeting = context
             .shell
             .basic_expand_string(&context.params, "Hello, ${USER}!")

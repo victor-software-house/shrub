@@ -14,15 +14,16 @@ pub const PRODUCT_DISPLAY_URI: &str = if !PRODUCT_HOMEPAGE.is_empty() {
     PRODUCT_REPO
 };
 
-/// Marks builds that aren't from a release (e.g. "+canary" for builds of `main`). Set through the
-/// `SHRUB_VERSION_SUFFIX` environment variable at build time; empty for releases.
+/// Marks builds that aren't from a release (e.g. "+canary" for builds of
+/// `main`). Set through the `SHRUB_VERSION_SUFFIX` environment variable at
+/// build time; empty for releases.
 const PRODUCT_VERSION_SUFFIX: &str = match option_env!("SHRUB_VERSION_SUFFIX") {
     Some(suffix) => suffix,
     None => "",
 };
 
-/// The version of the product, in string form, as shown to users. Scripts see the unsuffixed
-/// version through `SHRUB_VERSION`.
+/// The version of the product, in string form, as shown to users. Scripts see
+/// the unsuffixed version through `SHRUB_VERSION`.
 pub const PRODUCT_VERSION: &str =
     const_format::concatcp!(env!("CARGO_PKG_VERSION"), PRODUCT_VERSION_SUFFIX);
 

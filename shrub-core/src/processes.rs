@@ -4,14 +4,16 @@ use futures::FutureExt;
 
 use crate::{error, sys};
 
-/// A waitable future that will yield the results of a child process's execution.
+/// A waitable future that will yield the results of a child process's
+/// execution.
 pub(crate) type WaitableChildProcess = std::pin::Pin<
     Box<dyn futures::Future<Output = Result<std::process::Output, std::io::Error>> + Send + Sync>,
 >;
 
 /// Tracks a child process being awaited.
 pub struct ChildProcess {
-    /// A waitable future that will yield the results of a child process's execution.
+    /// A waitable future that will yield the results of a child process's
+    /// execution.
     exec_future: WaitableChildProcess,
     /// If available, the process ID of the child.
     pid: Option<sys::process::ProcessId>,
@@ -50,8 +52,8 @@ impl ChildProcess {
         #[allow(unused_mut, reason = "only mutated on some platforms")]
         let mut sigchld = sys::signal::chld_signal_listener()?;
 
-        // The child may have stopped before there were listeners to hear about it
-        // (e.g., straight after `fg` resumed it).
+        // The child may have stopped before there were listeners to hear about
+        // it (e.g., straight after `fg` resumed it).
         if let Some(pid) = self.pid
             && sys::signal::poll_for_stopped_child(pid)?
         {

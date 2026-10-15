@@ -1,6 +1,6 @@
-use clap::Parser;
 use std::io::Write;
 
+use clap::Parser;
 use shrub_core::traps::TrapSignal;
 use shrub_core::{ExecutionExitCode, ExecutionResult, builtins, sys};
 
@@ -74,7 +74,8 @@ impl builtins::Command for KillCommand {
             }
         }
 
-        // Look through the remaining args for a pid/job spec or a -sigspec style option.
+        // Look through the remaining args for a pid/job spec or a -sigspec
+        // style option.
         let mut pid_or_job_spec = None;
         for arg in &self.args {
             // See if this is -sigspec syntax. The sigspec may be a signal name
@@ -153,8 +154,8 @@ fn print_signals(
     let mut exit_code = ExecutionResult::success();
     if !signals.is_empty() {
         for s in signals {
-            // If the user gives us a code, we print the name; if they give a name, we print its
-            // code.
+            // If the user gives us a code, we print the name; if they give a
+            // name, we print its code.
             enum PrintSignal {
                 Name(&'static str),
                 Num(i32),

@@ -1,5 +1,4 @@
 use clap::Parser;
-
 use shrub_core::{ExecutionResult, builtins};
 
 /// Push a path onto the current directory stack.

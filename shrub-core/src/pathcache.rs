@@ -1,7 +1,8 @@
 //! Path cache
 
-use crate::{error, variables};
 use std::path::PathBuf;
+
+use crate::{error, variables};
 
 /// A cache of paths associated with names.
 #[derive(Clone, Default)]

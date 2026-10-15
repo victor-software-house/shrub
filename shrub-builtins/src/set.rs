@@ -3,7 +3,6 @@ use std::io::Write;
 
 use clap::Parser;
 use itertools::Itertools;
-
 use shrub_core::{ExecutionExitCode, ExecutionResult, builtins, variables};
 
 crate::minus_or_plus_flag_arg!(
@@ -138,20 +137,22 @@ impl builtins::Command for SetCommand {
         true
     }
 
-    /// Override the default [`builtins::Command::new`] function to handle clap's limitation related
-    /// to `--`. See [`builtins::parse_known`] for more information
-    /// TODO(set): we can safely remove this after the issue is resolved
+    /// Override the default [`builtins::Command::new`] function to handle
+    /// clap's limitation related to `--`. See [`builtins::parse_known`] for
+    /// more information TODO(set): we can safely remove this after the
+    /// issue is resolved
     fn new<I>(args: I) -> Result<Self, clap::Error>
     where
         I: IntoIterator<Item = String>,
     {
         //
-        // TODO(set): This is getting pretty messy; we need to see how to avoid this -- handling
-        // from leaking into too many commands' custom parsing.
+        // TODO(set): This is getting pretty messy; we need to see how to avoid
+        // this -- handling from leaking into too many commands' custom
+        // parsing.
         //
 
-        // Apply the same workaround from the default implementation of Command::new to handle '+'
-        // args.
+        // Apply the same workaround from the default implementation of
+        // Command::new to handle '+' args.
         let mut updated_args = vec![];
         let mut now_parsing_positional_args = false;
         let mut next_arg_is_option_value = false;
@@ -398,8 +399,8 @@ impl builtins::Command for SetCommand {
 
         saw_option = saw_option || !self.positional_args.is_empty();
 
-        // If we *still* haven't seen any options, then we need to display all variables and
-        // functions.
+        // If we *still* haven't seen any options, then we need to display all
+        // variables and functions.
         if !saw_option {
             display_all(&context)?;
         }

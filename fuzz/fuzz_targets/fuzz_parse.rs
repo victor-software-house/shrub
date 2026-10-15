@@ -2,9 +2,10 @@
 #![allow(missing_docs)]
 #![allow(clippy::unwrap_used)]
 
+use std::sync::LazyLock;
+
 use anyhow::Result;
 use libfuzzer_sys::fuzz_target;
-use std::sync::LazyLock;
 
 static TOKIO_RT: LazyLock<tokio::runtime::Runtime> =
     LazyLock::new(|| tokio::runtime::Runtime::new().unwrap());
@@ -30,7 +31,8 @@ async fn parse_async(shell: shrub_core::Shell, input: String) -> Result<()> {
     let our_parse_result = shell.parse_string(input.clone());
 
     //
-    // Now run it under 'bash -n -t' as a crude way to see if it's at least valid syntax.
+    // Now run it under 'bash -n -t' as a crude way to see if it's at least
+    // valid syntax.
     //
     let mut oracle_cmd = std::process::Command::new("bash");
     oracle_cmd

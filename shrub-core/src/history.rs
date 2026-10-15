@@ -1,34 +1,37 @@
 //! Facilities for tracking and persisting the shell's command history.
 
+use std::collections::BTreeSet;
+use std::io::{BufRead, Read, Write};
+use std::path::Path;
+
 use chrono::Utc;
-use std::{
-    collections::BTreeSet,
-    io::{BufRead, Read, Write},
-    path::Path,
-};
 
 use crate::error;
 
 /// Represents a unique identifier for a history item.
 type ItemId = i64;
 
-/// Interface for querying and manipulating the shell's recorded history of commands.
+/// Interface for querying and manipulating the shell's recorded history of
+/// commands.
 // TODO(history): support maximum item count
 #[derive(Clone, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct History {
-    /// The items, oldest first. Their IDs only increase, so they're in ID order too, which
-    /// finds an item by ID (by binary search) without a separate map from IDs to items.
+    /// The items, oldest first. Their IDs only increase, so they're in ID order
+    /// too, which finds an item by ID (by binary search) without a separate
+    /// map from IDs to items.
     items: rpds::VectorSync<Item>,
     next_id: ItemId,
 }
 
 impl History {
-    /// Constructs a new `History` instance, with its contents initialized from the given readable
-    /// stream. If errors are encountered reading lines from the stream, unreadable lines will
-    /// be skipped but the call will still return successfully, with a warning logged. An error
-    /// result will be returned only if an internal error occurs updating the history. Like
-    /// bash, an entry the stream gives no timestamp gets the time it's read.
+    /// Constructs a new `History` instance, with its contents initialized from
+    /// the given readable stream. If errors are encountered reading lines
+    /// from the stream, unreadable lines will be skipped but the call will
+    /// still return successfully, with a warning logged. An error
+    /// result will be returned only if an internal error occurs updating the
+    /// history. Like bash, an entry the stream gives no timestamp gets the
+    /// time it's read.
     ///
     /// # Arguments
     ///
@@ -81,8 +84,8 @@ impl History {
         Ok(history)
     }
 
-    /// Tries to retrieve a history item by its unique identifier. Returns `None` if no item is
-    /// found.
+    /// Tries to retrieve a history item by its unique identifier. Returns
+    /// `None` if no item is found.
     ///
     /// # Arguments
     ///
@@ -91,8 +94,8 @@ impl History {
         Ok(self.position_of(id).and_then(|index| self.items.get(index)))
     }
 
-    /// Replaces the history item with the given ID with a new item. Returns an error if the item
-    /// cannot be updated.
+    /// Replaces the history item with the given ID with a new item. Returns an
+    /// error if the item cannot be updated.
     ///
     /// # Arguments
     ///
@@ -107,16 +110,17 @@ impl History {
         Ok(())
     }
 
-    /// Removes the nth item from the history (counting from 0, the oldest). Returns whether
-    /// there was such an item to remove.
+    /// Removes the nth item from the history (counting from 0, the oldest).
+    /// Returns whether there was such an item to remove.
     pub fn remove_nth_item(&mut self, n: usize) -> bool {
         let len = self.items.len();
         if n >= len {
             return false;
         }
 
-        // Take off the items from the nth on, and put back those after it: so removing a
-        // recent item (as `fc -s` does its own) touches only the few after it.
+        // Take off the items from the nth on, and put back those after it: so
+        // removing a recent item (as `fc -s` does its own) touches only
+        // the few after it.
         let after: Vec<Item> = (n + 1..len)
             .filter_map(|i| self.items.get(i).cloned())
             .collect();
@@ -130,7 +134,8 @@ impl History {
         true
     }
 
-    /// Keeps only the items that `keep` returns true for, in order. Their IDs don't change.
+    /// Keeps only the items that `keep` returns true for, in order. Their IDs
+    /// don't change.
     pub fn retain(&mut self, mut keep: impl FnMut(&Item) -> bool) {
         let Some(first_removed) = self.items.iter().position(|item| !keep(item)) else {
             return;
@@ -152,7 +157,8 @@ impl History {
         }
     }
 
-    /// Adds a new history item. Returns the unique identifier of the newly added item.
+    /// Adds a new history item. Returns the unique identifier of the newly
+    /// added item.
     ///
     /// # Arguments
     ///
@@ -168,8 +174,8 @@ impl History {
         Ok(id)
     }
 
-    /// Deletes a history item by its unique identifier. Returns an error if the item cannot be
-    /// deleted.
+    /// Deletes a history item by its unique identifier. Returns an error if the
+    /// item cannot be deleted.
     ///
     /// # Arguments
     ///
@@ -194,9 +200,10 @@ impl History {
     ///
     /// * `history_file_path` - The path to the history file.
     /// * `append` - Whether to append to the file or overwrite it.
-    /// * `unsaved_items_only` - Whether to only write unsaved items; if true, any items will be
-    ///   marked as "saved" once saved.
-    /// * `write_timestamps` - Whether to write timestamps for each command line.
+    /// * `unsaved_items_only` - Whether to only write unsaved items; if true,
+    ///   any items will be marked as "saved" once saved.
+    /// * `write_timestamps` - Whether to write timestamps for each command
+    ///   line.
     pub fn flush(
         &mut self,
         history_file_path: impl AsRef<Path>,
@@ -233,8 +240,8 @@ impl History {
             }
         }
 
-        // Only once they're all written out, mark the items saved: if writing fails, they
-        // stay unsaved, so a later flush retries them.
+        // Only once they're all written out, mark the items saved: if writing
+        // fails, they stay unsaved, so a later flush retries them.
         file.into_inner()
             .map_err(std::io::IntoInnerError::into_error)?;
         for index in written {
@@ -265,8 +272,9 @@ impl History {
         self.items.iter()
     }
 
-    /// Retrieves the nth history item, if it exists. Returns `None` if no such item exists.
-    /// Indexing is zero-based, with an index of 0 referencing the oldest item in the history.
+    /// Retrieves the nth history item, if it exists. Returns `None` if no such
+    /// item exists. Indexing is zero-based, with an index of 0 referencing
+    /// the oldest item in the history.
     ///
     /// # Arguments
     ///
@@ -285,11 +293,12 @@ impl History {
         self.items.len()
     }
 
-    /// Returns how many items have IDs less than `id`: the position of the item with that ID,
-    /// if there is one.
+    /// Returns how many items have IDs less than `id`: the position of the item
+    /// with that ID, if there is one.
     fn position_before(&self, id: ItemId) -> usize {
-        // The items are in ID order, so binary search. (By hand: `slice::partition_point`
-        // needs a slice, which rpds's vector, a tree, isn't.)
+        // The items are in ID order, so binary search. (By hand:
+        // `slice::partition_point` needs a slice, which rpds's vector,
+        // a tree, isn't.)
         let (mut low, mut high) = (0, self.items.len());
         while low < high {
             let mid = low + (high - low) / 2;
@@ -312,7 +321,8 @@ impl History {
     }
 }
 
-/// A value of `HISTCONTROL`, which controls what an interactive shell saves to history.
+/// A value of `HISTCONTROL`, which controls what an interactive shell saves to
+/// history.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, strum_macros::EnumString)]
 #[strum(serialize_all = "lowercase")]
 pub(crate) enum HistoryControl {
@@ -327,8 +337,9 @@ pub(crate) enum HistoryControl {
 }
 
 impl HistoryControl {
-    /// Parses `HISTCONTROL`'s colon-separated values into the set of them, with `ignoreboth`
-    /// as the two it stands for. Like bash, values it doesn't know are ignored.
+    /// Parses `HISTCONTROL`'s colon-separated values into the set of them, with
+    /// `ignoreboth` as the two it stands for. Like bash, values it doesn't
+    /// know are ignored.
     pub(crate) fn parse_list(value: &str) -> BTreeSet<Self> {
         value
             .split(':')
@@ -357,7 +368,8 @@ pub struct Item {
     pub command_line: String,
     /// The timestamp when the command was started.
     pub timestamp: Option<ItemTimestamp>,
-    /// Whether or not the item is dirty, i.e., has not yet been written to backing storage.
+    /// Whether or not the item is dirty, i.e., has not yet been written to
+    /// backing storage.
     pub dirty: bool,
 }
 
@@ -384,11 +396,13 @@ pub struct Query {
     pub direction: Direction,
     /// Optionally, clamp results to items with a timestamp strictly after this.
     pub not_at_or_before_time: Option<ItemTimestamp>,
-    /// Optionally, clamp results to items with a timestamp strictly before this.
+    /// Optionally, clamp results to items with a timestamp strictly before
+    /// this.
     pub not_at_or_after_time: Option<ItemTimestamp>,
     /// Optionally, clamp results to items with an ID equal strictly after this.
     pub not_at_or_before_id: Option<ItemId>,
-    /// Optionally, clamp results to items with an ID equal strictly before this.
+    /// Optionally, clamp results to items with an ID equal strictly before
+    /// this.
     pub not_at_or_after_id: Option<ItemId>,
     /// Optionally, maximum number of items to retrieve
     pub max_items: Option<i64>,
@@ -492,7 +506,8 @@ pub enum CommandLineFilter {
 pub struct Search<'a> {
     /// The history to search through.
     history: &'a History,
-    /// The positions of the items left to search: those within the query's ID bounds.
+    /// The positions of the items left to search: those within the query's ID
+    /// bounds.
     positions: std::ops::Range<usize>,
     /// The query to apply.
     query: Query,
@@ -501,7 +516,8 @@ pub struct Search<'a> {
 }
 
 impl<'a> Search<'a> {
-    /// Constructs a new search against the provided history, querying *all* items.
+    /// Constructs a new search against the provided history, querying *all*
+    /// items.
     ///
     /// # Arguments
     ///
@@ -510,15 +526,16 @@ impl<'a> Search<'a> {
         Self::new(history, Query::default())
     }
 
-    /// Constructs a new search against the provided history, using the given query.
+    /// Constructs a new search against the provided history, using the given
+    /// query.
     ///
     /// # Arguments
     ///
     /// * `history` - The history to search through.
     /// * `query` - The query to use.
     pub fn new(history: &'a History, query: Query) -> Self {
-        // The items within the query's ID bounds are a run of them, since they're in ID
-        // order: search just those positions.
+        // The items within the query's ID bounds are a run of them, since
+        // they're in ID order: search just those positions.
         let start = query.not_at_or_before_id.map_or(0, |id| {
             id.checked_add(1)
                 .map_or(history.items.len(), |id| history.position_before(id))
@@ -582,8 +599,8 @@ mod tests {
         items.map(|item| item.command_line.as_str()).collect()
     }
 
-    /// Removing an item shifts the positions of those after it (as `history -d` shows), but
-    /// no item's ID changes: an ID names its item for good.
+    /// Removing an item shifts the positions of those after it (as `history -d`
+    /// shows), but no item's ID changes: an ID names its item for good.
     #[test]
     fn ids_are_stable_across_removal() -> Result<(), error::Error> {
         let mut history = history(&["a", "b", "c", "d"])?;
@@ -611,7 +628,8 @@ mod tests {
             Some("e")
         );
 
-        // Even after clearing history: an old ID never comes to name a new item.
+        // Even after clearing history: an old ID never comes to name a new
+        // item.
         history.clear()?;
         assert_eq!(history.add(Item::new("f"))?, 5);
         assert!(history.get_by_id(0)?.is_none());
@@ -673,14 +691,16 @@ mod tests {
         };
         assert_eq!(search(newer)?, ["ls", "echo hello world"]);
 
-        // Newer than a given ID, with no upper bound, as moving down through history asks.
+        // Newer than a given ID, with no upper bound, as moving down through
+        // history asks.
         let down = Query {
             not_at_or_before_id: Some(1),
             ..Query::default()
         };
         assert_eq!(search(down)?, ["echo hello world", "cd /tmp"]);
 
-        // By substring (as Ctrl-R searches) or exact match, or with no room for any.
+        // By substring (as Ctrl-R searches) or exact match, or with no room for
+        // any.
         let substring = Query {
             direction: Direction::Backward,
             command_line_filter: Some(CommandLineFilter::Contains("hel".to_owned())),
@@ -708,9 +728,10 @@ mod tests {
         Ok(())
     }
 
-    /// A search finds just what checking each item would, in order, whatever its direction,
-    /// ID bounds, limit, and filter -- including bounds at deleted IDs and at the extremes.
-    /// And an item is found by its ID just as a scan would find it.
+    /// A search finds just what checking each item would, in order, whatever
+    /// its direction, ID bounds, limit, and filter -- including bounds at
+    /// deleted IDs and at the extremes. And an item is found by its ID just
+    /// as a scan would find it.
     #[test]
     fn search_and_get_by_id_match_a_scan() -> Result<(), error::Error> {
         for len in 0..6_i64 {
@@ -781,7 +802,8 @@ mod tests {
         Ok(())
     }
 
-    /// Appending unsaved items writes just those, once; writing everything writes it all.
+    /// Appending unsaved items writes just those, once; writing everything
+    /// writes it all.
     #[test]
     fn flush_writes_unsaved_items_once() -> Result<(), error::Error> {
         let dir = tempfile::tempdir()?;
@@ -804,8 +826,8 @@ mod tests {
         Ok(())
     }
 
-    /// Each of a query's filters, on its own. ID and time bounds are exclusive, and an item
-    /// with no timestamp isn't excluded by time bounds.
+    /// Each of a query's filters, on its own. ID and time bounds are exclusive,
+    /// and an item with no timestamp isn't excluded by time bounds.
     #[test]
     fn query_includes_by_each_filter() {
         let at = |seconds| ItemTimestamp::from_timestamp(seconds, 0);
@@ -906,9 +928,9 @@ mod tests {
         Ok(())
     }
 
-    /// Importing reads command lines and the timestamp comments before them (the last of
-    /// several; a comment that isn't one clears it), skips unreadable lines, and leaves the
-    /// items saved and numbered from 0.
+    /// Importing reads command lines and the timestamp comments before them
+    /// (the last of several; a comment that isn't one clears it), skips
+    /// unreadable lines, and leaves the items saved and numbered from 0.
     #[test]
     fn import_reads_history_files() -> Result<(), error::Error> {
         let before = Utc::now();
@@ -939,8 +961,8 @@ mod tests {
         Ok(())
     }
 
-    /// Flushing appends to what's already in the file, with the timestamps of items that
-    /// have them if asked; importing that reads them back.
+    /// Flushing appends to what's already in the file, with the timestamps of
+    /// items that have them if asked; importing that reads them back.
     #[test]
     fn flush_and_import_round_trip_with_timestamps() -> Result<(), error::Error> {
         let dir = tempfile::tempdir()?;
@@ -1009,8 +1031,8 @@ mod tests {
         Ok(())
     }
 
-    /// `HISTCONTROL` parses as bash reads it: `ignoreboth` is two values, and unknown values,
-    /// empty ones, and other cases are ignored.
+    /// `HISTCONTROL` parses as bash reads it: `ignoreboth` is two values, and
+    /// unknown values, empty ones, and other cases are ignored.
     #[test]
     fn history_control_parses_like_bash() {
         use HistoryControl::{EraseDups, IgnoreDups, IgnoreSpace};
@@ -1030,7 +1052,8 @@ mod tests {
         assert_eq!(parse(""), []);
     }
 
-    /// Searches and iterators over history can be held across an await in a spawned task.
+    /// Searches and iterators over history can be held across an await in a
+    /// spawned task.
     #[test]
     fn searches_are_send_and_sync() -> Result<(), error::Error> {
         const fn assert_send_sync<T: Send + Sync>(_: &T) {}

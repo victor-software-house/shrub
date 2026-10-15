@@ -1,5 +1,5 @@
-//! Defines the Abstract Syntax Tree (ast) for shell programs. Includes types and utilities
-//! for manipulating the AST.
+//! Defines the Abstract Syntax Tree (ast) for shell programs. Includes types
+//! and utilities for manipulating the AST.
 
 use std::fmt::{Display, Write};
 
@@ -71,8 +71,10 @@ pub type CompleteCommand = CompoundList;
 /// Represents a complete shell command item.
 pub type CompleteCommandItem = CompoundListItem;
 
-// TODO(tracing): decide if we want to trace this location or consider it a whitespace separator
-/// Indicates whether the preceding command is executed synchronously or asynchronously.
+// TODO(tracing): decide if we want to trace this location or consider it a
+// whitespace separator
+/// Indicates whether the preceding command is executed synchronously or
+/// asynchronously.
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[cfg_attr(
@@ -139,7 +141,8 @@ impl Display for AndOrList {
     }
 }
 
-/// Represents a boolean operator used to connect command pipelines in an [`AndOrList`]
+/// Represents a boolean operator used to connect command pipelines in an
+/// [`AndOrList`]
 #[derive(PartialEq, Eq)]
 pub enum PipelineOperator {
     /// The command pipelines are connected by a boolean AND operator.
@@ -217,8 +220,8 @@ impl AndOrList {
     }
 }
 
-/// Represents a boolean operator used to connect command pipelines, along with the
-/// succeeding pipeline.
+/// Represents a boolean operator used to connect command pipelines, along with
+/// the succeeding pipeline.
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[cfg_attr(
@@ -226,8 +229,8 @@ impl AndOrList {
     derive(PartialEq, Eq, serde::Serialize, serde::Deserialize)
 )]
 pub enum AndOr {
-    /// Boolean AND operator; the embedded pipeline is only to be executed if the
-    /// preceding command has succeeded.
+    /// Boolean AND operator; the embedded pipeline is only to be executed if
+    /// the preceding command has succeeded.
     And(Pipeline),
     /// Boolean OR operator; the embedded pipeline is only to be executed if the
     /// preceding command has not succeeded.
@@ -296,8 +299,8 @@ impl PipelineTimed {
     }
 }
 
-/// A pipeline of commands, where each command's output is passed as standard input
-/// to the command that follows it.
+/// A pipeline of commands, where each command's output is passed as standard
+/// input to the command that follows it.
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[cfg_attr(
@@ -312,8 +315,8 @@ pub struct Pipeline {
         serde(skip_serializing_if = "Option::is_none", default)
     )]
     pub timed: Option<PipelineTimed>,
-    /// Indicates whether the result of the overall pipeline should be the logical
-    /// negation of the result of the pipeline.
+    /// Indicates whether the result of the overall pipeline should be the
+    /// logical negation of the result of the pipeline.
     #[cfg_attr(
         any(test, feature = "serde"),
         serde(skip_serializing_if = "<&bool as std::ops::Not>::not", default)
@@ -325,7 +328,8 @@ pub struct Pipeline {
 
 impl Node for Pipeline {}
 
-// TODO(source-location): Handle the case where `self.timed` is `None` but there is a bang.
+// TODO(source-location): Handle the case where `self.timed` is `None` but there
+// is a bang.
 impl SourceLocation for Pipeline {
     fn location(&self) -> Option<SourceSpan> {
         let start = self
@@ -367,8 +371,8 @@ impl Display for Pipeline {
     derive(PartialEq, Eq, serde::Serialize, serde::Deserialize)
 )]
 pub enum Command {
-    /// A simple command, directly invoking an external command, a built-in command,
-    /// a shell function, or similar.
+    /// A simple command, directly invoking an external command, a built-in
+    /// command, a shell function, or similar.
     Simple(SimpleCommand),
     /// A compound command, composed of multiple commands.
     Compound(CompoundCommand, Option<RedirectList>),
@@ -409,7 +413,8 @@ impl Display for Command {
     }
 }
 
-/// Represents a compound command, potentially made up of multiple nested commands.
+/// Represents a compound command, potentially made up of multiple nested
+/// commands.
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[cfg_attr(
@@ -419,7 +424,8 @@ impl Display for Command {
 pub enum CompoundCommand {
     /// An arithmetic command, evaluating an arithmetic expression.
     Arithmetic(ArithmeticCommand),
-    /// An arithmetic for clause, which loops until an arithmetic condition is reached.
+    /// An arithmetic for clause, which loops until an arithmetic condition is
+    /// reached.
     ArithmeticForClause(ArithmeticForClauseCommand),
     /// A brace group, which groups commands together.
     BraceGroup(BraceGroupCommand),
@@ -598,7 +604,8 @@ impl Display for ForClauseCommand {
     }
 }
 
-/// An arithmetic for clause, which loops until an arithmetic condition is reached.
+/// An arithmetic for clause, which loops until an arithmetic condition is
+/// reached.
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[cfg_attr(
@@ -606,7 +613,8 @@ impl Display for ForClauseCommand {
     derive(PartialEq, Eq, serde::Serialize, serde::Deserialize)
 )]
 pub struct ArithmeticForClauseCommand {
-    /// Optionally, the initializer expression evaluated before the first iteration of the loop.
+    /// Optionally, the initializer expression evaluated before the first
+    /// iteration of the loop.
     pub initializer: Option<UnexpandedArithmeticExpr>,
     /// Optionally, the expression evaluated as the exit condition of the loop.
     pub condition: Option<UnexpandedArithmeticExpr>,
@@ -679,7 +687,8 @@ impl SourceLocation for CaseClauseCommand {
 
 impl Display for CaseClauseCommand {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // Note the trailing space, which the shell emits when printing a case clause.
+        // Note the trailing space, which the shell emits when printing a case
+        // clause.
         write!(f, "case {} in ", self.value)?;
         for case in &self.cases {
             write!(indenter::indented(f).with_str(DISPLAY_INDENT), "{case}")?;
@@ -715,8 +724,9 @@ impl SourceLocation for CompoundList {
 }
 
 impl CompoundList {
-    /// Displays the list with its trailing `;` retained, the way the shell prints the
-    /// body of a block closed by a reserved word (`fi`, `else`, `done`).
+    /// Displays the list with its trailing `;` retained, the way the shell
+    /// prints the body of a block closed by a reserved word (`fi`, `else`,
+    /// `done`).
     fn terminated(&self) -> impl Display + '_ {
         TerminatedCompoundList(self)
     }
@@ -734,8 +744,8 @@ impl CompoundList {
             // Write the and-or list.
             write!(f, "{}", item.0)?;
 
-            // Write the separator... unless we're on the last list item and it's a ';'
-            // that the enclosing construct doesn't want.
+            // Write the separator... unless we're on the last list item and
+            // it's a ';' that the enclosing construct doesn't want.
             if keep_trailing_separator
                 || i < self.0.len() - 1
                 || !matches!(item.1, SeparatorOperator::Sequence)
@@ -800,7 +810,8 @@ pub struct IfClauseCommand {
     pub condition: CompoundList,
     /// The command to execute if the condition is true.
     pub then: CompoundList,
-    /// Optionally, `else` clauses that will be evaluated if the condition is false.
+    /// Optionally, `else` clauses that will be evaluated if the condition is
+    /// false.
     #[cfg_attr(
         any(test, feature = "serde"),
         serde(skip_serializing_if = "Option::is_none", default)
@@ -847,7 +858,8 @@ impl Display for IfClauseCommand {
     derive(PartialEq, Eq, serde::Serialize, serde::Deserialize)
 )]
 pub struct ElseClause {
-    /// If present, the condition that must be met for this `else` clause to be executed.
+    /// If present, the condition that must be met for this `else` clause to be
+    /// executed.
     #[cfg_attr(
         any(test, feature = "serde"),
         serde(skip_serializing_if = "Option::is_none", default)
@@ -926,7 +938,8 @@ pub struct CaseItem {
     pub patterns: Vec<Word>,
     /// The commands to execute if this case branch is selected.
     pub cmd: Option<CompoundList>,
-    /// When the case branch is selected, the action to take after the command is executed.
+    /// When the case branch is selected, the action to take after the command
+    /// is executed.
     pub post_action: CaseItemPostAction,
     /// Location of the item
     pub loc: Option<SourceSpan>,
@@ -945,7 +958,8 @@ impl Display for CaseItem {
         writeln!(f)?;
         for (i, pattern) in self.patterns.iter().enumerate() {
             if i > 0 {
-                // Note the spaces, which the shell puts around the pattern separator.
+                // Note the spaces, which the shell puts around the pattern
+                // separator.
                 write!(f, " | ")?;
             }
             write!(f, "{pattern}")?;
@@ -960,7 +974,8 @@ impl Display for CaseItem {
     }
 }
 
-/// Describes the action to take after executing the body command of a case clause.
+/// Describes the action to take after executing the body command of a case
+/// clause.
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[cfg_attr(
@@ -970,8 +985,8 @@ impl Display for CaseItem {
 pub enum CaseItemPostAction {
     /// The containing case should be exited.
     ExitCase,
-    /// If one is present, the command body of the succeeding case item should be
-    /// executed (without evaluating its pattern).
+    /// If one is present, the command body of the succeeding case item should
+    /// be executed (without evaluating its pattern).
     UnconditionallyExecuteNextCaseItem,
     /// The case should continue evaluating the remaining case items, as if this
     /// item had not been executed.
@@ -1270,7 +1285,8 @@ impl Display for CommandPrefix {
     }
 }
 
-/// Represents a suffix to a simple command; a word argument, declaration, or I/O redirection.
+/// Represents a suffix to a simple command; a word argument, declaration, or
+/// I/O redirection.
 #[derive(Clone, Default, Debug)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[cfg_attr(
@@ -1383,7 +1399,8 @@ pub struct Assignment {
     pub name: AssignmentName,
     /// Value being assigned.
     pub value: AssignmentValue,
-    /// Whether or not to append to the preexisting value associated with the named variable.
+    /// Whether or not to append to the preexisting value associated with the
+    /// named variable.
     #[cfg_attr(
         any(test, feature = "serde"),
         serde(skip_serializing_if = "<&bool as std::ops::Not>::not", default)
@@ -1468,7 +1485,8 @@ impl SourceLocation for AssignmentValue {
         match self {
             Self::Scalar(word) => word.location(),
             Self::Array(words) => {
-                // TODO(source-location): account for the surrounding parentheses
+                // TODO(source-location): account for the surrounding
+                // parentheses
                 let first = words.first().and_then(|(_key, value)| value.location());
                 let last = words.last().and_then(|(_key, value)| value.location());
                 maybe_location(first.as_ref(), last.as_ref())
@@ -1543,7 +1561,8 @@ pub enum IoRedirect {
     HereDocument(Option<IoFd>, IoHereDocument),
     /// Redirection from a here-string.
     HereString(Option<IoFd>, Word),
-    /// Redirection of both standard output and standard error (with optional append).
+    /// Redirection of both standard output and standard error (with optional
+    /// append).
     OutputAndError(Word, bool),
 }
 
@@ -1643,12 +1662,12 @@ pub enum IoFileRedirectTarget {
     Filename(Word),
     /// File descriptor number.
     Fd(IoFd),
-    /// Process substitution: substitution with the results of executing the given
-    /// command in a subshell.
+    /// Process substitution: substitution with the results of executing the
+    /// given command in a subshell.
     ProcessSubstitution(ProcessSubstitutionKind, SubshellCommand),
-    /// Item to duplicate in a word redirection. After expansion, this could be a
-    /// filename, a file descriptor, or a file descriptor and a "-" to indicate
-    /// requested closure.
+    /// Item to duplicate in a word redirection. After expansion, this could be
+    /// a filename, a file descriptor, or a file descriptor and a "-" to
+    /// indicate requested closure.
     Duplicate(Word),
 }
 
@@ -1856,42 +1875,49 @@ pub enum UnaryPredicate {
     FileExistsAndIsDir,
     /// Computes if the operand is a path to an existing regular file.
     FileExistsAndIsRegularFile,
-    /// Computes if the operand is a path to an existing file with the setgid bit set.
+    /// Computes if the operand is a path to an existing file with the setgid
+    /// bit set.
     FileExistsAndIsSetgid,
     /// Computes if the operand is a path to an existing symbolic link.
     FileExistsAndIsSymlink,
-    /// Computes if the operand is a path to an existing file with the sticky bit set.
+    /// Computes if the operand is a path to an existing file with the sticky
+    /// bit set.
     FileExistsAndHasStickyBit,
     /// Computes if the operand is a path to an existing FIFO file.
     FileExistsAndIsFifo,
     /// Computes if the operand is a path to an existing file that is readable.
     FileExistsAndIsReadable,
-    /// Computes if the operand is a path to an existing file with a non-zero length.
+    /// Computes if the operand is a path to an existing file with a non-zero
+    /// length.
     FileExistsAndIsNotZeroLength,
     /// Computes if the operand is a file descriptor that is an open terminal.
     FdIsOpenTerminal,
-    /// Computes if the operand is a path to an existing file with the setuid bit set.
+    /// Computes if the operand is a path to an existing file with the setuid
+    /// bit set.
     FileExistsAndIsSetuid,
     /// Computes if the operand is a path to an existing file that is writable.
     FileExistsAndIsWritable,
-    /// Computes if the operand is a path to an existing file that is executable.
+    /// Computes if the operand is a path to an existing file that is
+    /// executable.
     FileExistsAndIsExecutable,
-    /// Computes if the operand is a path to an existing file owned by the current context's
-    /// effective group ID.
+    /// Computes if the operand is a path to an existing file owned by the
+    /// current context's effective group ID.
     FileExistsAndOwnedByEffectiveGroupId,
-    /// Computes if the operand is a path to an existing file that has been modified since last
-    /// being read.
+    /// Computes if the operand is a path to an existing file that has been
+    /// modified since last being read.
     FileExistsAndModifiedSinceLastRead,
-    /// Computes if the operand is a path to an existing file owned by the current context's
-    /// effective user ID.
+    /// Computes if the operand is a path to an existing file owned by the
+    /// current context's effective user ID.
     FileExistsAndOwnedByEffectiveUserId,
     /// Computes if the operand is a path to an existing socket file.
     FileExistsAndIsSocket,
     /// Computes if the operand is a 'set -o' option that is enabled.
     ShellOptionEnabled,
-    /// Computes if the operand names a shell variable that is set and assigned a value.
+    /// Computes if the operand names a shell variable that is set and assigned
+    /// a value.
     ShellVariableIsSetAndAssigned,
-    /// Computes if the operand names a shell variable that is set and of nameref type.
+    /// Computes if the operand names a shell variable that is set and of
+    /// nameref type.
     ShellVariableIsSetAndNameRef,
     /// Computes if the operand is a string with zero length.
     StringHasZeroLength,
@@ -1940,9 +1966,11 @@ impl Display for UnaryPredicate {
 pub enum BinaryPredicate {
     /// Computes if two files refer to the same device and inode numbers.
     FilesReferToSameDeviceAndInodeNumbers,
-    /// Computes if the left file is newer than the right, or exists when the right does not.
+    /// Computes if the left file is newer than the right, or exists when the
+    /// right does not.
     LeftFileIsNewerOrExistsWhenRightDoesNot,
-    /// Computes if the left file is older than the right, or does not exist when the right does.
+    /// Computes if the left file is older than the right, or does not exist
+    /// when the right does.
     LeftFileIsOlderOrDoesNotExistWhenRightDoes,
     /// Computes if a string exactly matches a pattern.
     StringExactlyMatchesPattern,
@@ -1964,13 +1992,17 @@ pub enum BinaryPredicate {
     ArithmeticEqualTo,
     /// Computes if two values are not equal via arithmetic comparison.
     ArithmeticNotEqualTo,
-    /// Computes if the left value is less than the right via arithmetic comparison.
+    /// Computes if the left value is less than the right via arithmetic
+    /// comparison.
     ArithmeticLessThan,
-    /// Computes if the left value is less than or equal to the right via arithmetic comparison.
+    /// Computes if the left value is less than or equal to the right via
+    /// arithmetic comparison.
     ArithmeticLessThanOrEqualTo,
-    /// Computes if the left value is greater than the right via arithmetic comparison.
+    /// Computes if the left value is greater than the right via arithmetic
+    /// comparison.
     ArithmeticGreaterThan,
-    /// Computes if the left value is greater than or equal to the right via arithmetic comparison.
+    /// Computes if the left value is greater than or equal to the right via
+    /// arithmetic comparison.
     ArithmeticGreaterThanOrEqualTo,
 }
 
@@ -2380,9 +2412,10 @@ impl Display for ArithmeticTarget {
 #[cfg(test)]
 #[allow(clippy::panic)]
 mod tests {
+    use std::io::BufReader;
+
     use super::*;
     use crate::{ParserOptions, SourcePosition};
-    use std::io::BufReader;
 
     fn parse(input: &str) -> Program {
         let reader = BufReader::new(input.as_bytes());

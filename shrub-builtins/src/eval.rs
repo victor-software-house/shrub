@@ -1,5 +1,5 @@
-use shrub_core::{ExecutionResult, builtins};
 use clap::Parser;
+use shrub_core::{ExecutionResult, builtins};
 
 /// Evaluate the given string as script.
 #[derive(Parser)]
@@ -21,16 +21,17 @@ impl builtins::Command for EvalCommand {
 
             tracing::debug!("Applying eval to: {:?}", args_concatenated);
 
-            // Our new source context is relative to the current position because we are only
-            // providing the raw string being eval'd.
-            // TODO(source-info): Provide the location of the specific tokens that make up
-            // `self.args`.
+            // Our new source context is relative to the current position
+            // because we are only providing the raw string being
+            // eval'd. TODO(source-info): Provide the location of
+            // the specific tokens that make up `self.args`.
             let source_info = context.shell.call_stack().current_pos_as_source_info();
 
             // Return the direct result of running the string; we intentionally
-            // pass through the result and honor its requested control flow. eval
-            // executes in the current environment, so all control flow (return,
-            // exit, break, continue) should propagate.
+            // pass through the result and honor its requested control flow.
+            // eval executes in the current environment, so all
+            // control flow (return, exit, break, continue) should
+            // propagate.
             context
                 .shell
                 .run_string(args_concatenated, &source_info, &context.params)

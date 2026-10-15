@@ -7,10 +7,11 @@ use std::sync::Arc;
 
 use tokio::sync::Mutex;
 
+use crate::env::ShellEnvironment;
+use crate::options::RuntimeOptions;
 use crate::{
-    ExecutionControlFlow, ExecutionResult, builtins, env::ShellEnvironment, error, extensions,
-    functions, interfaces, jobs, keywords, openfiles, options::RuntimeOptions, pathcache,
-    wellknownvars,
+    ExecutionControlFlow, ExecutionResult, builtins, error, extensions, functions, interfaces,
+    jobs, keywords, openfiles, pathcache, wellknownvars,
 };
 
 /// Type for storing a key bindings helper.
@@ -19,10 +20,11 @@ pub type KeyBindingsHelper = Arc<Mutex<dyn interfaces::KeyBindings>>;
 /// Type alias for shell file descriptors.
 pub type ShellFd = i32;
 
-// NOTE: The submodule files below (e.g., `shell/traps.rs`, `shell/callstack.rs`) contain
-// `impl Shell<SE>` blocks that provide methods coordinating with types defined in the
-// corresponding top-level modules (e.g., `traps.rs`, `callstack.rs`). This is an intentional
-// layered architecture: top-level modules define domain types and data structures, while
+// NOTE: The submodule files below (e.g., `shell/traps.rs`,
+// `shell/callstack.rs`) contain `impl Shell<SE>` blocks that provide methods
+// coordinating with types defined in the corresponding top-level modules (e.g.,
+// `traps.rs`, `callstack.rs`). This is an intentional layered architecture:
+// top-level modules define domain types and data structures, while
 // shell/ submodules implement Shell methods that operate on those types.
 
 mod builder;
@@ -52,9 +54,10 @@ pub use state::ShellState;
 ///
 /// # Type Parameters
 ///
-/// * `SE` - The shell extensions implementation to use. These extensions are statically injected
-///   into the shell at compile time to provide custom behavior. When unspecified, defaults to
-///   `DefaultShellExtensions`, which provide standard behavior.
+/// * `SE` - The shell extensions implementation to use. These extensions are
+///   statically injected into the shell at compile time to provide custom
+///   behavior. When unspecified, defaults to `DefaultShellExtensions`, which
+///   provide standard behavior.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Shell<SE: extensions::ShellExtensions = extensions::DefaultShellExtensions> {
     /// Injected error behavior.
@@ -90,9 +93,9 @@ pub struct Shell<SE: extensions::ShellExtensions = extensions::DefaultShellExten
     /// The status of the last completed command.
     last_exit_status: u8,
 
-    /// Tracks changes to `last_exit_status`. Assignment-only commands observe it
-    /// to tell whether an expansion set a status (see `interp.rs`), so code that
-    /// rolls back `$?` must roll this back too.
+    /// Tracks changes to `last_exit_status`. Assignment-only commands observe
+    /// it to tell whether an expansion set a status (see `interp.rs`), so
+    /// code that rolls back `$?` must roll this back too.
     last_exit_status_change_count: usize,
 
     /// The status of each of the commands in the last pipeline.
@@ -139,7 +142,8 @@ pub struct Shell<SE: extensions::ShellExtensions = extensions::DefaultShellExten
     #[cfg_attr(feature = "serde", serde(skip))]
     parser_impl: crate::parser::ParserImpl,
 
-    /// Key bindings for the shell, optionally implemented by an interactive shell.
+    /// Key bindings for the shell, optionally implemented by an interactive
+    /// shell.
     #[cfg_attr(feature = "serde", serde(skip))]
     key_bindings: Option<KeyBindingsHelper>,
 
@@ -167,8 +171,9 @@ impl<SE: extensions::ShellExtensions> Clone for Shell<SE> {
             version: self.version.clone(),
             product_display_str: self.product_display_str.clone(),
             call_stack: {
-                // Subshells must not inherit the parent's "currently handling signal X"
-                // state; otherwise a trap handler that spawns a subshell would see itself
+                // Subshells must not inherit the parent's "currently handling
+                // signal X" state; otherwise a trap handler
+                // that spawns a subshell would see itself
                 // as already inside that handler and skip re-entrant delivery.
                 let mut cs = self.call_stack.clone();
                 cs.clear_active_trap_signals();
@@ -233,8 +238,8 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
         // Add in any open files provided.
         shell.open_files.update_from(options.fds.into_iter());
 
-        // TODO(patterns): Without this a script that sets extglob will fail because we
-        // parse the entire script with the same settings.
+        // TODO(patterns): Without this a script that sets extglob will fail
+        // because we parse the entire script with the same settings.
         shell.options.extended_globbing = true;
 
         // If requested, seed parameters from environment.
@@ -252,8 +257,8 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
             shell.env.set_global(var_name, var_value)?;
         }
 
-        // Set up history, if relevant. The history file itself is loaded later, once startup
-        // files have run, since they may change HISTFILE.
+        // Set up history, if relevant. The history file itself is loaded later,
+        // once startup files have run, since they may change HISTFILE.
         if shell.options.enable_command_history {
             shell.history = Some(crate::history::History::default());
         }
@@ -263,8 +268,8 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
 }
 
 impl<SE: extensions::ShellExtensions> Shell<SE> {
-    /// Increments the interactive line offset in the shell by the indicated number
-    /// of lines.
+    /// Increments the interactive line offset in the shell by the indicated
+    /// number of lines.
     ///
     /// # Arguments
     ///
@@ -312,7 +317,8 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
             .set_global("_", crate::variables::ShellVariable::new(value));
     }
 
-    /// Captures the state the last command left behind; see [`SavedCommandStatus`].
+    /// Captures the state the last command left behind; see
+    /// [`SavedCommandStatus`].
     pub fn save_command_status(&self) -> SavedCommandStatus {
         SavedCommandStatus {
             exit_status: self.last_exit_status,
@@ -322,16 +328,17 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
         }
     }
 
-    /// Reapplies a snapshot, exit-status change counter included. Consumes it; `clone` it to
-    /// put the same one back more than once, e.g. between successive hook functions.
+    /// Reapplies a snapshot, exit-status change counter included. Consumes it;
+    /// `clone` it to put the same one back more than once, e.g. between
+    /// successive hook functions.
     ///
     /// # Arguments
     ///
     /// * `saved` - The snapshot to restore.
     pub fn restore_command_status(&mut self, saved: SavedCommandStatus) {
         self.last_pipeline_statuses = saved.pipeline_statuses;
-        // Assigned directly rather than through `set_last_exit_status`, which would bump
-        // the change counter we're about to put back.
+        // Assigned directly rather than through `set_last_exit_status`, which
+        // would bump the change counter we're about to put back.
         self.last_exit_status = saved.exit_status;
         self.last_exit_status_change_count = saved.exit_status_change_count;
         match saved.last_arg {
@@ -343,7 +350,8 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
     }
 
     /// Applies errexit semantics to a result if enabled and appropriate.
-    /// This should be called at "statement boundaries" where errexit should be checked.
+    /// This should be called at "statement boundaries" where errexit should be
+    /// checked.
     ///
     /// # Arguments
     ///
@@ -357,7 +365,8 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
         }
     }
 
-    /// Returns the keywords that are reserved by the shell, in the order bash lists them.
+    /// Returns the keywords that are reserved by the shell, in the order bash
+    /// lists them.
     pub(crate) fn get_keywords(&self) -> impl IntoIterator<Item = &'static str> {
         keywords::keywords(self.options.sh_mode)
     }
@@ -376,11 +385,13 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
     }
 }
 
-/// Snapshot of the state the last command left behind: `$?`, `PIPESTATUS`, and `$_`.
+/// Snapshot of the state the last command left behind: `$?`, `PIPESTATUS`, and
+/// `$_`.
 ///
 /// Take one with [`Shell::save_command_status`] and put it back with
-/// [`Shell::restore_command_status`] around anything the user didn't type -- a shell hook,
-/// `PROMPT_COMMAND`, prompt expansion -- so it stays invisible to the next command.
+/// [`Shell::restore_command_status`] around anything the user didn't type -- a
+/// shell hook, `PROMPT_COMMAND`, prompt expansion -- so it stays invisible to
+/// the next command.
 #[derive(Clone, Debug)]
 pub struct SavedCommandStatus {
     exit_status: u8,
@@ -471,7 +482,8 @@ impl<SE: extensions::ShellExtensions> ShellState for Shell<SE> {
         &self.last_pipeline_statuses
     }
 
-    /// Returns a mutable reference to the statuses of commands in the last pipeline.
+    /// Returns a mutable reference to the statuses of commands in the last
+    /// pipeline.
     pub fn last_pipeline_statuses_mut(&mut self) -> &mut Vec<u8> {
         &mut self.last_pipeline_statuses
     }
@@ -519,7 +531,8 @@ impl<SE: extensions::ShellExtensions> ShellState for Shell<SE> {
         self.name.as_deref().map(|name| name.into())
     }
 
-    /// Returns the current subshell depth; 0 is returned if this shell is not a subshell.
+    /// Returns the current subshell depth; 0 is returned if this shell is not a
+    /// subshell.
     pub fn depth(&self) -> usize {
         self.depth
     }
@@ -549,9 +562,9 @@ impl<SE: extensions::ShellExtensions> ShellState for Shell<SE> {
         self.last_exit_status
     }
 
-    /// Updates the last exit status, bumping `last_exit_status_change_count`. To *restore* a
-    /// status rather than set one, use [`Self::restore_command_status`], which puts the
-    /// counter back too.
+    /// Updates the last exit status, bumping `last_exit_status_change_count`.
+    /// To *restore* a status rather than set one, use
+    /// [`Self::restore_command_status`], which puts the counter back too.
     pub fn set_last_exit_status(&mut self, status: u8) {
         self.last_exit_status = status;
         self.last_exit_status_change_count += 1;
@@ -594,9 +607,10 @@ fn default_error_formatter<EF: extensions::ErrorFormatter>() -> EF {
 mod tests {
     use super::*;
 
-    /// `$_` round-trips through a snapshot, unset included, so an embedder that saves before
-    /// running commands of its own gets back exactly what was there -- not an empty string.
-    /// (The interactive loop can't reach the unset case: every command resets `$_`.)
+    /// `$_` round-trips through a snapshot, unset included, so an embedder that
+    /// saves before running commands of its own gets back exactly what was
+    /// there -- not an empty string. (The interactive loop can't reach the
+    /// unset case: every command resets `$_`.)
     #[tokio::test]
     async fn saved_command_status_round_trips_last_arg() -> Result<(), error::Error> {
         let mut shell = Shell::builder()

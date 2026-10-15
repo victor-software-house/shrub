@@ -1,9 +1,7 @@
 //! Path searching utilities.
 
-use std::{
-    collections::VecDeque,
-    path::{Path, PathBuf},
-};
+use std::collections::VecDeque;
+use std::path::{Path, PathBuf};
 
 use crate::sys;
 use crate::sys::fs::PathExt;
@@ -25,15 +23,17 @@ where
         while let Some(path) = self.paths.pop_front() {
             let path = PathBuf::from(path.as_ref()).join(self.filename.as_ref());
 
-            // Ask the platform to resolve the path to an actual executable file, which on
-            // Windows may involve appending a PATHEXT extension. The helper takes ownership
-            // so Unix — where no resolution is needed — can return the path unchanged
+            // Ask the platform to resolve the path to an actual executable
+            // file, which on Windows may involve appending a
+            // PATHEXT extension. The helper takes ownership so Unix
+            // — where no resolution is needed — can return the path unchanged
             // without allocating.
             //
-            // A directory carries the execute bit on Unix but is never a command. Filter
-            // the *resolved* path rather than the input: on Windows, resolution appends a
-            // PATHEXT extension, so a `prog` directory must not stop `prog.exe` in the
-            // same PATH entry from being found.
+            // A directory carries the execute bit on Unix but is never a
+            // command. Filter the *resolved* path rather than the
+            // input: on Windows, resolution appends a
+            // PATHEXT extension, so a `prog` directory must not stop `prog.exe`
+            // in the same PATH entry from being found.
             if let Some(resolved) = sys::fs::resolve_executable(path)
                 && !resolved.is_dir()
             {
@@ -120,9 +120,9 @@ where
 
 /// Resolves a command name the way the shell does when it is about to run it.
 ///
-/// Returns the first executable in search order, or -- if there is none -- the first entry
-/// that exists and is not a directory, which the shell reports as the command and then
-/// fails to run.
+/// Returns the first executable in search order, or -- if there is none -- the
+/// first entry that exists and is not a directory, which the shell reports as
+/// the command and then fails to run.
 ///
 /// # Arguments
 ///
@@ -139,7 +139,8 @@ where
     for dir in paths {
         let path = dir.as_ref().join(filename.as_ref());
 
-        // Remember the first non-directory entry seen, in case no executable turns up.
+        // Remember the first non-directory entry seen, in case no executable
+        // turns up.
         if first_non_executable.is_none() && path.metadata().is_ok_and(|m| !m.is_dir()) {
             first_non_executable = Some(path.clone());
         }
@@ -185,8 +186,9 @@ mod tests {
 
     use super::*;
 
-    /// A directory carries the execute bit on Unix, so it must not be mistaken for a
-    /// command; an executable later in the search order takes its place.
+    /// A directory carries the execute bit on Unix, so it must not be mistaken
+    /// for a command; an executable later in the search order takes its
+    /// place.
     #[test]
     fn directory_is_not_a_command() -> Result<()> {
         let scratch = tempfile::tempdir()?;
@@ -198,8 +200,8 @@ mod tests {
 
         let paths = [first.as_path(), second.as_path()];
 
-        // The plain (non-executable) file wins over the directory, rather than the
-        // directory being reported as the command.
+        // The plain (non-executable) file wins over the directory, rather than
+        // the directory being reported as the command.
         assert_eq!(resolve_command(paths, "prog"), Some(second.join("prog")));
 
         // ...and a directory is never yielded as an executable at all.
@@ -208,8 +210,9 @@ mod tests {
         Ok(())
     }
 
-    /// On Windows, `PATHEXT` resolution has to run before directories are rejected: a
-    /// `prog` directory must not keep `prog.bat` in the same PATH entry from being found.
+    /// On Windows, `PATHEXT` resolution has to run before directories are
+    /// rejected: a `prog` directory must not keep `prog.bat` in the same
+    /// PATH entry from being found.
     #[cfg(windows)] // ast-grep-ignore: platform-cfg-outside-sys
     #[test]
     fn same_named_directory_does_not_hide_a_pathext_match() -> Result<()> {

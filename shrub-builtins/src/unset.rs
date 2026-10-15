@@ -1,7 +1,6 @@
 use std::borrow::Cow;
 
 use clap::Parser;
-
 use shrub_core::{ExecutionResult, Shell, builtins};
 
 /// Unset a variable.
@@ -55,8 +54,9 @@ impl builtins::Command for UnsetCommand {
         #[expect(clippy::needless_continue)]
         for name in &self.names {
             if unspecified || self.name_interpretation.shell_variables {
-                // Try to parse the name as a parameter. If we can't, don't bail; it may not be a
-                // valid variable name/parameter but could still be a function name.
+                // Try to parse the name as a parameter. If we can't, don't
+                // bail; it may not be a valid variable
+                // name/parameter but could still be a function name.
                 if let Ok(parameter) =
                     shrub_parser::word::parse_parameter(name, &context.shell.parser_options())
                 {
@@ -104,8 +104,8 @@ fn unset_array_index(
         .get(name)
         .is_some_and(|(_, var)| var.value().is_associative_array());
 
-    // Compute which index we should actually use. For indexed arrays, we need to evaluate
-    // the index string as an arithmetic expression first.
+    // Compute which index we should actually use. For indexed arrays, we need
+    // to evaluate the index string as an arithmetic expression first.
     let index_to_use: Cow<'_, str> = if is_assoc_array {
         index.into()
     } else {

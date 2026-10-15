@@ -1,7 +1,6 @@
 use std::io::Write;
 
 use clap::Parser;
-
 use shrub_core::{ExecutionResult, builtins};
 
 use crate::lookup::{self, Resolved};

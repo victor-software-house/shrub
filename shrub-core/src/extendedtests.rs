@@ -1,14 +1,13 @@
-use shrub_parser::ast;
 use std::path::Path;
 
+use shrub_parser::ast;
+
+use crate::sys::fs::{MetadataExt, PathExt};
+use crate::sys::users;
+use crate::variables::{self, ArrayLiteral};
 use crate::{
     ExecutionParameters, Shell, ShellFd, arithmetic, env, error, escape, expansion, extensions,
     namedoptions, patterns,
-    sys::{
-        fs::{MetadataExt, PathExt},
-        users,
-    },
-    variables::{self, ArrayLiteral},
 };
 
 #[allow(clippy::double_must_use)]
@@ -334,7 +333,8 @@ async fn apply_binary_predicate(
                     .await;
             }
 
-            // TODO(test): According to docs, should be lexicographical order of the current locale.
+            // TODO(test): According to docs, should be lexicographical order of
+            // the current locale.
             Ok(left < right)
         }
         ast::BinaryPredicate::LeftSortsAfterRight => {
@@ -347,7 +347,8 @@ async fn apply_binary_predicate(
                     .await;
             }
 
-            // TODO(test): According to docs, should be lexicographical order of the current locale.
+            // TODO(test): According to docs, should be lexicographical order of
+            // the current locale.
             Ok(left > right)
         }
         ast::BinaryPredicate::ArithmeticEqualTo => {
@@ -510,11 +511,13 @@ pub(crate) fn apply_binary_predicate_to_strs(
             left_file_is_older_or_does_not_exist_when_right_does(shell, left, right)
         }
         ast::BinaryPredicate::LeftSortsBeforeRight => {
-            // TODO(test): According to docs, should be lexicographical order of the current locale.
+            // TODO(test): According to docs, should be lexicographical order of
+            // the current locale.
             Ok(left < right)
         }
         ast::BinaryPredicate::LeftSortsAfterRight => {
-            // TODO(test): According to docs, should be lexicographical order of the current locale.
+            // TODO(test): According to docs, should be lexicographical order of
+            // the current locale.
             Ok(left > right)
         }
         ast::BinaryPredicate::ArithmeticEqualTo => Ok(apply_test_binary_arithmetic_predicate(
@@ -569,7 +572,8 @@ fn apply_test_binary_arithmetic_predicate(
     right: &str,
     op: fn(i64, i64) -> bool,
 ) -> bool {
-    // We trim leading/trailing whitespace (including newlines) before parsing integers.
+    // We trim leading/trailing whitespace (including newlines) before parsing
+    // integers.
     let left: Result<i64, _> = left.trim().parse();
     let right: Result<i64, _> = right.trim().parse();
 

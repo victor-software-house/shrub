@@ -1,12 +1,13 @@
-use clap::Parser;
 use std::io::Write;
 
+use clap::Parser;
 use shrub_core::{ExecutionResult, builtins, jobs, sys};
 
 /// Move a specified job to the foreground.
 #[derive(Parser)]
 pub(crate) struct FgCommand {
-    /// Job spec for the job to move to the foreground; if not specified, the current job is moved.
+    /// Job spec for the job to move to the foreground; if not specified, the
+    /// current job is moved.
     job_spec: Option<String>,
 }
 

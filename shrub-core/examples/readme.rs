@@ -1,6 +1,6 @@
-//! The embedding snippet shown in the repository README. `tests/readme_snippet.rs`
-//! checks that the README's copy matches the marked region below, so the README
-//! can never show code that doesn't build.
+//! The embedding snippet shown in the repository README.
+//! `tests/readme_snippet.rs` checks that the README's copy matches the marked
+//! region below, so the README can never show code that doesn't build.
 
 use anyhow::Result;
 

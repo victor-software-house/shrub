@@ -1,7 +1,9 @@
 //! Shell patterns
 
+use std::collections::VecDeque;
+use std::path::Path;
+
 use crate::{error, regex, sys, trace_categories};
-use std::{collections::VecDeque, path::Path};
 
 /// Represents a piece of a shell pattern.
 #[derive(Clone, Debug)]
@@ -159,8 +161,10 @@ impl Pattern {
     ///
     /// # Arguments
     ///
-    /// * `working_dir` - The current working directory, used for relative paths.
-    /// * `path_filter` - Optionally provides a function that filters paths after expansion.
+    /// * `working_dir` - The current working directory, used for relative
+    ///   paths.
+    /// * `path_filter` - Optionally provides a function that filters paths
+    ///   after expansion.
     #[expect(clippy::too_many_lines)]
     pub(crate) fn expand<PF>(
         &self,
@@ -171,16 +175,18 @@ impl Pattern {
     where
         PF: Fn(&Path) -> bool,
     {
-        // If the pattern has no pieces at all, short-circuit; there's nothing to expand.
-        // Note: we intentionally do NOT short-circuit when pieces are present but empty
-        // (e.g. from a quoted empty string ""); those fall through to the literal branch
-        // below which correctly returns Expanded([""]) instead of NoGlob, preserving
+        // If the pattern has no pieces at all, short-circuit; there's nothing
+        // to expand. Note: we intentionally do NOT short-circuit when
+        // pieces are present but empty (e.g. from a quoted empty string
+        // ""); those fall through to the literal branch below which
+        // correctly returns Expanded([""]) instead of NoGlob, preserving
         // the argument even when nullglob is enabled.
         if self.pieces.is_empty() {
             return Ok(PatternExpansionResult::NoGlob);
 
-        // Similarly, if we're *confident* the pattern doesn't require expansion, then we
-        // know there's a single expansion (before filtering).
+        // Similarly, if we're *confident* the pattern doesn't require
+        // expansion, then we know there's a single expansion (before
+        // filtering).
         } else if !self.pieces.iter().any(|piece| {
             matches!(piece, PatternPiece::Pattern(_))
                 && requires_expansion(piece.as_str(), self.enable_extended_globbing)
@@ -223,10 +229,11 @@ impl Pattern {
             }
         }
 
-        // Check if the path appears to be absolute by inspecting the first component.
-        // On Unix, a leading `/` produces an empty first component. On Windows, a
-        // drive-letter prefix like `c:` is also recognized. The platform-specific
-        // logic lives in `sys::fs::pattern_path_root`.
+        // Check if the path appears to be absolute by inspecting the first
+        // component. On Unix, a leading `/` produces an empty first
+        // component. On Windows, a drive-letter prefix like `c:` is
+        // also recognized. The platform-specific logic lives in
+        // `sys::fs::pattern_path_root`.
         let absolute_root = components.first().and_then(|first_component| {
             let flattened: String = first_component.iter().map(|p| p.as_str()).collect();
             sys::fs::pattern_path_root(&flattened)
@@ -268,13 +275,16 @@ impl Pattern {
                 paths_so_far.retain_mut(|p| {
                     sys::fs::push_path_for_pattern(p, &flattened);
 
-                    // Drop candidates that don't name an existing directory entry.
-                    // We use `symlink_metadata` (lstat) rather than `exists` (stat) so
-                    // that we match on directory-entry existence -- consistent with the
-                    // `read_dir`-based matching used for glob components below, and with
-                    // bash. In particular this keeps dangling symlinks (which bash
-                    // includes) while still rejecting a literal like `file/` whose
-                    // trailing slash makes lstat fail with ENOTDIR for a regular file.
+                    // Drop candidates that don't name an existing directory
+                    // entry. We use `symlink_metadata`
+                    // (lstat) rather than `exists` (stat) so
+                    // that we match on directory-entry existence -- consistent
+                    // with the `read_dir`-based matching
+                    // used for glob components below, and with
+                    // bash. In particular this keeps dangling symlinks (which
+                    // bash includes) while still rejecting
+                    // a literal like `file/` whose trailing
+                    // slash makes lstat fail with ENOTDIR for a regular file.
                     p.symlink_metadata().is_ok()
                 });
                 continue;
@@ -357,10 +367,10 @@ impl Pattern {
     ///
     /// # Arguments
     ///
-    /// * `strict_prefix_match` - Whether or not the pattern should strictly match the beginning of
-    ///   the string.
-    /// * `strict_suffix_match` - Whether or not the pattern should strictly match the end of the
-    ///   string.
+    /// * `strict_prefix_match` - Whether or not the pattern should strictly
+    ///   match the beginning of the string.
+    /// * `strict_suffix_match` - Whether or not the pattern should strictly
+    ///   match the end of the string.
     pub(crate) fn to_regex_str(
         &self,
         strict_prefix_match: bool,
@@ -404,10 +414,10 @@ impl Pattern {
     ///
     /// # Arguments
     ///
-    /// * `strict_prefix_match` - Whether or not the pattern should strictly match the beginning of
-    ///   the string.
-    /// * `strict_suffix_match` - Whether or not the pattern should strictly match the end of the
-    ///   string.
+    /// * `strict_prefix_match` - Whether or not the pattern should strictly
+    ///   match the beginning of the string.
+    /// * `strict_suffix_match` - Whether or not the pattern should strictly
+    ///   match the end of the string.
     pub(crate) fn to_regex(
         &self,
         strict_prefix_match: bool,
@@ -451,7 +461,8 @@ fn pattern_to_regex_str(
     )?)
 }
 
-/// Removes the largest matching prefix from a string that matches the given pattern.
+/// Removes the largest matching prefix from a string that matches the given
+/// pattern.
 ///
 /// # Arguments
 ///
@@ -482,7 +493,8 @@ pub(crate) fn remove_largest_matching_prefix<'a>(
     Ok(s)
 }
 
-/// Removes the smallest matching prefix from a string that matches the given pattern.
+/// Removes the smallest matching prefix from a string that matches the given
+/// pattern.
 ///
 /// # Arguments
 ///
@@ -511,7 +523,8 @@ pub(crate) fn remove_smallest_matching_prefix<'a>(
     Ok(s)
 }
 
-/// Removes the largest matching suffix from a string that matches the given pattern.
+/// Removes the largest matching suffix from a string that matches the given
+/// pattern.
 ///
 /// # Arguments
 ///
@@ -537,7 +550,8 @@ pub(crate) fn remove_largest_matching_suffix<'a>(
     Ok(s)
 }
 
-/// Removes the smallest matching suffix from a string that matches the given pattern.
+/// Removes the smallest matching suffix from a string that matches the given
+/// pattern.
 ///
 /// # Arguments
 ///
@@ -566,8 +580,9 @@ pub(crate) fn remove_smallest_matching_suffix<'a>(
 #[cfg(test)]
 #[expect(clippy::panic_in_result_fn)]
 mod tests {
-    use super::*;
     use anyhow::Result;
+
+    use super::*;
 
     fn pattern_to_exact_regex_str<P>(pattern: P) -> Result<String, error::Error>
     where
@@ -1025,8 +1040,9 @@ mod tests {
         let scratch_normalized: String = scratch.path().to_string_lossy().replace('\\', "/");
         for p in &paths {
             // Use a plain byte-level suffix check rather than `Path::extension`
-            // since the results are strings and clippy flags `ends_with(".log")`
-            // as potentially case-sensitive. We explicitly wrote lowercase files.
+            // since the results are strings and clippy flags
+            // `ends_with(".log")` as potentially case-sensitive. We
+            // explicitly wrote lowercase files.
             assert!(p.as_bytes().ends_with(b".log"), "unexpected result {p:?}");
             // Should still reference the scratch directory (i.e., absolute).
             assert!(

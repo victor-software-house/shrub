@@ -1,13 +1,10 @@
-use clap::Parser;
-use itertools::Itertools;
 use std::io::Write;
 
-use shrub_core::{
-    ExecutionExitCode, ExecutionResult, builtins,
-    env::{EnvironmentLookup, EnvironmentScope},
-    parser::ast,
-    variables,
-};
+use clap::Parser;
+use itertools::Itertools;
+use shrub_core::env::{EnvironmentLookup, EnvironmentScope};
+use shrub_core::parser::ast;
+use shrub_core::{ExecutionExitCode, ExecutionResult, builtins, variables};
 
 /// Add or update exported shell variables.
 #[derive(Parser)]
@@ -72,8 +69,8 @@ impl ExportCommand {
             shrub_core::CommandArg::String(s) => {
                 // See if this is supposed to be a function name.
                 if self.names_are_functions {
-                    // Try to find the function already present; if we find it, then mark it
-                    // exported.
+                    // Try to find the function already present; if we find it,
+                    // then mark it exported.
                     if let Some(func) = context.shell.func_mut(s) {
                         if self.unexport {
                             func.unexport();
@@ -117,9 +114,10 @@ impl ExportCommand {
                     }
                 };
 
-                // `export name+=value` appends to the existing value, exactly like a
-                // bare `name+=value`. update_or_add always replaces, so when the
-                // variable already exists honor the append here. A missing variable
+                // `export name+=value` appends to the existing value, exactly
+                // like a bare `name+=value`. update_or_add
+                // always replaces, so when the variable already
+                // exists honor the append here. A missing variable
                 // falls through: appending to nothing is a plain assignment.
                 if assignment.append
                     && let Some((_, variable)) = context.shell.env_mut().get_mut(name)
@@ -133,7 +131,8 @@ impl ExportCommand {
                     return Ok(ExecutionResult::success());
                 }
 
-                // Update the variable with the provided value and then mark it exported.
+                // Update the variable with the provided value and then mark it
+                // exported.
                 context.shell.env_mut().update_or_add(
                     name,
                     value,

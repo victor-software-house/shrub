@@ -1,7 +1,7 @@
 //! Defines a cfg for each input backend this build of the shell offers on the
-//! target it's built for: `reedline_backend`, `vt_backend`, `basic_backend`, and
-//! `minimal_backend`. A backend's feature can be enabled for any target; it's
-//! offered only where it works.
+//! target it's built for: `reedline_backend`, `vt_backend`, `basic_backend`,
+//! and `minimal_backend`. A backend's feature can be enabled for any target;
+//! it's offered only where it works.
 
 fn main() {
     println!("cargo::rerun-if-changed=build.rs");

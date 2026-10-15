@@ -1,13 +1,14 @@
-use clap::Parser;
 use std::io::Write;
 use std::path::PathBuf;
 
+use clap::Parser;
 use shrub_core::{ExecutionResult, builtins, commands, sys};
 
 use crate::lookup::{self, Resolved};
 use crate::write_alias_definition;
 
-/// Directly invokes an external command, without going through typical search order.
+/// Directly invokes an external command, without going through typical search
+/// order.
 #[derive(Default, Parser)]
 pub(crate) struct CommandCommand {
     /// Use default PATH value.
@@ -37,12 +38,14 @@ impl CommandCommand {
             .then(sys::fs::get_default_standard_utils_paths)
     }
 
-    /// Describes every name given, as `-v`/`-V` do; succeeds if any name was found.
+    /// Describes every name given, as `-v`/`-V` do; succeeds if any name was
+    /// found.
     fn describe_names<SE: shrub_core::ShellExtensions>(
         &self,
         context: &shrub_core::ExecutionContext<'_, SE>,
     ) -> Result<ExecutionResult, shrub_core::Error> {
-        // With no names to look up there is nothing to fail to find, so this still succeeds.
+        // With no names to look up there is nothing to fail to find, so this
+        // still succeeds.
         if self.command_and_args.is_empty() {
             return Ok(ExecutionResult::success());
         }
@@ -79,11 +82,14 @@ impl CommandCommand {
                     }
                 }
             } else {
-                // A command found by searching PATH is reported with an absolute path, even
-                // when the PATH entry it came from was relative. Explicit paths and hashed
-                // entries are reported exactly as they were given. Like bash, this only
-                // prefixes the working directory; it doesn't otherwise normalize the path,
-                // except to drop the leading `./` a `.` entry in PATH contributes.
+                // A command found by searching PATH is reported with an
+                // absolute path, even when the PATH entry it
+                // came from was relative. Explicit paths and hashed
+                // entries are reported exactly as they were given. Like bash,
+                // this only prefixes the working directory; it
+                // doesn't otherwise normalize the path,
+                // except to drop the leading `./` a `.` entry in PATH
+                // contributes.
                 if let Resolved::File {
                     path,
                     hashed: false,

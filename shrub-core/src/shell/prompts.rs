@@ -14,7 +14,8 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
         }
     }
 
-    /// Composes the shell's post-input, pre-command prompt, applying all appropriate expansions.
+    /// Composes the shell's post-input, pre-command prompt, applying all
+    /// appropriate expansions.
     pub async fn compose_precmd_prompt(&mut self) -> Result<String, error::Error> {
         self.expand_prompt_var("PS0", "").await
     }
@@ -24,7 +25,8 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
         self.expand_prompt_var("PS1", self.default_prompt()).await
     }
 
-    /// Composes the shell's alternate-side prompt, applying all appropriate expansions.
+    /// Composes the shell's alternate-side prompt, applying all appropriate
+    /// expansions.
     pub async fn compose_alt_side_prompt(&mut self) -> Result<String, error::Error> {
         // This is a shrub extension.
         self.expand_prompt_var("SHRUB_PS_ALT", "").await
@@ -41,8 +43,8 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
         default: &str,
     ) -> Result<String, error::Error> {
         //
-        // TODO(prompt): bash appears to do this in a subshell; we need to investigate
-        // if that's required.
+        // TODO(prompt): bash appears to do this in a subshell; we need to
+        // investigate if that's required.
         //
 
         // Retrieve the spec.
@@ -51,8 +53,8 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
             return Ok(String::new());
         }
 
-        // Save (and later restore) the state the last command left behind, so that
-        // expanding here is invisible to it.
+        // Save (and later restore) the state the last command left behind, so
+        // that expanding here is invisible to it.
         let saved_status = self.save_command_status();
 
         // Expand it. We must own the spec here: it borrows `self` (via the

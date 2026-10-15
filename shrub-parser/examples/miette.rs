@@ -2,8 +2,8 @@
 
 use std::io::Cursor;
 
-use shrub_parser::Parser;
 use miette::{IntoDiagnostic, miette};
+use shrub_parser::Parser;
 
 fn main() -> miette::Result<()> {
     let f = std::env::args()

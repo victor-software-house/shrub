@@ -1,15 +1,17 @@
 //! A bash-native adaptation of zsh's `precmd`/`preexec` hooks.
 //!
-//! zsh defines the hooks; [bash-preexec] is the adaptation of them to bash that the ecosystem
-//! actually builds on, so it is what settles the details zsh leaves open for a bash shell.
-//! shrub implements the hooks in the shell itself rather than in shell script, and
-//! interoperates with bash-preexec only as far as an interlock needs to: it claims
-//! bash-preexec's inclusion guards, so a copy sourced later stands down instead of layering
-//! its `DEBUG`-trap emulation on top of the real thing.
+//! zsh defines the hooks; [bash-preexec] is the adaptation of them to bash that
+//! the ecosystem actually builds on, so it is what settles the details zsh
+//! leaves open for a bash shell. shrub implements the hooks in the shell itself
+//! rather than in shell script, and interoperates with bash-preexec only as far
+//! as an interlock needs to: it claims bash-preexec's inclusion guards, so a
+//! copy sourced later stands down instead of layering its `DEBUG`-trap
+//! emulation on top of the real thing.
 //!
-//! Setup ([`init`]) runs once, before the shell loads its profile and rc files; dispatch
-//! ([`run_precmd`] and [`run_preexec`]) runs from the interactive loop. The contract as a
-//! whole is documented in `docs/reference/zsh-hooks.md`.
+//! Setup ([`init`]) runs once, before the shell loads its profile and rc files;
+//! dispatch ([`run_precmd`] and [`run_preexec`]) runs from the interactive
+//! loop. The contract as a whole is documented in
+//! `docs/reference/zsh-hooks.md`.
 //!
 //! [bash-preexec]: https://github.com/rcaloras/bash-preexec
 
@@ -17,8 +19,7 @@ use std::ops::ControlFlow;
 
 use shrub_core::variables::{ArrayLiteral, ShellValueLiteral};
 
-use crate::InteractiveOptions;
-use crate::ShellError;
+use crate::{InteractiveOptions, ShellError};
 
 /// The registry naming the hooks that run before each prompt.
 const PRECMD_FUNCTIONS: &str = "precmd_functions";
@@ -26,22 +27,24 @@ const PRECMD_FUNCTIONS: &str = "precmd_functions";
 /// The registry naming the hooks that run before each command line.
 const PREEXEC_FUNCTIONS: &str = "preexec_functions";
 
-/// The bash-preexec inclusion guards, current and legacy. Sourcing bash-preexec is a no-op
-/// while either holds a non-empty value, so shrub claims both.
+/// The bash-preexec inclusion guards, current and legacy. Sourcing bash-preexec
+/// is a no-op while either holds a non-empty value, so shrub claims both.
 const BASH_PREEXEC_GUARDS: [&str; 2] = ["bash_preexec_imported", "__bp_imported"];
 
 /// Prepares a shell for zsh-style `precmd`/`preexec` hooks.
 ///
-/// Seeds the hook registries and claims the [bash-preexec] inclusion guards, so a copy sourced
-/// later stands down and leaves the hooks to us. Documented in `docs/reference/zsh-hooks.md`.
+/// Seeds the hook registries and claims the [bash-preexec] inclusion guards, so
+/// a copy sourced later stands down and leaves the hooks to us. Documented in
+/// `docs/reference/zsh-hooks.md`.
 ///
-/// Call before profile and rc files load, so they observe the state -- and only for a shell
-/// that will go on to read commands interactively, since only such a shell ever reaches
-/// dispatch and so only such a shell may claim the contract. Whether the hooks are wanted at
-/// all is decided here, by the same predicate dispatch uses, so the two cannot disagree.
+/// Call before profile and rc files load, so they observe the state -- and only
+/// for a shell that will go on to read commands interactively, since only such
+/// a shell ever reaches dispatch and so only such a shell may claim the
+/// contract. Whether the hooks are wanted at all is decided here, by the same
+/// predicate dispatch uses, so the two cannot disagree.
 ///
-/// A rejected assignment is fatal: a contract claimed only partway advertises hooks shrub
-/// never registered.
+/// A rejected assignment is fatal: a contract claimed only partway advertises
+/// hooks shrub never registered.
 ///
 /// [bash-preexec]: https://github.com/rcaloras/bash-preexec
 ///
@@ -66,8 +69,9 @@ pub fn init<SE: shrub_core::ShellExtensions>(
         )?;
     }
 
-    // Seeded with the bare hook names, as bash-preexec seeds them -- but by assignment, not
-    // `+=`, because this runs before rc files rather than after them.
+    // Seeded with the bare hook names, as bash-preexec seeds them -- but by
+    // assignment, not `+=`, because this runs before rc files rather than
+    // after them.
     for (array_name, hook_name) in [(PRECMD_FUNCTIONS, "precmd"), (PREEXEC_FUNCTIONS, "preexec")] {
         let value = ShellValueLiteral::Array(ArrayLiteral(vec![(None, hook_name.into())]));
         assign_global(shell, array_name, value)?;
@@ -76,7 +80,8 @@ pub fn init<SE: shrub_core::ShellExtensions>(
     Ok(())
 }
 
-/// Runs the `precmd` hooks. Breaks with the result of one that exited the shell.
+/// Runs the `precmd` hooks. Breaks with the result of one that exited the
+/// shell.
 ///
 /// # Arguments
 ///
@@ -93,21 +98,23 @@ pub(crate) async fn run_precmd<SE: shrub_core::ShellExtensions>(
     dispatch(shell, PRECMD_FUNCTIONS, hook_names, None).await
 }
 
-/// Runs the `preexec` hooks for a line the user entered. Breaks with the result of one that
-/// exited the shell.
+/// Runs the `preexec` hooks for a line the user entered. Breaks with the result
+/// of one that exited the shell.
 ///
 /// # Arguments
 ///
 /// * `shell` - The shell to run the hooks in.
 /// * `options` - The options the interactive loop is running with.
-/// * `command_line` - The line as entered by the user; passed to each hook as `$1`.
+/// * `command_line` - The line as entered by the user; passed to each hook as
+///   `$1`.
 pub(crate) async fn run_preexec<SE: shrub_core::ShellExtensions>(
     shell: &mut shrub_core::Shell<SE>,
     options: &InteractiveOptions,
     command_line: &str,
 ) -> Result<ControlFlow<shrub_core::ExecutionResult>, ShellError> {
-    // The registry is consulted ahead of `line_runs_a_command`, which parses: with no hook to
-    // run there is nothing to decide, and every typed line would pay for the answer.
+    // The registry is consulted ahead of `line_runs_a_command`, which parses:
+    // with no hook to run there is nothing to decide, and every typed line
+    // would pay for the answer.
     let Some(hook_names) = pending_hooks(shell, options, PREEXEC_FUNCTIONS) else {
         return Ok(ControlFlow::Continue(()));
     };
@@ -125,9 +132,10 @@ pub(crate) async fn run_preexec<SE: shrub_core::ShellExtensions>(
     .await
 }
 
-/// Whether zsh-style hooks are live for this shell: enabled by the options, and interactive
-/// in the `$-` sense (`script | shrub -s` reads commands through the interactive loop but
-/// isn't). Setup and dispatch share this so they can't disagree.
+/// Whether zsh-style hooks are live for this shell: enabled by the options, and
+/// interactive in the `$-` sense (`script | shrub -s` reads commands through
+/// the interactive loop but isn't). Setup and dispatch share this so they can't
+/// disagree.
 fn enabled<SE: shrub_core::ShellExtensions>(
     shell: &shrub_core::Shell<SE>,
     options: &InteractiveOptions,
@@ -135,10 +143,11 @@ fn enabled<SE: shrub_core::ShellExtensions>(
     options.zsh_style_hooks && shell.options().interactive
 }
 
-/// The entries `array_var_name` names, read once as `"${name[@]}"` would expand it -- or
-/// `None` when a dispatch would run nothing, so the caller can skip the rest of its work.
-/// The registries are seeded non-empty, so an entry naming a `precmd`/`preexec` nobody
-/// defined is the ordinary case, not an unusual one.
+/// The entries `array_var_name` names, read once as `"${name[@]}"` would expand
+/// it -- or `None` when a dispatch would run nothing, so the caller can skip
+/// the rest of its work. The registries are seeded non-empty, so an entry
+/// naming a `precmd`/`preexec` nobody defined is the ordinary case, not an
+/// unusual one.
 fn pending_hooks<SE: shrub_core::ShellExtensions>(
     shell: &shrub_core::Shell<SE>,
     options: &InteractiveOptions,
@@ -148,8 +157,9 @@ fn pending_hooks<SE: shrub_core::ShellExtensions>(
         return None;
     }
 
-    // Reads a shell variable as the list of words `"${name[@]}"` would expand to. An unset
-    // variable yields nothing; a scalar yields itself, since a scalar *is* element 0 in bash.
+    // Reads a shell variable as the list of words `"${name[@]}"` would expand
+    // to. An unset variable yields nothing; a scalar yields itself, since a
+    // scalar *is* element 0 in bash.
     let hook_names = shell
         .env_var(array_var_name)
         .map(|var| var.value().element_values(shell))
@@ -162,12 +172,13 @@ fn pending_hooks<SE: shrub_core::ShellExtensions>(
 }
 
 /// Whether the line runs any command: blank, comment-only, unparsable, and
-/// function-definition-only lines run none, and so dispatch no `preexec` -- matching the
-/// `DEBUG` trap bash-preexec dispatches from, which does not fire for a line that only
-/// defines a function. Parsing is what answers this; a text test for "blank or all comment"
-/// would still miss the syntax error. So a shell with a `preexec` hook registered pays a
-/// parse of the line here and another in `run_string` moments later. (`parse_string` is
-/// cached, which often makes the second one free, but it's a bounded cache and nothing here
+/// function-definition-only lines run none, and so dispatch no `preexec` --
+/// matching the `DEBUG` trap bash-preexec dispatches from, which does not fire
+/// for a line that only defines a function. Parsing is what answers this; a
+/// text test for "blank or all comment" would still miss the syntax error. So a
+/// shell with a `preexec` hook registered pays a parse of the line here and
+/// another in `run_string` moments later. (`parse_string` is cached, which
+/// often makes the second one free, but it's a bounded cache and nothing here
 /// should lean on a hit.)
 fn line_runs_a_command<SE: shrub_core::ShellExtensions>(
     shell: &shrub_core::Shell<SE>,
@@ -178,10 +189,11 @@ fn line_runs_a_command<SE: shrub_core::ShellExtensions>(
         .is_ok_and(|program| program_runs_a_command(&program))
 }
 
-/// Whether `program` runs any command rather than only defining functions: a line like
-/// `other() { ...; }` produces a non-empty [`Program`](shrub_parser::ast::Program), but no
-/// command in it ever runs, so it must not count as running one -- while a line that defines
-/// a function *and* runs another command still does.
+/// Whether `program` runs any command rather than only defining functions: a
+/// line like `other() { ...; }` produces a non-empty
+/// [`Program`](shrub_parser::ast::Program), but no command in it ever runs, so
+/// it must not count as running one -- while a line that defines a function
+/// *and* runs another command still does.
 fn program_runs_a_command(program: &shrub_parser::ast::Program) -> bool {
     program
         .complete_commands
@@ -192,14 +204,16 @@ fn program_runs_a_command(program: &shrub_parser::ast::Program) -> bool {
         .any(|command| !matches!(command, shrub_parser::ast::Command::Function(_)))
 }
 
-/// Invokes the named hooks. Each sees what the last command left in `$?`, `PIPESTATUS`, and
-/// `$_`, restored before every hook and again afterwards. Breaks with the result of a hook
-/// that exited the shell. The full contract is in `docs/reference/zsh-hooks.md`.
+/// Invokes the named hooks. Each sees what the last command left in `$?`,
+/// `PIPESTATUS`, and `$_`, restored before every hook and again afterwards.
+/// Breaks with the result of a hook that exited the shell. The full contract is
+/// in `docs/reference/zsh-hooks.md`.
 ///
 /// # Arguments
 ///
 /// * `shell` - The shell to run the hooks in.
-/// * `array_var_name` - The registry the names came from; used only in diagnostics.
+/// * `array_var_name` - The registry the names came from; used only in
+///   diagnostics.
 /// * `hook_names` - The registry's entries, already read.
 /// * `arg` - Optional argument to pass to each hook.
 async fn dispatch<SE: shrub_core::ShellExtensions>(
@@ -211,9 +225,10 @@ async fn dispatch<SE: shrub_core::ShellExtensions>(
     let saved_status = shell.save_command_status();
 
     for hook_name in hook_names {
-        // Asked here rather than inferred from a `FunctionNotFound` error, which a hook body
-        // could raise on its own. Asked per entry, not once up front, so a hook that defines
-        // a later one in the same dispatch is honored -- as it is under bash-preexec, whose
+        // Asked here rather than inferred from a `FunctionNotFound` error,
+        // which a hook body could raise on its own. Asked per entry,
+        // not once up front, so a hook that defines a later one in the
+        // same dispatch is honored -- as it is under bash-preexec, whose
         // `type -t` guard also sits inside the loop.
         if shell.funcs().get(&hook_name).is_none() {
             tracing::debug!("{array_var_name}: skipping '{hook_name}'; not a function");
@@ -223,23 +238,27 @@ async fn dispatch<SE: shrub_core::ShellExtensions>(
         // Each hook sees the same status, whatever an earlier hook ran.
         shell.restore_command_status(saved_status.clone());
 
-        // A failing hook is reported and the rest still run. (PROMPT_COMMAND differs: an
-        // error that escapes `run_string` there ends the interactive loop.)
+        // A failing hook is reported and the rest still run. (PROMPT_COMMAND
+        // differs: an error that escapes `run_string` there ends the
+        // interactive loop.)
         match shell
             .invoke_function(&hook_name, arg, shell.default_exec_params())
             .await
         {
             Ok(mut result) => {
-                // `invoke_function` returns straight from the function call, without
-                // passing through the statement-boundary check (`interp.rs`) that
-                // ordinarily applies errexit; a hook that ends with `return N` reaches
-                // here as normal, non-exiting flow even under `set -e`. Apply it here so
-                // such a hook is treated the same as one that fails via a plain failing
-                // command, which already hits that boundary inside its own body.
+                // `invoke_function` returns straight from the function call,
+                // without passing through the
+                // statement-boundary check (`interp.rs`) that
+                // ordinarily applies errexit; a hook that ends with `return N`
+                // reaches here as normal, non-exiting flow even
+                // under `set -e`. Apply it here so such a hook
+                // is treated the same as one that fails via a plain failing
+                // command, which already hits that boundary inside its own
+                // body.
                 shell.apply_errexit_if_enabled(&mut result);
 
-                // Returned without restoring: the shell is exiting, and `$?` belongs to
-                // the hook that exited it.
+                // Returned without restoring: the shell is exiting, and `$?`
+                // belongs to the hook that exited it.
                 if result.is_exit() {
                     return Ok(ControlFlow::Break(result));
                 }
@@ -256,8 +275,9 @@ async fn dispatch<SE: shrub_core::ShellExtensions>(
     Ok(ControlFlow::Continue(()))
 }
 
-/// Assigns to a global variable as `name=value` would: an existing variable keeps its
-/// attributes, and a readonly one rejects the assignment with an error.
+/// Assigns to a global variable as `name=value` would: an existing variable
+/// keeps its attributes, and a readonly one rejects the assignment with an
+/// error.
 fn assign_global<SE: shrub_core::ShellExtensions>(
     shell: &mut shrub_core::Shell<SE>,
     name: &str,
@@ -277,8 +297,9 @@ fn assign_global<SE: shrub_core::ShellExtensions>(
 mod tests {
     use super::*;
 
-    /// Builds a shell that zsh-style hooks would dispatch for, with `guard_readonly` marked
-    /// readonly beforehand so the assignments in [`init`] must fail.
+    /// Builds a shell that zsh-style hooks would dispatch for, with
+    /// `guard_readonly` marked readonly beforehand so the assignments in
+    /// [`init`] must fail.
     async fn shell_with_readonly(
         interactive: bool,
         guard_readonly: &str,
@@ -304,10 +325,11 @@ mod tests {
         }
     }
 
-    /// Claiming the contract only partway would advertise hooks shrub never registered, so
-    /// all four assignments are load-bearing and a rejection is fatal. Unit-tested because
-    /// only an embedder assigning before us can reach this state. The error kind is pinned
-    /// too: a bare `is_err()` would also pass on a panic or an unrelated failure.
+    /// Claiming the contract only partway would advertise hooks shrub never
+    /// registered, so all four assignments are load-bearing and a rejection
+    /// is fatal. Unit-tested because only an embedder assigning before us
+    /// can reach this state. The error kind is pinned too: a bare
+    /// `is_err()` would also pass on a panic or an unrelated failure.
     #[tokio::test]
     async fn init_fails_if_any_state_is_readonly() -> Result<(), ShellError> {
         for name in [
@@ -329,9 +351,10 @@ mod tests {
         Ok(())
     }
 
-    /// A shell the hooks won't dispatch for is left completely alone -- the readonly state
-    /// that would otherwise fail the assignments proves nothing was written. (A shell that
-    /// never reads commands interactively is the caller's business, and the `-c` and script
+    /// A shell the hooks won't dispatch for is left completely alone -- the
+    /// readonly state that would otherwise fail the assignments proves
+    /// nothing was written. (A shell that never reads commands
+    /// interactively is the caller's business, and the `-c` and script
     /// cases are covered end to end by `tests/cases/shrub/zsh_hooks.yaml`.)
     #[tokio::test]
     async fn init_is_inert_when_hooks_are_off() -> Result<(), ShellError> {

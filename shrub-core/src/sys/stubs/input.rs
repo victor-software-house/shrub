@@ -2,8 +2,8 @@
 
 use crate::{error, interfaces};
 
-/// Translates a key code (byte sequence) into a `Key` enum value. Returns `None`
-/// if the key code is not recognized.
+/// Translates a key code (byte sequence) into a `Key` enum value. Returns
+/// `None` if the key code is not recognized.
 ///
 /// This is a stub implementation that recognizes single-byte non-control
 /// characters but does not support terminal-specific key sequences.

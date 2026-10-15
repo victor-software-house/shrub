@@ -1,6 +1,5 @@
-use shrub_core::{ExecutionExitCode, builtins, trace_categories};
-
 use clap::Parser;
+use shrub_core::{ExecutionExitCode, builtins, trace_categories};
 
 /// (UNIMPLEMENTED COMMAND)
 #[derive(Parser)]

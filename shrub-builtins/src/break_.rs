@@ -1,5 +1,4 @@
 use clap::Parser;
-
 use shrub_core::{ExecutionControlFlow, ExecutionExitCode, ExecutionResult, builtins};
 
 /// Breaks out of a control-flow loop.

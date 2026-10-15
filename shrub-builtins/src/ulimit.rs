@@ -1,12 +1,8 @@
-use clap::{
-    Parser,
-    builder::{IntoResettable, StyledStr},
-};
-use std::{
-    io::{self, ErrorKind, Write},
-    str::FromStr,
-};
+use std::io::{self, ErrorKind, Write};
+use std::str::FromStr;
 
+use clap::Parser;
+use clap::builder::{IntoResettable, StyledStr};
 use shrub_core::{ExecutionResult, builtins};
 
 #[derive(Clone, Copy)]

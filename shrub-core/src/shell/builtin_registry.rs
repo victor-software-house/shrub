@@ -20,7 +20,8 @@ impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
         self.builtins.insert(name.into(), registration);
     }
 
-    /// Register a builtin only if no builtin with that name is already registered.
+    /// Register a builtin only if no builtin with that name is already
+    /// registered.
     ///
     /// # Arguments
     ///
@@ -34,8 +35,8 @@ impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
         self.builtins.entry(name.into()).or_insert(registration);
     }
 
-    /// Tries to retrieve a mutable reference to an existing builtin registration.
-    /// Returns `None` if no such registration exists.
+    /// Tries to retrieve a mutable reference to an existing builtin
+    /// registration. Returns `None` if no such registration exists.
     ///
     /// # Arguments
     ///

@@ -5,26 +5,26 @@ use std::io::Write;
 use crate::{error, extensions, ioutils};
 
 impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
-    /// Returns a value that can be used to write to the shell's currently configured
-    /// standard output stream using `write!` et al.
+    /// Returns a value that can be used to write to the shell's currently
+    /// configured standard output stream using `write!` et al.
     pub fn stdout(&self) -> impl std::io::Write + 'static {
         self.open_files.try_stdout().cloned().unwrap_or_else(|| {
             ioutils::FailingReaderWriter::new("standard output not available").into()
         })
     }
 
-    /// Returns a value that can be used to write to the shell's currently configured
-    /// standard error stream using `write!` et al.
+    /// Returns a value that can be used to write to the shell's currently
+    /// configured standard error stream using `write!` et al.
     pub fn stderr(&self) -> impl std::io::Write + 'static {
         self.open_files.try_stderr().cloned().unwrap_or_else(|| {
             ioutils::FailingReaderWriter::new("standard error not available").into()
         })
     }
 
-    /// Outputs `set -x` style trace output for a command. Intentionally does not return
-    /// a result or error to avoid risk that a caller treats an error as fatal. Tracing
-    /// failure should generally always be ignored to avoid interfering with execution
-    /// flows.
+    /// Outputs `set -x` style trace output for a command. Intentionally does
+    /// not return a result or error to avoid risk that a caller treats an
+    /// error as fatal. Tracing failure should generally always be ignored
+    /// to avoid interfering with execution flows.
     ///
     /// # Arguments
     ///
@@ -49,8 +49,9 @@ impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
             }
         }
 
-        // Resolve which file descriptor to use for tracing. We default to stderr,
-        // but if BASH_XTRACEFD is set and refers to a valid file descriptor, use that instead.
+        // Resolve which file descriptor to use for tracing. We default to
+        // stderr, but if BASH_XTRACEFD is set and refers to a valid
+        // file descriptor, use that instead.
         let trace_file = if let Some((_, xtracefd_var)) = self.env.get("BASH_XTRACEFD")
             && let Ok(fd) = xtracefd_var
                 .value()
@@ -69,11 +70,13 @@ impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
         }
     }
 
-    /// Displays the given error to the user, using the shell's error display mechanisms.
+    /// Displays the given error to the user, using the shell's error display
+    /// mechanisms.
     ///
     /// # Arguments
     ///
-    /// * `file_table` - The open file table to use for any file descriptor references.
+    /// * `file_table` - The open file table to use for any file descriptor
+    ///   references.
     /// * `err` - The error to display.
     pub fn display_error(
         &self,

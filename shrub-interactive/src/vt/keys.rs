@@ -45,9 +45,9 @@ impl Keypress {
 }
 
 /// Reads keys from a terminal. Bytes arrive in arbitrary chunks, so an escape
-/// sequence or UTF-8 character may be split between them; the reader holds on to
-/// an incomplete one until the rest arrives, waiting only briefly for the rest of
-/// an escape sequence before taking what it has as keys of their own.
+/// sequence or UTF-8 character may be split between them; the reader holds on
+/// to an incomplete one until the rest arrives, waiting only briefly for the
+/// rest of an escape sequence before taking what it has as keys of their own.
 #[derive(Default)]
 pub(crate) struct KeyReader {
     /// Bytes read but not yet decoded.
@@ -68,9 +68,10 @@ impl KeyReader {
                 return Ok(Some(key));
             }
 
-            // Part of a key sequence may have arrived without the rest. Wait a little
-            // for it, as readline does, before taking what's there on its own (e.g.,
-            // a lone Escape as the Escape key).
+            // Part of a key sequence may have arrived without the rest. Wait a
+            // little for it, as readline does, before taking what's
+            // there on its own (e.g., a lone Escape as the Escape
+            // key).
             if !self.pending.is_empty()
                 && !terminal.wait_for_input(KEYSEQ_TIMEOUT)?
                 && let Some(key) = self.decode(false)
@@ -146,9 +147,9 @@ pub(crate) fn decode_all(mut bytes: &[u8]) -> Vec<Keypress> {
 /// # Arguments
 ///
 /// * `bytes` - The bytes to decode.
-/// * `more_coming` - Whether more bytes may be about to arrive. When `false`, the
-///   start of an escape sequence is taken to be keys of its own (e.g., a lone
-///   Escape is the Escape key).
+/// * `more_coming` - Whether more bytes may be about to arrive. When `false`,
+///   the start of an escape sequence is taken to be keys of its own (e.g., a
+///   lone Escape is the Escape key).
 fn decode(bytes: &[u8], more_coming: bool) -> Option<(Option<KeyStroke>, usize)> {
     let &first = bytes.first()?;
     let stroke = match first {
@@ -216,8 +217,8 @@ fn decode_escape(bytes: &[u8], more_coming: bool) -> Option<(Option<KeyStroke>, 
 }
 
 /// Decodes a control sequence: `ESC [`, parameter bytes (0x30–0x3f),
-/// intermediate bytes (0x20–0x2f), and a final byte (0x40–0x7e). If what follows
-/// `ESC [` can't be one, it's Alt-[.
+/// intermediate bytes (0x20–0x2f), and a final byte (0x40–0x7e). If what
+/// follows `ESC [` can't be one, it's Alt-[.
 fn decode_csi(bytes: &[u8], more_coming: bool) -> Option<(Option<KeyStroke>, usize)> {
     let alt_bracket = || Some((Some(alt('[')), 2));
     let body = bytes.get(2..)?;
@@ -232,9 +233,9 @@ fn decode_csi(bytes: &[u8], more_coming: bool) -> Option<(Option<KeyStroke>, usi
     let params = std::str::from_utf8(body.get(..final_index)?).unwrap_or_default();
     let mut params = params.split(';').map(|p| p.parse::<u32>().ok());
     let number = params.next().flatten();
-    // A modifier, if present, is the second parameter (e.g., `ESC [ 1 ; 5 C`): 1
-    // plus 2 for Alt and 4 for Ctrl (and 1 for Shift, which `bind` can't express,
-    // so it's left out).
+    // A modifier, if present, is the second parameter (e.g., `ESC [ 1 ; 5 C`):
+    // 1 plus 2 for Alt and 4 for Ctrl (and 1 for Shift, which `bind` can't
+    // express, so it's left out).
     let modifier = params.next().flatten().unwrap_or(1).saturating_sub(1);
 
     let key = match (final_byte, number) {
@@ -262,8 +263,8 @@ fn decode_csi(bytes: &[u8], more_coming: bool) -> Option<(Option<KeyStroke>, usi
 }
 
 /// Decodes a single-shift sequence: `ESC O` and a final byte, as cursor and
-/// function keys send in application mode. If what follows `ESC O` can't be one,
-/// it's Alt-O.
+/// function keys send in application mode. If what follows `ESC O` can't be
+/// one, it's Alt-O.
 fn decode_ss3(bytes: &[u8], more_coming: bool) -> Option<(Option<KeyStroke>, usize)> {
     let Some(&third) = bytes.get(2) else {
         return (!more_coming).then(|| (Some(alt('O')), 2));
@@ -336,7 +337,8 @@ pub(crate) fn encode(stroke: &KeyStroke) -> Vec<u8> {
 
     match &stroke.key {
         Key::Character(c) if stroke.control && c.is_ascii() => {
-            // Ctrl-? is Delete; other Ctrl characters keep the character's low bits.
+            // Ctrl-? is Delete; other Ctrl characters keep the character's low
+            // bits.
             let byte = if *c == '?' { 0x7f } else { *c as u8 & 0x1f };
             [alt_prefix, &[byte]].concat()
         }
@@ -437,8 +439,8 @@ mod tests {
 
     #[test]
     fn decodes_every_control_character_as_a_ctrl_key() {
-        // Bytes that readline treats as Ctrl keys, rather than as other keys: \C-h
-        // (0x08), \C-j (0x0a), and the controls past \C-z.
+        // Bytes that readline treats as Ctrl keys, rather than as other keys:
+        // \C-h (0x08), \C-j (0x0a), and the controls past \C-z.
         assert_eq!(
             keys(b"\x08\n\x00\x1c\x1d\x1e\x1f"),
             [
@@ -548,8 +550,8 @@ mod tests {
 
     #[test]
     fn ends_a_control_sequence_at_a_byte_that_cant_be_in_one() {
-        // `ESC [` then Enter is Alt-[ then Enter, not a sequence that swallows Enter
-        // and whatever follows.
+        // `ESC [` then Enter is Alt-[ then Enter, not a sequence that swallows
+        // Enter and whatever follows.
         assert_eq!(
             keys(b"\x1b[\rls"),
             [Some(alt('[')), plain(Key::Enter), ch('l'), ch('s')]
@@ -576,8 +578,8 @@ mod tests {
 
     #[test]
     fn replaces_bytes_that_arent_utf8() {
-        // A stray continuation byte, a lead byte followed by something else, and a
-        // byte that never starts a character.
+        // A stray continuation byte, a lead byte followed by something else,
+        // and a byte that never starts a character.
         let replacement = ch(char::REPLACEMENT_CHARACTER);
         assert_eq!(
             keys(b"\x80a\xe7bc\xff"),
@@ -595,8 +597,8 @@ mod tests {
 
     #[test]
     fn replaces_overlong_and_surrogate_encodings() {
-        // An overlong `/`, and an encoded surrogate: neither is UTF-8, so each byte
-        // is replaced.
+        // An overlong `/`, and an encoded surrogate: neither is UTF-8, so each
+        // byte is replaced.
         let replaced = keys(b"\xc0\xaf\xed\xa0\x80x");
         assert_eq!(replaced.len(), 6);
         assert!(

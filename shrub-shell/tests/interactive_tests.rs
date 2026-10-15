@@ -10,15 +10,13 @@
 #![cfg(test)]
 #![allow(clippy::panic_in_result_fn)]
 
-use anyhow::Context;
 use std::os::unix::process::CommandExt as _;
 
-use expectrl::{
-    Expect, Session,
-    process::unix::{PtyStream, UnixProcess},
-    repl::ReplSession,
-    stream::log::LogStream,
-};
+use anyhow::Context;
+use expectrl::process::unix::{PtyStream, UnixProcess};
+use expectrl::repl::ReplSession;
+use expectrl::stream::log::LogStream;
+use expectrl::{Expect, Session};
 
 #[test_with::executable(ping)]
 #[test]
@@ -106,8 +104,8 @@ fn resume_suspended_pipeline_in_foreground() -> anyhow::Result<()> {
     let mut session = start_shell_session()?;
     session.expect_prompt()?;
 
-    // `fg` must continue every process of the pipeline, and give the terminal to their group,
-    // or Ctrl+C can't end the pipeline.
+    // `fg` must continue every process of the pipeline, and give the terminal
+    // to their group, or Ctrl+C can't end the pipeline.
     session.send_line("sleep 30 | sh -c 'echo ready-$((1 + 1)); exec sleep 31'")?;
     session.expect("ready-2")?;
     session.suspend()?;
@@ -137,9 +135,10 @@ fn resume_suspended_pipeline_after_its_leader_exits() -> anyhow::Result<()> {
     let mut session = start_shell_session()?;
     session.expect_prompt()?;
 
-    // The pipeline's first program leads its process group, which outlives it: `fg` must give
-    // the terminal to the group, not to the first program left. (The second program waits for
-    // the first to exit before it's ready.)
+    // The pipeline's first program leads its process group, which outlives it:
+    // `fg` must give the terminal to the group, not to the first program
+    // left. (The second program waits for the first to exit before it's
+    // ready.)
     session.send_line("sh -c 'exit 0' | sh -c 'cat; echo ready-$((1 + 1)); exec sleep 32'")?;
     session.expect("ready-2")?;
     session.suspend()?;
@@ -201,7 +200,8 @@ fn terminate_suspended_pipeline() -> anyhow::Result<()> {
         .expect_prompt()
         .context("Prompt after suspending pipeline")?;
 
-    // A stopped job sent a request to terminate is continued, so that it acts on it.
+    // A stopped job sent a request to terminate is continued, so that it acts
+    // on it.
     session.send_line("kill -TERM %1; wait")?;
     session.expect_prompt()?;
     let jobs_output = session.exec_output("jobs")?;
@@ -219,8 +219,9 @@ fn resume_pipeline_stopped_in_background() -> anyhow::Result<()> {
     let mut session = start_shell_session()?;
     session.expect_prompt()?;
 
-    // In the background, `head` reads from the terminal, which stops the pipeline; `fg` must
-    // give it the terminal, and continue it, without its stopping again.
+    // In the background, `head` reads from the terminal, which stops the
+    // pipeline; `fg` must give it the terminal, and continue it, without
+    // its stopping again.
     session.send_line("sh -c 'echo ready-$((1 + 1)) >&2; exec head -n 2' | sort")?;
     session.expect("ready-2")?;
     session.suspend()?;
@@ -252,12 +253,14 @@ fn resume_pager_of_suspended_program() -> anyhow::Result<()> {
     let shell_pid = session.exec_output("echo $$")?.trim().parse()?;
     let initial_modes = terminal_modes(&mut session)?;
 
-    // A program that runs a pager (as `git log` does) is stopped along with it, and its other
-    // processes, which `fg` must all continue, giving them the terminal.
+    // A program that runs a pager (as `git log` does) is stopped along with it,
+    // and its other processes, which `fg` must all continue, giving them
+    // the terminal.
     //
-    // (The pager acts on Ctrl+Z only between reads from the terminal, by putting the terminal
-    // back and stopping itself, so the test waits for it to be reading before suspending it,
-    // and for it to have stopped before typing again.)
+    // (The pager acts on Ctrl+Z only between reads from the terminal, by
+    // putting the terminal back and stopping itself, so the test waits for
+    // it to be reading before suspending it, and for it to have stopped
+    // before typing again.)
     session.send_line("sh -c 'seq 1 100 | sed s/^/line-/ | less'")?;
     session.expect("line-1")?;
     wait_for_state(shell_pid, "less", ProcessState::Sleeping)?;
@@ -339,16 +342,18 @@ fn login_shell_via_argv0_shows_prompt() -> anyhow::Result<()> {
 
 #[test]
 fn dash_s_with_positional_args_is_interactive() -> anyhow::Result<()> {
-    // With `-s`, trailing words are positional parameters and commands still come from
-    // stdin -- so at a terminal the shell is interactive, and `PROMPT_COMMAND` and the
-    // zsh-style hooks (which are gated on that) run.
+    // With `-s`, trailing words are positional parameters and commands still
+    // come from stdin -- so at a terminal the shell is interactive, and
+    // `PROMPT_COMMAND` and the zsh-style hooks (which are gated on that)
+    // run.
     let mut session = start_shell_session_with(|cmd| {
         cmd.args(["--norc", "-s", "myarg"]);
     })?;
 
     session.expect_prompt()?;
 
-    // N.B. The markers are computed, so the echoed command line can't satisfy the assertion.
+    // N.B. The markers are computed, so the echoed command line can't satisfy
+    // the assertion.
     let output = session.exec_output(r#"echo "FLAGS[${-//[!i]/}] ARG[$1]""#)?;
     assert!(
         output.contains("FLAGS[i] ARG[myarg]"),
@@ -369,8 +374,8 @@ fn dash_s_with_positional_args_is_interactive() -> anyhow::Result<()> {
 
 #[test]
 fn zsh_style_hook_state_is_visible_to_rc_files() -> anyhow::Result<()> {
-    // The generic YAML harness always passes --norc, so this ordering check must use a PTY
-    // session that can load a dedicated rc file.
+    // The generic YAML harness always passes --norc, so this ordering check
+    // must use a PTY session that can load a dedicated rc file.
     let rc_file = temp_script(
         r#"echo "RC-GUARD[${bash_preexec_imported:-unset}] RC-ARRAYS[${precmd_functions[*]:-unset}|${preexec_functions[*]:-unset}]"
 rc_precmd() { echo RC-PRECMD; }
@@ -396,7 +401,8 @@ precmd_functions+=(rc_precmd)
     Ok(())
 }
 
-/// A key bound with `bind -x` runs its command, which sees the line being edited.
+/// A key bound with `bind -x` runs its command, which sees the line being
+/// edited.
 #[test]
 fn runs_commands_bound_to_keys() -> anyhow::Result<()> {
     let mut session = start_shell_session()?;
@@ -440,10 +446,10 @@ fn tells_enter_from_ctrl_j() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Terminal shell integration brackets each command with a matched pair of OSC 633 markers:
-/// `E`/`C` before it runs, `D` after. A `preexec` hook that exits the shell means the command
-/// never runs, so neither marker may be emitted -- a lone `D` desynchronizes a terminal's
-/// command tracking.
+/// Terminal shell integration brackets each command with a matched pair of OSC
+/// 633 markers: `E`/`C` before it runs, `D` after. A `preexec` hook that exits
+/// the shell means the command never runs, so neither marker may be emitted --
+/// a lone `D` desynchronizes a terminal's command tracking.
 #[test]
 fn osc_command_markers_stay_paired_when_preexec_exits() -> anyhow::Result<()> {
     const COMMAND_STARTED: &str = "\x1b]633;C";
@@ -460,8 +466,8 @@ fn osc_command_markers_stay_paired_when_preexec_exits() -> anyhow::Result<()> {
     })?;
     session.expect_prompt()?;
 
-    // A command that does run gets the full pair. (`preexec` isn't defined yet when this line
-    // is dispatched, so the hook doesn't fire for it.)
+    // A command that does run gets the full pair. (`preexec` isn't defined yet
+    // when this line is dispatched, so the hook doesn't fire for it.)
     session.send_line("preexec() { case $1 in stop) exit 5;; esac; }")?;
     session
         .expect(COMMAND_STARTED)
@@ -473,8 +479,8 @@ fn osc_command_markers_stay_paired_when_preexec_exits() -> anyhow::Result<()> {
 
     // The hook exits before this line runs, so it gets neither marker.
     session.send_line("stop")?;
-    // `Eof` matches the whole remaining buffer, so the bytes seen since the last prompt are
-    // the match itself; `before()` would be empty.
+    // `Eof` matches the whole remaining buffer, so the bytes seen since the
+    // last prompt are the match itself; `before()` would be empty.
     let captures = session
         .expect(expectrl::Eof)
         .context("shell did not exit")?;
@@ -498,9 +504,10 @@ fn suspend_program_while_background_jobs_wait() -> anyhow::Result<()> {
     let mut session = start_shell_session()?;
     session.expect_prompt()?;
 
-    // Background jobs wait for programs of their own while the foreground program runs; the
-    // foreground program's stop is for its own wait alone. (Which wait hears of it first
-    // varies, so more background jobs make for a likelier failure without the fix.)
+    // Background jobs wait for programs of their own while the foreground
+    // program runs; the foreground program's stop is for its own wait
+    // alone. (Which wait hears of it first varies, so more background jobs
+    // make for a likelier failure without the fix.)
     session.send_line("for i in {1..16}; do { sleep 5; } & done")?;
     session.expect_prompt()?;
     session.send_line("sh -c 'echo ready-$((1 + 1)); exec sleep 1061'")?;
@@ -532,11 +539,13 @@ fn stop_signal_to_shell_leaves_background_jobs_alone() -> anyhow::Result<()> {
     let mut session = start_shell_session()?;
     session.expect_prompt()?;
 
-    // A stop signal that reaches the shell stops none of the programs that background jobs are
-    // waiting for, so none of them is taken to be stopped.
+    // A stop signal that reaches the shell stops none of the programs that
+    // background jobs are waiting for, so none of them is taken to be
+    // stopped.
     session.send_line("{ sleep 3; echo bg-$((1 + 1)); } &")?;
     session.expect_prompt()?;
-    // (The background job's program has started by the time the signal is sent.)
+    // (The background job's program has started by the time the signal is
+    // sent.)
     let output =
         session.exec_output("sleep 0.5; kill -TSTP $$; sleep 1; echo marker-$((1 + 2))")?;
     assert!(output.contains("marker-3"), "unexpected output: {output}");
@@ -551,8 +560,9 @@ fn stop_signal_to_shell_leaves_background_jobs_alone() -> anyhow::Result<()> {
 }
 
 type ShellSession = ReplSession<Session<UnixProcess, LogStream<PtyStream, std::io::Stdout>>>;
-// N.B. Comment out the above line and uncomment out the following line to disable logging of the
-// session. type ShellSession = ReplSession<Session<UnixProcess, PtyStream>>;
+// N.B. Comment out the above line and uncomment out the following line to
+// disable logging of the session. type ShellSession =
+// ReplSession<Session<UnixProcess, PtyStream>>;
 
 trait SessionExt {
     fn suspend(&mut self) -> anyhow::Result<()>;
@@ -580,11 +590,12 @@ impl SessionExt for ShellSession {
     }
 }
 
-/// Asserts that no process at the session's terminal has a command line matching `pattern`.
+/// Asserts that no process at the session's terminal has a command line
+/// matching `pattern`.
 fn assert_no_process_left(session: &mut ShellSession, pattern: &str) -> anyhow::Result<()> {
-    // (macOS's `pgrep` has no `-s` to search the session, but has `-t`, which also finds
-    // processes that aren't the shell's children. It exits with 1 when it finds nothing, and
-    // with 2 or more when it fails.)
+    // (macOS's `pgrep` has no `-s` to search the session, but has `-t`, which
+    // also finds processes that aren't the shell's children. It exits with
+    // 1 when it finds nothing, and with 2 or more when it fails.)
     let output = session.exec_output(format!(
         "t=$(tty); pgrep -f -t \"${{t#/dev/}}\" '{pattern}'; echo \"pgrep: $?\""
     ))?;
@@ -649,7 +660,8 @@ fn wait_for_state(shell_pid: u32, name: &str, state: ProcessState) -> anyhow::Re
     }
 }
 
-/// Returns whether the session's terminal reads lines, echoes input, and generates signals.
+/// Returns whether the session's terminal reads lines, echoes input, and
+/// generates signals.
 fn terminal_modes(session: &mut ShellSession) -> anyhow::Result<Vec<String>> {
     let output = session.exec_output("stty -a")?;
     Ok(output
@@ -672,9 +684,10 @@ fn start_shell_session() -> anyhow::Result<ShellSession> {
     start_shell_session_with(|cmd| _ = cmd.arg("--norc"))
 }
 
-/// Starts a shell session at a pty. `configure` is the only place arguments and environment
-/// come from beyond the fixed set below, so a session says for itself what it wants -- notably
-/// `--norc`, or the `--rcfile` that a session wanting an rc file passes instead.
+/// Starts a shell session at a pty. `configure` is the only place arguments and
+/// environment come from beyond the fixed set below, so a session says for
+/// itself what it wants -- notably `--norc`, or the `--rcfile` that a session
+/// wanting an rc file passes instead.
 fn start_shell_session_with(
     configure: impl FnOnce(&mut std::process::Command),
 ) -> anyhow::Result<ShellSession> {
@@ -695,8 +708,8 @@ fn start_shell_session_with(
 
     let session = expectrl::session::Session::spawn(cmd)?;
 
-    // N.B. Comment out this line to disable logging of the session (along with a similar line
-    // above).
+    // N.B. Comment out this line to disable logging of the session (along with
+    // a similar line above).
     let session = expectrl::session::log(session, std::io::stdout())?;
 
     let mut session = expectrl::repl::ReplSession::new(session, DEFAULT_PROMPT);

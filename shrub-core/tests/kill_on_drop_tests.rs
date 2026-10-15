@@ -1,11 +1,12 @@
 //! Integration tests for the opt-in `kill_external_commands_on_drop` option:
-//! that a child outlives its shell by default, and is reaped when the option is set.
+//! that a child outlives its shell by default, and is reaped when the option is
+//! set.
 //!
-//! Note: these tear down the whole runtime, not just the `Shell`. A backgrounded
-//! command runs in a detached `tokio` task owning a *clone* of the shell; the
-//! shell's job table holds only the task's `TaskHandle`, and dropping that
-//! detaches rather than aborts. Dropping the tasks is what drops the `Child`,
-//! where `kill_on_drop` takes effect.
+//! Note: these tear down the whole runtime, not just the `Shell`. A
+//! backgrounded command runs in a detached `tokio` task owning a *clone* of the
+//! shell; the shell's job table holds only the task's `TaskHandle`, and
+//! dropping that detaches rather than aborts. Dropping the tasks is what drops
+//! the `Child`, where `kill_on_drop` takes effect.
 
 #![cfg(unix)]
 #![cfg(test)]
@@ -34,7 +35,8 @@ fn is_running(pid: u32) -> bool {
     !state.is_empty() && !state.starts_with('Z')
 }
 
-/// Polls `condition` until it holds, returning whether it did within [`TIMEOUT`].
+/// Polls `condition` until it holds, returning whether it did within
+/// [`TIMEOUT`].
 fn poll_until(mut condition: impl FnMut() -> bool) -> bool {
     let deadline = Instant::now() + TIMEOUT;
     loop {
@@ -62,10 +64,10 @@ fn spawn_child_then_tear_down(kill_on_drop: bool) -> Result<u32> {
         .enable_io()
         .build()?;
 
-    // `/bin/sh` is the shell's direct child and `exec`s into `sleep`, so the pid
-    // it reports is the process the shell holds a handle to. No shrub builtin is
-    // involved: the child is named by absolute path, and the inner `PATH`
-    // assignment is interpreted by `sh` itself.
+    // `/bin/sh` is the shell's direct child and `exec`s into `sleep`, so the
+    // pid it reports is the process the shell holds a handle to. No shrub
+    // builtin is involved: the child is named by absolute path, and the
+    // inner `PATH` assignment is interpreted by `sh` itself.
     let script = std::format!(
         "/bin/sh -c 'PATH=/bin:/usr/bin; echo $$ > {}; exec sleep 300' &",
         pid_file.display()
@@ -100,8 +102,8 @@ fn spawn_child_then_tear_down(kill_on_drop: bool) -> Result<u32> {
         "child {pid} should be running before teardown"
     );
 
-    // Tear everything down: this drops the task that owns the child, and with it
-    // the `Child` handle that carries the kill-on-drop request.
+    // Tear everything down: this drops the task that owns the child, and with
+    // it the `Child` handle that carries the kill-on-drop request.
     drop(runtime);
 
     Ok(pid)
@@ -120,8 +122,8 @@ fn child_is_killed_on_teardown_with_option_on() -> Result<()> {
     Ok(())
 }
 
-/// With the option OFF (the default), the child outlives teardown, exactly as it
-/// does today. This is the behavior real shells depend on.
+/// With the option OFF (the default), the child outlives teardown, exactly as
+/// it does today. This is the behavior real shells depend on.
 #[test]
 fn child_outlives_teardown_by_default() -> Result<()> {
     let pid = spawn_child_then_tear_down(false)?;

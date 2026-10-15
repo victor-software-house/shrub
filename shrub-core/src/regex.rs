@@ -3,10 +3,12 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
 
-use crate::error;
 use cached::Cached;
 
-/// Cache mapping a (pattern, case-insensitive, multiline) key to a compiled regex.
+use crate::error;
+
+/// Cache mapping a (pattern, case-insensitive, multiline) key to a compiled
+/// regex.
 type RegexCache = cached::LruCache<(String, bool, bool), fancy_regex::Regex>;
 
 thread_local! {
@@ -66,9 +68,9 @@ impl Regex {
         self
     }
 
-    /// Enables (or disables) multiline support for this pattern: `.` then also matches
-    /// newline characters. `^` and `$` always anchor to the whole string, as in POSIX
-    /// regular expressions, which have no line anchors.
+    /// Enables (or disables) multiline support for this pattern: `.` then also
+    /// matches newline characters. `^` and `$` always anchor to the whole
+    /// string, as in POSIX regular expressions, which have no line anchors.
     ///
     /// # Arguments
     ///
@@ -119,8 +121,9 @@ pub(crate) fn compile_regex(
         return Ok(re);
     }
 
-    // Handle identified cases where a shell-supported regex isn't supported directly by
-    // `fancy_regex` -- specifically, adding missing escape characters.
+    // Handle identified cases where a shell-supported regex isn't supported
+    // directly by `fancy_regex` -- specifically, adding missing escape
+    // characters.
     let mut regex_str = add_missing_escape_chars_to_regex(key.0.as_str());
 
     // Handle multiline enablement.
@@ -153,13 +156,13 @@ pub(crate) fn compile_regex(
 }
 
 fn add_missing_escape_chars_to_regex(s: &str) -> Cow<'_, str> {
-    // We may see a character class with an unescaped '[' (open bracket) character. We need
-    // to escape that character.
+    // We may see a character class with an unescaped '[' (open bracket)
+    // character. We need to escape that character.
     let mut in_escape = false;
     let mut in_brackets = false;
-    // A ']' in the first member position of a bracket expression (immediately after the
-    // opening '[' or after the leading '^' that negates it) is a member of the
-    // expression, not its terminator.
+    // A ']' in the first member position of a bracket expression (immediately
+    // after the opening '[' or after the leading '^' that negates it) is a
+    // member of the expression, not its terminator.
     let mut at_first_member = false;
     let mut insertion_positions = vec![];
 
@@ -172,9 +175,9 @@ fn add_missing_escape_chars_to_regex(s: &str) -> Cow<'_, str> {
         match c {
             '[' if !in_escape && !in_brackets => {
                 in_brackets = true;
-                // A '^' here negates the expression; it isn't a member itself, so the
-                // first member position is the one after it. Any later '^' is an
-                // ordinary member.
+                // A '^' here negates the expression; it isn't a member itself,
+                // so the first member position is the one after
+                // it. Any later '^' is an ordinary member.
                 let _ = peekable.next_if(|(_, c)| *c == '^');
                 at_first_member = true;
             }
@@ -183,9 +186,10 @@ fn add_missing_escape_chars_to_regex(s: &str) -> Cow<'_, str> {
                 insertion_positions.push(byte_offset);
             }
             ']' if !in_escape && in_brackets && was_at_first_member => {
-                // `fancy_regex` doesn't implement the rule that this ']' is a member;
-                // escape it so it's a member there too, and so it can be the low end
-                // of a range (e.g. `[]-a]`).
+                // `fancy_regex` doesn't implement the rule that this ']' is a
+                // member; escape it so it's a member there too,
+                // and so it can be the low end of a range (e.g.
+                // `[]-a]`).
                 insertion_positions.push(byte_offset);
             }
             ']' if !in_escape && in_brackets => {
@@ -250,10 +254,11 @@ mod tests {
 
     #[test]
     fn test_leading_close_bracket_in_bracket_expression() {
-        // A ']' in the first member position (after any '^') is a member of the bracket
-        // expression, not its terminator, so the expression is still open after it.
-        // It's escaped as well, since `fancy_regex` doesn't implement that rule; that
-        // also makes it the low end of a range in `[]-a]`, as it is in a shell pattern.
+        // A ']' in the first member position (after any '^') is a member of the
+        // bracket expression, not its terminator, so the expression is
+        // still open after it. It's escaped as well, since
+        // `fancy_regex` doesn't implement that rule; that also makes it
+        // the low end of a range in `[]-a]`, as it is in a shell pattern.
         assert_eq!(add_missing_escape_chars_to_regex("[]]"), r"[\]]");
         assert_eq!(add_missing_escape_chars_to_regex("[^]]"), r"[^\]]");
         assert_eq!(add_missing_escape_chars_to_regex("[][]"), r"[\]\[]");
@@ -261,13 +266,15 @@ mod tests {
         assert_eq!(add_missing_escape_chars_to_regex("[]a[]"), r"[\]a\[]");
         assert_eq!(add_missing_escape_chars_to_regex("[]-a]"), r"[\]-a]");
 
-        // The rule only applies in the first member position: the ']' in `[a]` and the
-        // already-escaped one in `[\]]` both close their expressions.
+        // The rule only applies in the first member position: the ']' in `[a]`
+        // and the already-escaped one in `[\]]` both close their
+        // expressions.
         assert_eq!(add_missing_escape_chars_to_regex("[a][]x]"), r"[a][\]x]");
         assert_eq!(add_missing_escape_chars_to_regex(r"[\]][]x]"), r"[\]][\]x]");
 
-        // Only the '^' that negates the expression is skipped over; a later one is an
-        // ordinary member, so the ']' after it terminates the expression.
+        // Only the '^' that negates the expression is skipped over; a later one
+        // is an ordinary member, so the ']' after it terminates the
+        // expression.
         assert_eq!(add_missing_escape_chars_to_regex("[^^][ab]"), "[^^][ab]");
         assert_eq!(add_missing_escape_chars_to_regex("[^^][b[]"), r"[^^][b\[]");
 

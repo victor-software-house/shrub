@@ -1,19 +1,21 @@
 //! Test harness library for shrub shell integration tests.
 //!
-//! This crate provides a unified framework for running YAML-based integration tests
-//! that support both oracle-based comparison (comparing shrub output against bash)
-//! and expectation-based testing (inline expectations or insta snapshots).
+//! This crate provides a unified framework for running YAML-based integration
+//! tests that support both oracle-based comparison (comparing shrub output
+//! against bash) and expectation-based testing (inline expectations or insta
+//! snapshots).
 //!
 //! # Modes of Operation
 //!
-//! 1. **Oracle comparison**: Runs both an oracle shell (e.g., bash) and the test shell (shrub),
-//!    comparing their outputs. This is the traditional compatibility testing mode.
+//! 1. **Oracle comparison**: Runs both an oracle shell (e.g., bash) and the
+//!    test shell (shrub), comparing their outputs. This is the traditional
+//!    compatibility testing mode.
 //!
-//! 2. **Expectation-based**: Runs only the test shell and compares against inline expectations
-//!    specified in the YAML or against insta snapshots.
+//! 2. **Expectation-based**: Runs only the test shell and compares against
+//!    inline expectations specified in the YAML or against insta snapshots.
 //!
-//! 3. **Hybrid**: Combines both modes - runs oracle comparison AND validates against expectations.
-//!    Both must pass for the test to succeed.
+//! 3. **Hybrid**: Combines both modes - runs oracle comparison AND validates
+//!    against expectations. Both must pass for the test to succeed.
 
 #![cfg(any(unix, windows))]
 #![allow(clippy::missing_panics_doc)]

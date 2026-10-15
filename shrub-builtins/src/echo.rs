@@ -1,6 +1,6 @@
-use clap::Parser;
 use std::io::Write;
 
+use clap::Parser;
 use shrub_core::{ExecutionResult, builtins, escape};
 
 /// Echo text to standard output.
@@ -27,9 +27,10 @@ pub(crate) struct EchoCommand {
 impl builtins::Command for EchoCommand {
     type Error = shrub_core::Error;
 
-    /// Override the default [`builtins::Command::new`] function to handle clap's limitation related
-    /// to `--`. See [`builtins::parse_known`] for more information
-    /// TODO(echo): we can safely remove this after the issue is resolved
+    /// Override the default [`builtins::Command::new`] function to handle
+    /// clap's limitation related to `--`. See [`builtins::parse_known`] for
+    /// more information TODO(echo): we can safely remove this after the
+    /// issue is resolved
     fn new<I>(args: I) -> Result<Self, clap::Error>
     where
         I: IntoIterator<Item = String>,

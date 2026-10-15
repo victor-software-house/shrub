@@ -1,7 +1,5 @@
-use std::{
-    collections::HashMap,
-    fmt::{self, Display, Formatter},
-};
+use std::collections::HashMap;
+use std::fmt::{self, Display, Formatter};
 
 /// Represents an action that can be taken in response to a key sequence.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -255,7 +253,7 @@ impl Display for KeySequence {
                         write!(f, "{}", *byte as char)?;
                     } else if *byte == b'\x1b' {
                         write!(f, r"\e")?;
-                    } else if *byte >= 0x01 && *byte <= 0x1A {
+                    } else if *byte >= 0x01 && *byte <= 0x1a {
                         // Control characters: display as \C-<letter>
                         let letter = (b'a' + (*byte - 1)) as char;
                         write!(f, r"\C-{letter}")?;
@@ -299,7 +297,8 @@ impl Display for KeyStroke {
             write!(f, "\\C-")?;
         }
         if self.shift {
-            // TODO(input): Figure out what to do here or if the key encodes the shift in it.
+            // TODO(input): Figure out what to do here or if the key encodes the
+            // shift in it.
         }
         self.key.fmt(f)
     }

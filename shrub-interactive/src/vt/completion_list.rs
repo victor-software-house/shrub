@@ -49,8 +49,9 @@ pub(crate) async fn complete(
         // agree; if it can't, ring the bell, and list them on a second try.
         (candidates, Style::Vt) => {
             let common = common_prefix(candidates);
-            // Don't insert a prefix ending in a lone escape (e.g., `a\` from `a\ b`
-            // and `a\'b`), which would change how the rest of the line parses.
+            // Don't insert a prefix ending in a lone escape (e.g., `a\` from
+            // `a\ b` and `a\'b`), which would change how the rest
+            // of the line parses.
             let dangling = (common.len() - common.trim_end_matches('\\').len()) % 2 == 1;
             if common.len() > word.len() && !dangling {
                 editor.buffer.replace(range, &common);
@@ -101,8 +102,9 @@ fn common_prefix(candidates: &[String]) -> String {
 /// space that would follow them.
 fn display_name(candidate: &str, options: &shrub_core::completion::ProcessingOptions) -> String {
     let mut word = candidate;
-    // Drop the space completion puts after a word, but not an escaped space that
-    // ends the word itself (e.g., in `foo\ `, for a file named `foo `).
+    // Drop the space completion puts after a word, but not an escaped space
+    // that ends the word itself (e.g., in `foo\ `, for a file named `foo
+    // `).
     if let Some(trimmed) = word.strip_suffix(' ') {
         let backslashes = trimmed.len() - trimmed.trim_end_matches('\\').len();
         if backslashes % 2 == 0 {

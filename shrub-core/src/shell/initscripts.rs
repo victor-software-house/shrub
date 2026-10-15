@@ -41,9 +41,10 @@ impl RcLoadBehavior {
 }
 
 impl<SE: extensions::ShellExtensions> Shell<SE> {
-    /// Loads and executes standard shell configuration files (i.e., rc and profile), and then
-    /// loads the history file (if command history is enabled). History is loaded last since
-    /// the configuration files may change `HISTFILE`.
+    /// Loads and executes standard shell configuration files (i.e., rc and
+    /// profile), and then loads the history file (if command history is
+    /// enabled). History is loaded last since the configuration files may
+    /// change `HISTFILE`.
     ///
     /// # Arguments
     ///
@@ -57,8 +58,9 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
         self.load_config_files(profile_behavior, rc_behavior)
             .await?;
 
-        // As bash does, skip the file if startup files already added entries (e.g. via
-        // `history -s`). Do NOT fail if we can't load history.
+        // As bash does, skip the file if startup files already added entries
+        // (e.g. via `history -s`). Do NOT fail if we can't load
+        // history.
         if self.options.enable_command_history
             && self
                 .history
@@ -89,7 +91,8 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
             //
             // Source the system profile if it exists.
             //
-            // Next source the first of these that exists and is readable (if any):
+            // Next source the first of these that exists and is readable (if
+            // any):
             //     * ~/.bash_profile
             //     * ~/.bash_login
             //     * ~/.profile
@@ -127,7 +130,8 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
                     }
                     RcLoadBehavior::LoadDefault => {
                         //
-                        // Otherwise, for non-login interactive shells, load in this order:
+                        // Otherwise, for non-login interactive shells, load in
+                        // this order:
                         //
                         //     system rc file (e.g. /etc/bash.bashrc on Unix)
                         //     ~/.bashrc
@@ -152,8 +156,8 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
 
                 if self.env.is_set(env_var_name) {
                     //
-                    // TODO(well-known-vars): look at $ENV/BASH_ENV; source its expansion if that
-                    // file exists
+                    // TODO(well-known-vars): look at $ENV/BASH_ENV; source its
+                    // expansion if that file exists
                     //
                     return error::unimp(
                         "load config from $ENV/BASH_ENV for non-interactive, non-login shell",

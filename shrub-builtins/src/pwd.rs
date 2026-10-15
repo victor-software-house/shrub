@@ -1,6 +1,9 @@
-use shrub_core::{ExecutionResult, builtins};
+use std::borrow::Cow;
+use std::io::Write;
+use std::path::Path;
+
 use clap::Parser;
-use std::{borrow::Cow, io::Write, path::Path};
+use shrub_core::{ExecutionResult, builtins};
 
 /// Display the current working directory.
 #[derive(Parser)]

@@ -1,6 +1,8 @@
 //! Comparison types for test results.
 
-use std::{io::Read, path::PathBuf, process::ExitStatus};
+use std::io::Read;
+use std::path::PathBuf;
+use std::process::ExitStatus;
 
 /// Comparison of durations between oracle and test runs.
 #[derive(Default)]

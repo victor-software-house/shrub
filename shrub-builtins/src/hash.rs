@@ -1,6 +1,7 @@
-use clap::Parser;
-use std::{io::Write, path::PathBuf};
+use std::io::Write;
+use std::path::PathBuf;
 
+use clap::Parser;
 use shrub_core::{ExecutionResult, builtins};
 
 #[derive(Parser)]
@@ -77,8 +78,9 @@ impl builtins::Command for HashCommand {
                 }
             }
         } else if let Some(path) = &self.path_to_use {
-            // The shell's working directory is its own state, not the process's, so a
-            // relative path is resolved against it before it's inspected -- but reported as given.
+            // The shell's working directory is its own state, not the
+            // process's, so a relative path is resolved against it
+            // before it's inspected -- but reported as given.
             let is_dir = context.shell.absolute_path(path).is_dir();
 
             for name in &self.names {

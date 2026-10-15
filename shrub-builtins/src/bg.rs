@@ -1,6 +1,6 @@
-use clap::Parser;
 use std::io::Write;
 
+use clap::Parser;
 use shrub_core::{ExecutionResult, builtins, jobs};
 
 /// Moves a job to run in the background.
@@ -50,13 +50,15 @@ impl builtins::Command for BgCommand {
     }
 }
 
-/// Returns the ID of the job if it isn't known to be stopped. (`bg` continues such a job
-/// anyway, as it may have been stopped without the shell's noticing.)
+/// Returns the ID of the job if it isn't known to be stopped. (`bg` continues
+/// such a job anyway, as it may have been stopped without the shell's
+/// noticing.)
 fn running_job_id(job: &jobs::Job) -> Option<usize> {
     (!matches!(job.state, jobs::JobState::Stopped)).then_some(job.id)
 }
 
-/// Warns, as bash does, that a job not known to be stopped is already in the background.
+/// Warns, as bash does, that a job not known to be stopped is already in the
+/// background.
 fn warn_if_running<SE: shrub_core::ShellExtensions>(
     context: &shrub_core::ExecutionContext<'_, SE>,
     running_job_id: Option<usize>,

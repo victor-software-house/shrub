@@ -1,9 +1,7 @@
 //! Function support for shells.
 
-use crate::{
-    ExecutionParameters, ExecutionResult, commands, error, extensions, functions,
-    results::ExecutionWaitResult,
-};
+use crate::results::ExecutionWaitResult;
+use crate::{ExecutionParameters, ExecutionResult, commands, error, extensions, functions};
 
 impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
     /// Returns the function definition environment for this shell.
@@ -11,13 +9,14 @@ impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
         &self.funcs
     }
 
-    /// Returns a mutable reference to the function definition environment for this shell.
+    /// Returns a mutable reference to the function definition environment for
+    /// this shell.
     pub const fn funcs_mut(&mut self) -> &mut functions::FunctionEnv {
         &mut self.funcs
     }
 
-    /// Tries to undefine a function in the shell's environment. Returns whether or
-    /// not a definition was removed.
+    /// Tries to undefine a function in the shell's environment. Returns whether
+    /// or not a definition was removed.
     ///
     /// # Arguments
     ///
@@ -26,8 +25,8 @@ impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
         self.funcs.remove(name).is_some()
     }
 
-    /// Defines a function in the shell's environment. If a function already exists
-    /// with the given name, it is replaced with the new definition.
+    /// Defines a function in the shell's environment. If a function already
+    /// exists with the given name, it is replaced with the new definition.
     ///
     /// # Arguments
     ///
@@ -44,8 +43,8 @@ impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
         self.funcs.update(name.into(), reg);
     }
 
-    /// Tries to return a mutable reference to the registration for a named function.
-    /// Returns `None` if no such function was found.
+    /// Tries to return a mutable reference to the registration for a named
+    /// function. Returns `None` if no such function was found.
     ///
     /// # Arguments
     ///
@@ -84,7 +83,8 @@ impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
         Ok(())
     }
 
-    /// Invokes a function defined in this shell, returning its execution result.
+    /// Invokes a function defined in this shell, returning its execution
+    /// result.
     ///
     /// # Arguments
     ///

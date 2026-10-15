@@ -1,13 +1,10 @@
 //! Implements a shell variable environment.
 
 use std::borrow::Cow;
-use std::collections::HashMap;
-use std::collections::hash_map;
+use std::collections::{HashMap, hash_map};
 
-use crate::Shell;
-use crate::error;
-use crate::extensions;
 use crate::variables::{self, ShellValue, ShellValueUnsetType, ShellVariable};
+use crate::{Shell, error, extensions};
 
 /// Represents the policy for looking up variables in a shell environment.
 #[derive(Clone, Copy)]
@@ -16,16 +13,16 @@ pub enum EnvironmentLookup {
     Anywhere,
     /// Look only in the global scope.
     OnlyInGlobal,
-    /// Look only in the innermost scope of the given type (e.g. the current function's
-    /// local scope, for [`EnvironmentScope::Local`]).
+    /// Look only in the innermost scope of the given type (e.g. the current
+    /// function's local scope, for [`EnvironmentScope::Local`]).
     OnlyInCurrent(EnvironmentScope),
     /// Look only in local scopes.
     OnlyInLocal,
 }
 
 impl EnvironmentLookup {
-    /// Returns a filter that, given the environment's scopes' types from the innermost
-    /// out, says whether this policy looks in each.
+    /// Returns a filter that, given the environment's scopes' types from the
+    /// innermost out, says whether this policy looks in each.
     fn scope_filter(self) -> impl FnMut(EnvironmentScope) -> bool {
         let mut found_current = false;
         move |scope_type| match self {
@@ -109,10 +106,12 @@ impl ShellEnvironment {
     ///
     /// # Arguments
     ///
-    /// * `expected_scope_type` - The type of scope that is expected to be atop the stack.
+    /// * `expected_scope_type` - The type of scope that is expected to be atop
+    ///   the stack.
     pub fn pop_scope(&mut self, expected_scope_type: EnvironmentScope) -> Result<(), error::Error> {
-        // TODO(env): Should we panic instead on failure? It's effectively a broken invariant.
-        // Either way, don't pop a scope that isn't the one expected.
+        // TODO(env): Should we panic instead on failure? It's effectively a
+        // broken invariant. Either way, don't pop a scope that isn't
+        // the one expected.
         match self.scopes.last() {
             Some((actual_scope_type, _)) if *actual_scope_type == expected_scope_type => {
                 self.scopes.pop();
@@ -133,8 +132,8 @@ impl ShellEnvironment {
 
     /// Returns an iterator over all exported variables defined in the variable.
     pub fn iter_exported(&self) -> impl Iterator<Item = (&String, &ShellVariable)> {
-        // We won't actually need to store all entries, but we expect it should be
-        // within the same order.
+        // We won't actually need to store all entries, but we expect it should
+        // be within the same order.
         let mut visible_vars: HashMap<&String, &ShellVariable> =
             HashMap::with_capacity(self.entry_count);
 
@@ -165,8 +164,8 @@ impl ShellEnvironment {
         &self,
         lookup_policy: EnvironmentLookup,
     ) -> impl Iterator<Item = (&String, &ShellVariable)> {
-        // We won't actually need to store all entries, but we expect it should be
-        // within the same order.
+        // We won't actually need to store all entries, but we expect it should
+        // be within the same order.
         let mut visible_vars: HashMap<&String, &ShellVariable> =
             HashMap::with_capacity(self.entry_count);
 
@@ -183,8 +182,8 @@ impl ShellEnvironment {
         visible_vars.into_iter()
     }
 
-    /// Tries to retrieve an immutable reference to the variable with the given name
-    /// in the environment.
+    /// Tries to retrieve an immutable reference to the variable with the given
+    /// name in the environment.
     ///
     /// # Arguments
     ///
@@ -200,8 +199,8 @@ impl ShellEnvironment {
         None
     }
 
-    /// Tries to retrieve a mutable reference to the variable with the given name
-    /// in the environment.
+    /// Tries to retrieve a mutable reference to the variable with the given
+    /// name in the environment.
     ///
     /// # Arguments
     ///
@@ -220,8 +219,8 @@ impl ShellEnvironment {
         None
     }
 
-    /// Tries to retrieve the string value of the variable with the given name in the
-    /// environment.
+    /// Tries to retrieve the string value of the variable with the given name
+    /// in the environment.
     ///
     /// # Arguments
     ///
@@ -253,8 +252,8 @@ impl ShellEnvironment {
     // Setters
     //
 
-    /// Tries to unset the variable with the given name in the environment, returning
-    /// whether or not such a variable existed.
+    /// Tries to unset the variable with the given name in the environment,
+    /// returning whether or not such a variable existed.
     ///
     /// # Arguments
     ///
@@ -269,15 +268,16 @@ impl ShellEnvironment {
             let unset_result = Self::try_unset_in_map(map, name)?;
 
             if unset_result.is_some() {
-                // If we end up finding a local in the top-most local frame, then we replace
-                // it with a placeholder.
+                // If we end up finding a local in the top-most local frame,
+                // then we replace it with a placeholder.
                 if matches!(scope_type, EnvironmentScope::Local) && local_count == 1 {
                     map.set(
                         name,
                         ShellVariable::new(ShellValue::Unset(ShellValueUnsetType::Untyped)),
                     );
                 } else if self.entry_count > 0 {
-                    // Entry count should never be 0 here, but we're being defensive.
+                    // Entry count should never be 0 here, but we're being
+                    // defensive.
                     self.entry_count -= 1;
                 }
 
@@ -288,8 +288,9 @@ impl ShellEnvironment {
         Ok(None)
     }
 
-    /// Tries to unset an array element from the environment, using the given name and
-    /// element index for lookup. Returns whether or not an element was unset.
+    /// Tries to unset an array element from the environment, using the given
+    /// name and element index for lookup. Returns whether or not an element
+    /// was unset.
     ///
     /// # Arguments
     ///
@@ -314,8 +315,8 @@ impl ShellEnvironment {
         }
     }
 
-    /// Tries to retrieve an immutable reference to a variable from the environment,
-    /// using the given name and lookup policy.
+    /// Tries to retrieve an immutable reference to a variable from the
+    /// environment, using the given name and lookup policy.
     ///
     /// # Arguments
     ///
@@ -334,8 +335,8 @@ impl ShellEnvironment {
             .find_map(|(_, var_map)| var_map.get(name.as_ref()))
     }
 
-    /// Tries to retrieve a mutable reference to a variable from the environment,
-    /// using the given name and lookup policy.
+    /// Tries to retrieve a mutable reference to a variable from the
+    /// environment, using the given name and lookup policy.
     ///
     /// # Arguments
     ///
@@ -354,15 +355,18 @@ impl ShellEnvironment {
             .find_map(|(_, var_map)| var_map.get_mut(name.as_ref()))
     }
 
-    /// Update a variable in the environment, or add it if it doesn't already exist.
+    /// Update a variable in the environment, or add it if it doesn't already
+    /// exist.
     ///
     /// # Arguments
     ///
     /// * `name` - The name of the variable to update or add.
     /// * `value` - The value to assign to the variable.
-    /// * `updater` - A function to call to update the variable after assigning the value.
+    /// * `updater` - A function to call to update the variable after assigning
+    ///   the value.
     /// * `lookup_policy` - The policy to use when looking up the variable.
-    /// * `scope_if_creating` - The scope to create the variable in if it doesn't already exist.
+    /// * `scope_if_creating` - The scope to create the variable in if it
+    ///   doesn't already exist.
     pub fn update_or_add<N: Into<String>>(
         &mut self,
         name: N,
@@ -392,16 +396,19 @@ impl ShellEnvironment {
         }
     }
 
-    /// Update an array element in the environment, or add it if it doesn't already exist.
+    /// Update an array element in the environment, or add it if it doesn't
+    /// already exist.
     ///
     /// # Arguments
     ///
     /// * `name` - The name of the variable to update or add.
     /// * `index` - The index of the element to update or add.
     /// * `value` - The value to assign to the variable.
-    /// * `updater` - A function to call to update the variable after assigning the value.
+    /// * `updater` - A function to call to update the variable after assigning
+    ///   the value.
     /// * `lookup_policy` - The policy to use when looking up the variable.
-    /// * `scope_if_creating` - The scope to create the variable in if it doesn't already exist.
+    /// * `scope_if_creating` - The scope to create the variable in if it
+    ///   doesn't already exist.
     pub fn update_or_add_array_element<N: Into<String>>(
         &mut self,
         name: N,
@@ -494,7 +501,8 @@ impl ShellVariableMap {
         self.variables.iter()
     }
 
-    /// Tries to retrieve an immutable reference to the variable with the given name.
+    /// Tries to retrieve an immutable reference to the variable with the given
+    /// name.
     ///
     /// # Arguments
     ///
@@ -503,7 +511,8 @@ impl ShellVariableMap {
         self.variables.get(name)
     }
 
-    /// Tries to retrieve a mutable reference to the variable with the given name.
+    /// Tries to retrieve a mutable reference to the variable with the given
+    /// name.
     ///
     /// # Arguments
     ///

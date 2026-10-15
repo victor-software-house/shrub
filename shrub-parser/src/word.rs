@@ -9,15 +9,12 @@
 //! - Command substitution expressions.
 //! - Arithmetic expansion expressions.
 
-use std::fmt::Debug;
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 
-use crate::ParserOptions;
-use crate::SourceSpan;
-use crate::ast;
-use crate::error;
+use crate::{ParserOptions, SourceSpan, ast, error};
 
-/// Encapsulates a `WordPiece` together with its position in the string it came from.
+/// Encapsulates a `WordPiece` together with its position in the string it came
+/// from.
 #[derive(Clone, Debug)]
 #[cfg_attr(
     any(test, feature = "serde"),
@@ -78,19 +75,23 @@ pub enum TildeExpr {
     WorkingDir,
     /// `~-`
     OldWorkingDir,
-    /// Represents a tilde expansion of the form `~+N`, referring to the Nth directory in
-    /// the shell's directory stack, starting at the top of the stack. Note that the directory
-    /// stack is expected to contains the current working directory as its topmost entry.
+    /// Represents a tilde expansion of the form `~+N`, referring to the Nth
+    /// directory in the shell's directory stack, starting at the top of the
+    /// stack. Note that the directory stack is expected to contains the
+    /// current working directory as its topmost entry.
     NthDirFromTopOfDirStack {
-        /// Index into the directory stack (zero-based: 0 is the top of the stack).
+        /// Index into the directory stack (zero-based: 0 is the top of the
+        /// stack).
         n: usize,
         /// Whether the '+' prefix was explicitly used.
         plus_used: bool,
     },
-    /// Represents a tilde expansion of the form `~-N`, referring to the Nth directory in
-    /// the shell's directory stack, starting at the bottom of the stack.
+    /// Represents a tilde expansion of the form `~-N`, referring to the Nth
+    /// directory in the shell's directory stack, starting at the bottom of
+    /// the stack.
     NthDirFromBottomOfDirStack {
-        /// Index into the directory stack (zero-based: 0 is the bottom of the stack).
+        /// Index into the directory stack (zero-based: 0 is the bottom of the
+        /// stack).
         n: usize,
     },
 }
@@ -280,7 +281,8 @@ pub enum ParameterExpr {
         /// for the expansion.
         indirect: bool,
     },
-    /// Remove the smallest suffix from the given string matching the given pattern.
+    /// Remove the smallest suffix from the given string matching the given
+    /// pattern.
     RemoveSmallestSuffixPattern {
         /// The parameter.
         parameter: Parameter,
@@ -291,7 +293,8 @@ pub enum ParameterExpr {
         /// Optionally provides a pattern to match.
         pattern: Option<String>,
     },
-    /// Remove the largest suffix from the given string matching the given pattern.
+    /// Remove the largest suffix from the given string matching the given
+    /// pattern.
     RemoveLargestSuffixPattern {
         /// The parameter.
         parameter: Parameter,
@@ -302,7 +305,8 @@ pub enum ParameterExpr {
         /// Optionally provides a pattern to match.
         pattern: Option<String>,
     },
-    /// Remove the smallest prefix from the given string matching the given pattern.
+    /// Remove the smallest prefix from the given string matching the given
+    /// pattern.
     RemoveSmallestPrefixPattern {
         /// The parameter.
         parameter: Parameter,
@@ -313,7 +317,8 @@ pub enum ParameterExpr {
         /// Optionally provides a pattern to match.
         pattern: Option<String>,
     },
-    /// Remove the largest prefix from the given string matching the given pattern.
+    /// Remove the largest prefix from the given string matching the given
+    /// pattern.
     RemoveLargestPrefixPattern {
         /// The parameter.
         parameter: Parameter,
@@ -473,7 +478,8 @@ pub enum ParameterTransformOp {
     ToUpperCase,
 }
 
-/// Represents a sub-word that is either a brace expression or some other word text.
+/// Represents a sub-word that is either a brace expression or some other word
+/// text.
 #[derive(Clone, Debug)]
 #[cfg_attr(
     any(test, feature = "serde"),
@@ -598,7 +604,8 @@ pub fn parse_brace_expansions(
 /// Parses a scalar assignment from a given word.
 ///
 /// A parenthesized value is treated as scalar text; see
-/// [`parse_compound_assignment_value`] for reinterpreting such a value as a compound one.
+/// [`parse_compound_assignment_value`] for reinterpreting such a value as a
+/// compound one.
 ///
 /// # Arguments
 ///
@@ -612,15 +619,18 @@ pub fn parse_scalar_assignment(
         .map_err(|err| error::WordParseError::Word(word.to_owned(), err.into()))
 }
 
-/// Parses text as a compound assignment value, returning its optionally-keyed element words.
-/// Returns `None` if the text is not a well-formed compound value.
+/// Parses text as a compound assignment value, returning its optionally-keyed
+/// element words. Returns `None` if the text is not a well-formed compound
+/// value.
 ///
-/// This exists so that text which only becomes recognizable as a compound value *after* expansion
-/// can be reinterpreted without reconstructing and re-parsing a whole assignment word.
+/// This exists so that text which only becomes recognizable as a compound value
+/// *after* expansion can be reinterpreted without reconstructing and re-parsing
+/// a whole assignment word.
 ///
 /// # Arguments
 ///
-/// * `value` - The candidate compound value text, including its enclosing parentheses.
+/// * `value` - The candidate compound value text, including its enclosing
+///   parentheses.
 /// * `options` - The parser options to use.
 #[must_use]
 pub fn parse_compound_assignment_value(
@@ -659,11 +669,12 @@ pub(crate) fn parse_array_assignment(
 
 /// Parses one bound of a numeric brace sequence, e.g. `-007`.
 ///
-/// Returns `None` when the bound does not fit in an `i64`, which lets the sequence
-/// rule decline rather than panic on something like `{99999999999999999999..1}`.
+/// Returns `None` when the bound does not fit in an `i64`, which lets the
+/// sequence rule decline rather than panic on something like
+/// `{99999999999999999999..1}`.
 ///
-/// The sign goes to the parser along with the digits, so `i64::MIN` is accepted even
-/// though its digits alone are one past `i64::MAX`.
+/// The sign goes to the parser along with the digits, so `i64::MIN` is accepted
+/// even though its digits alone are one past `i64::MAX`.
 ///
 /// # Arguments
 ///
@@ -1295,10 +1306,11 @@ peg::parser! {
 #[cfg(test)]
 #[allow(clippy::panic_in_result_fn)]
 mod tests {
-    use super::*;
     use anyhow::Result;
     use insta::assert_ron_snapshot;
     use pretty_assertions::assert_matches;
+
+    use super::*;
 
     #[derive(serde::Serialize, serde::Deserialize)]
     struct ParseTestResults<'a> {
@@ -1512,8 +1524,8 @@ mod tests {
 
     #[test]
     fn parse_arithmetic_expansion_with_unmatched_brackets() -> Result<()> {
-        // Invalid arithmetic must stay arithmetic, rather than fall back to executing
-        // the expression as a command substitution.
+        // Invalid arithmetic must stay arithmetic, rather than fall back to
+        // executing the expression as a command substitution.
         for expr in ["echo unexpected [", "1[", "a[1", "[ ["] {
             let word = std::format!("$(({expr}))");
             let parsed = super::parse(&word, &ParserOptions::default())?;
@@ -1528,8 +1540,9 @@ mod tests {
 
     #[test]
     fn parse_arithmetic_expansion_with_deep_brackets() -> Result<()> {
-        // Brackets in the expression must not grow the word parser's call stack.
-        // Arithmetic evaluation can reject this expression after its boundaries are found.
+        // Brackets in the expression must not grow the word parser's call
+        // stack. Arithmetic evaluation can reject this expression after
+        // its boundaries are found.
         let expr = std::format!("{}1{}", "[".repeat(15_000), "]".repeat(15_000));
         for (open, close) in [("$((", "))"), ("$[", "]")] {
             let word = std::format!("{open}{expr}{close}");
@@ -1564,8 +1577,8 @@ mod tests {
 
     #[test]
     fn parse_malformed_expansions_as_errors() {
-        // As in bash, a `$` before `(` or `[` always starts an expansion; if none parses, the
-        // text is malformed, not literal text.
+        // As in bash, a `$` before `(` or `[` always starts an expansion; if
+        // none parses, the text is malformed, not literal text.
         let options = ParserOptions::default();
         for word in ["a$(echo", "\"$(echo\"", "$((1 +", "$[1 +", "\"a $[1 + b\""] {
             assert!(super::parse(word, &options).is_err(), "for {word:?}");
@@ -1585,9 +1598,10 @@ mod tests {
 
     #[test]
     fn parse_malformed_expansions_nested_in_parameter_expansions_quickly() {
-        // Each `${...}` can match any of ~20 parameter expression forms; unless its parse is
-        // memoized, a failure within (e.g., an unterminated `$(`) is re-discovered by each form,
-        // taking time exponential in the nesting depth.
+        // Each `${...}` can match any of ~20 parameter expression forms; unless
+        // its parse is memoized, a failure within (e.g., an
+        // unterminated `$(`) is re-discovered by each form, taking time
+        // exponential in the nesting depth.
         let options = ParserOptions::default();
         let nested =
             |inner: &str| std::format!("{}{inner}{}\n", "${x:-".repeat(30), "}".repeat(30));
@@ -1610,8 +1624,9 @@ mod tests {
 
     #[test]
     fn parse_heredoc_with_command_substitutions_nested_too_deeply() -> Result<()> {
-        // Here-doc bodies aren't tokenized along with the script, so the word parser is the
-        // first to find nesting past the tokenizer's limit; that's an error, not literal text.
+        // Here-doc bodies aren't tokenized along with the script, so the word
+        // parser is the first to find nesting past the tokenizer's
+        // limit; that's an error, not literal text.
         let nested = |depth: u32| {
             let depth = depth as usize;
             std::format!("{}:{}\n", "$(".repeat(depth), ")".repeat(depth))
@@ -1700,8 +1715,9 @@ mod tests {
                     && value.value == "value"
                     && other.value == r#""other one""#);
 
-        // Text that is not exclusively a compound value must not be accepted; otherwise trailing
-        // shell syntax hidden in an expanded value would be silently dropped.
+        // Text that is not exclusively a compound value must not be accepted;
+        // otherwise trailing shell syntax hidden in an expanded value
+        // would be silently dropped.
         assert!(parse(r#"(x); printf "INJECTED\n"; #"#).is_none());
         assert!(parse("(unterminated").is_none());
         assert!(parse("plain text").is_none());
@@ -1718,7 +1734,8 @@ mod tests {
         assert_eq!(super::parse_sequence_bound("-0"), Some(0));
         assert_eq!(super::parse_sequence_bound("99999999999999999999"), None);
 
-        // The digits of `i64::MIN` are one past `i64::MAX`, so the sign has to be parsed with them.
+        // The digits of `i64::MIN` are one past `i64::MAX`, so the sign has to
+        // be parsed with them.
         assert_eq!(
             super::parse_sequence_bound("-9223372036854775808"),
             Some(i64::MIN)
@@ -1739,7 +1756,8 @@ mod tests {
         assert_eq!(width("0", "10"), None);
         assert_eq!(width("-0", "3"), None);
 
-        // The width is the longer bound as written, whichever one asked for padding.
+        // The width is the longer bound as written, whichever one asked for
+        // padding.
         assert_eq!(width("01", "5"), Some(2));
         assert_eq!(width("1", "005"), Some(3));
         assert_eq!(width("0009", "11"), Some(4));

@@ -1,5 +1,4 @@
 use clap::Parser;
-
 use shrub_core::{ExecutionExitCode, ExecutionResult, builtins};
 
 /// Shift positional arguments.

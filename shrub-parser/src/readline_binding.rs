@@ -123,8 +123,9 @@ pub fn key_sequence_to_strokes(
             KeySequenceItem::Meta => current_stroke.meta = true,
             KeySequenceItem::Byte(b) => {
                 current_stroke.key_code.push(*b);
-                // If this is a control or meta stroke, the modifier only applies to this one byte,
-                // so we need to push the stroke and start fresh for subsequent bytes.
+                // If this is a control or meta stroke, the modifier only
+                // applies to this one byte, so we need to push
+                // the stroke and start fresh for subsequent bytes.
                 if current_stroke.control || current_stroke.meta {
                     strokes.push(current_stroke);
                     current_stroke = KeyStroke::default();
@@ -197,8 +198,9 @@ peg::parser! {
 #[cfg(test)]
 #[expect(clippy::panic_in_result_fn)]
 mod tests {
-    use super::*;
     use anyhow::Result;
+
+    use super::*;
 
     #[test]
     fn test_basic_shell_cmd_binding_parse() -> Result<()> {

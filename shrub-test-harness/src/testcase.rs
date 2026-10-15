@@ -1,10 +1,9 @@
 //! Test case definitions and YAML schema.
 
+use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
+
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::{HashMap, HashSet},
-    path::PathBuf,
-};
 
 /// How to invoke the shell for a test case.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -129,7 +128,8 @@ pub struct TestCase {
     #[serde(default)]
     pub max_oracle_version: Option<String>,
 
-    /// Timeout for this test in seconds; for a PTY test, for each expectation in it.
+    /// Timeout for this test in seconds; for a PTY test, for each expectation
+    /// in it.
     #[serde(default)]
     pub timeout_in_seconds: Option<u64>,
 
@@ -178,7 +178,8 @@ impl TestCase {
         self.snapshot
     }
 
-    /// Returns whether this test case has any expectations (inline or snapshot).
+    /// Returns whether this test case has any expectations (inline or
+    /// snapshot).
     pub const fn has_expectations(&self) -> bool {
         self.has_inline_expectations() || self.uses_snapshot()
     }

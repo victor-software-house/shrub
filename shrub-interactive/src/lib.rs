@@ -1,4 +1,5 @@
-//! Library implementing interactive command input and completion for the shrub shell.
+//! Library implementing interactive command input and completion for the shrub
+//! shell.
 
 mod error;
 pub use error::ShellError;

@@ -1,7 +1,10 @@
 //! Terminal utilities.
 
+use std::io::IsTerminal;
+use std::os::fd::AsFd;
+use std::path::PathBuf;
+
 use crate::{error, openfiles, sys, terminal};
-use std::{io::IsTerminal, os::fd::AsFd, path::PathBuf};
 
 /// Terminal configuration.
 #[derive(Clone, Debug)]
@@ -10,8 +13,8 @@ pub struct Config {
 }
 
 impl Config {
-    /// Creates a new `Config` from the actual terminal attributes of the terminal associated
-    /// with the given file descriptor.
+    /// Creates a new `Config` from the actual terminal attributes of the
+    /// terminal associated with the given file descriptor.
     ///
     /// # Arguments
     ///
@@ -22,7 +25,8 @@ impl Config {
         Ok(Self { termios })
     }
 
-    /// Applies the terminal settings to the terminal associated with the given file descriptor.
+    /// Applies the terminal settings to the terminal associated with the given
+    /// file descriptor.
     ///
     /// # Arguments
     ///
@@ -33,12 +37,13 @@ impl Config {
         Ok(())
     }
 
-    /// Applies the given high-level terminal settings to this configuration. Does not modify any
-    /// terminal itself.
+    /// Applies the given high-level terminal settings to this configuration.
+    /// Does not modify any terminal itself.
     ///
     /// # Arguments
     ///
-    /// * `settings` - The high-level terminal settings to apply to this configuration.
+    /// * `settings` - The high-level terminal settings to apply to this
+    ///   configuration.
     pub fn update(&mut self, settings: &terminal::Settings) {
         if settings.raw_input {
             nix::sys::termios::cfmakeraw(&mut self.termios);
@@ -103,27 +108,30 @@ pub fn move_to_foreground(pid: sys::process::ProcessId) -> Result<(), error::Err
 }
 
 /// Moves the current process to the foreground of the attached terminal.
-// This function needs to return `std::io::Error` so that the OS error code can be recovered.
+// This function needs to return `std::io::Error` so that the OS error code can
+// be recovered.
 pub fn move_self_to_foreground() -> Result<(), std::io::Error> {
     if std::io::stdin().is_terminal() {
         let pgid = nix::unistd::getpgid(None)?;
 
-        // TODO(jobs): This sometimes fails with ENOTTY even though we checked that stdin is a
-        // terminal. We should investigate why this is happening.
+        // TODO(jobs): This sometimes fails with ENOTTY even though we checked
+        // that stdin is a terminal. We should investigate why this is
+        // happening.
         let _ = nix::unistd::tcsetpgrp(std::io::stdin(), pgid);
     }
 
     Ok(())
 }
 
-/// Tries to get the path of the terminal device associated with the attached terminal.
-/// Returns `None` if there is no terminal attached or the lookup failed.
+/// Tries to get the path of the terminal device associated with the attached
+/// terminal. Returns `None` if there is no terminal attached or the lookup
+/// failed.
 pub fn try_get_terminal_device_path() -> Option<PathBuf> {
     nix::unistd::ttyname(std::io::stdin()).ok()
 }
 
-/// Returns the width, in columns, of the terminal associated with the given file.
-/// Returns `None` if it isn't a terminal or doesn't report a width.
+/// Returns the width, in columns, of the terminal associated with the given
+/// file. Returns `None` if it isn't a terminal or doesn't report a width.
 ///
 /// # Arguments
 ///

@@ -1,17 +1,18 @@
-//! Finds the words of an input line being completed, as bash does: both the word to
-//! complete (readline's) and the words of `COMP_WORDS`.
+//! Finds the words of an input line being completed, as bash does: both the
+//! word to complete (readline's) and the words of `COMP_WORDS`.
 
 use std::ops::Range;
 
 use super::quoting;
 
-/// The words of `COMP_WORDS` in an input line being completed, and which the cursor is in.
+/// The words of `COMP_WORDS` in an input line being completed, and which the
+/// cursor is in.
 #[derive(Debug)]
 pub(super) struct LineWords<'a> {
     /// The words of `COMP_WORDS`.
     pub comp_words: Vec<&'a str>,
-    /// The index of the cursor's word in `comp_words` (`COMP_CWORD`), if there are any
-    /// words.
+    /// The index of the cursor's word in `comp_words` (`COMP_CWORD`), if there
+    /// are any words.
     pub cword: Option<usize>,
 }
 
@@ -27,8 +28,8 @@ impl<'a> LineWords<'a> {
         self.comp_words.first().copied()
     }
 
-    /// Returns the word before the cursor's word, if any; like bash, when completing the
-    /// first word, that word itself.
+    /// Returns the word before the cursor's word, if any; like bash, when
+    /// completing the first word, that word itself.
     pub fn preceding_word(&self) -> Option<&'a str> {
         let index = self.cword?.saturating_sub(1);
         self.comp_words.get(index).copied()
@@ -37,15 +38,16 @@ impl<'a> LineWords<'a> {
 
 /// The word being completed: the text that completions replace.
 ///
-/// Like readline, it runs up to the cursor from just past an unclosed quote the cursor is
-/// in, or else from just past the last unquoted word-break char (see `COMP_WORDBREAKS`),
-/// so it may be only part of a shell word.
+/// Like readline, it runs up to the cursor from just past an unclosed quote the
+/// cursor is in, or else from just past the last unquoted word-break char (see
+/// `COMP_WORDBREAKS`), so it may be only part of a shell word.
 #[derive(Debug)]
 pub(super) struct CompletionWord {
-    /// The word's text, without its unclosed quote; a completion function's `$2`.
+    /// The word's text, without its unclosed quote; a completion function's
+    /// `$2`.
     pub text: String,
-    /// The byte range of the line that candidates replace: the word's text, and the
-    /// unclosed quote before it, if any.
+    /// The byte range of the line that candidates replace: the word's text, and
+    /// the unclosed quote before it, if any.
     pub range: Range<usize>,
 }
 
@@ -65,9 +67,10 @@ impl CompWord<'_> {
     }
 }
 
-/// Finds the words of `COMP_WORDS` in `input`, with `word_breaks` as the word-break chars,
-/// and which of them the cursor is in. They needn't agree with the word to complete (see
-/// [`find_completion_word`] and the module docs of [`completion`](super)).
+/// Finds the words of `COMP_WORDS` in `input`, with `word_breaks` as the
+/// word-break chars, and which of them the cursor is in. They needn't agree
+/// with the word to complete (see [`find_completion_word`] and the module docs
+/// of [`completion`](super)).
 pub(super) fn find_line_words<'a>(
     input: &'a str,
     word_breaks: &[char],
@@ -75,9 +78,10 @@ pub(super) fn find_line_words<'a>(
 ) -> LineWords<'a> {
     let mut comp_words = comp_words(input, word_breaks);
 
-    // Like bash, the cursor's word in COMP_WORDS is the last one touching the cursor
-    // (so one starting there wins over one ending there). If none does, the cursor is
-    // in whitespace, so insert an empty word there -- unless there are no words at all.
+    // Like bash, the cursor's word in COMP_WORDS is the last one touching the
+    // cursor (so one starting there wins over one ending there). If none
+    // does, the cursor is in whitespace, so insert an empty word there --
+    // unless there are no words at all.
     let cword = (!comp_words.is_empty()).then(|| {
         comp_words
             .iter()
@@ -101,14 +105,16 @@ pub(super) fn find_line_words<'a>(
     }
 }
 
-/// Returns whether a scanned char breaks words: if it's an unquoted word-break char.
+/// Returns whether a scanned char breaks words: if it's an unquoted word-break
+/// char.
 fn is_break(scanned: &quoting::ScannedChar, word_breaks: &[char]) -> bool {
     scanned.unquoted && word_breaks.contains(&scanned.c)
 }
 
-/// Finds the word to complete like readline: if the cursor is in an unclosed quote, it
-/// starts just past that quote; otherwise, just past the last unquoted word-break char before the
-/// cursor (or at it, if it's one of bash's special prefixes, `$` or `@`).
+/// Finds the word to complete like readline: if the cursor is in an unclosed
+/// quote, it starts just past that quote; otherwise, just past the last
+/// unquoted word-break char before the cursor (or at it, if it's one of bash's
+/// special prefixes, `$` or `@`).
 ///
 /// `cursor` must be a char boundary in `input`.
 #[allow(
@@ -145,9 +151,9 @@ pub(super) fn find_completion_word(
     }
 }
 
-/// Splits `input` into the words of `COMP_WORDS`, like bash: runs of chars other than
-/// word breaks are words, and so are runs of word-break chars other than whitespace;
-/// whitespace separates words but isn't one.
+/// Splits `input` into the words of `COMP_WORDS`, like bash: runs of chars
+/// other than word breaks are words, and so are runs of word-break chars other
+/// than whitespace; whitespace separates words but isn't one.
 #[allow(clippy::string_slice, reason = "used indices come from char_indices")]
 fn comp_words<'a>(input: &'a str, word_breaks: &[char]) -> Vec<CompWord<'a>> {
     let mut tokens = vec![];
@@ -159,8 +165,8 @@ fn comp_words<'a>(input: &'a str, word_breaks: &[char]) -> Vec<CompWord<'a>> {
         let is_break = is_break(&scanned, word_breaks);
         let is_whitespace = is_break && c.is_ascii_whitespace();
 
-        // A word ends at whitespace, or where it switches between word breaks and other
-        // chars.
+        // A word ends at whitespace, or where it switches between word breaks
+        // and other chars.
         if let Some(start) = word_start {
             if is_whitespace || is_break != word_is_breaks {
                 tokens.push(CompWord {
@@ -196,7 +202,8 @@ mod tests {
         let word_with = |delims: &str, input: &str, cursor: usize| {
             let delims: Vec<char> = delims.chars().collect();
             let word = find_completion_word(input, &delims, cursor);
-            // The word is in a quote if it's replaced from just before its text.
+            // The word is in a quote if it's replaced from just before its
+            // text.
             let quote = (word.range.len() > word.text.len())
                 .then(|| input.get(word.range.start..)?.chars().next())
                 .flatten();
@@ -227,17 +234,20 @@ mod tests {
         assert_eq!(word("ls a@:b", 7), unquoted("b"));
         assert_eq!(word("ls a@", 5), unquoted("@"));
 
-        // In an open quote, the word's text starts after the quote, wherever it opened.
+        // In an open quote, the word's text starts after the quote, wherever it
+        // opened.
         assert_eq!(word("ls 'a b:c", 9), quoted("a b:c", '\''));
         assert_eq!(word("ls x'a b", 8), quoted("a b", '\''));
         assert_eq!(word("ls --x=\"a", 9), quoted("a", '"'));
         assert_eq!(word(r#"ls "a\"b"#, 8), quoted(r#"a\"b"#, '"'));
-        // A `$'...'` quote opens at its `$`, and a backslash in it escapes a quote too.
+        // A `$'...'` quote opens at its `$`, and a backslash in it escapes a
+        // quote too.
         assert_eq!(word("ls $'a b", 8), quoted("a b", '$'));
         assert_eq!(word(r"ls $'a\'b c", 11), quoted(r"a\'b c", '$'));
         // But `$$` is the shell's PID, so a quote after it is an ordinary one.
         assert_eq!(word("ls $$'a b", 9), quoted("a b", '\''));
-        // Backslashes are literal in single quotes, and an escaped quote opens nothing.
+        // Backslashes are literal in single quotes, and an escaped quote opens
+        // nothing.
         assert_eq!(word(r"ls 'a\'b", 8), unquoted(r"'a\'b"));
         assert_eq!(word(r"ls \'a", 6), unquoted(r"\'a"));
     }

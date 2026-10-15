@@ -1,11 +1,11 @@
 use clap::Parser;
-
 use shrub_core::{ExecutionControlFlow, ExecutionExitCode, ExecutionResult, builtins};
 
 /// Continue to the next iteration of a control-flow loop.
 #[derive(Parser)]
 pub(crate) struct ContinueCommand {
-    /// If specified, indicates which nested loop to continue to the next iteration of.
+    /// If specified, indicates which nested loop to continue to the next
+    /// iteration of.
     #[clap(default_value_t = 1)]
     which_loop: i8,
 }

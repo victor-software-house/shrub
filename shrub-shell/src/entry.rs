@@ -1,21 +1,18 @@
 //! Implements the command-line interface for the `shrub` shell.
 
-use crate::args::CommandLineArgs;
-use crate::args::InputBackendType;
-use crate::shrubctl::ShellBuilderShrubBuiltinExt as _;
-use crate::bundled;
-use crate::config;
-use crate::error_formatter;
-use crate::events;
-use crate::productinfo;
+use std::io::IsTerminal;
+use std::path::Path;
+use std::sync::{Arc, LazyLock};
+
+use clap::CommandFactory;
 use shrub_builtins::ShellBuilderExt as _;
 #[cfg(feature = "experimental-builtins")]
 use shrub_experimental_builtins::ShellBuilderExt as _;
-use clap::CommandFactory;
-use std::io::IsTerminal;
-use std::sync::LazyLock;
-use std::{path::Path, sync::Arc};
 use tokio::sync::Mutex;
+
+use crate::args::{CommandLineArgs, InputBackendType};
+use crate::shrubctl::ShellBuilderShrubBuiltinExt as _;
+use crate::{bundled, config, error_formatter, events, productinfo};
 
 static TRACE_EVENT_CONFIG: LazyLock<Arc<tokio::sync::Mutex<Option<events::TraceEventConfig>>>> =
     LazyLock::new(|| Arc::new(tokio::sync::Mutex::new(None)));
@@ -23,8 +20,8 @@ static TRACE_EVENT_CONFIG: LazyLock<Arc<tokio::sync::Mutex<Option<events::TraceE
 type ShrubShellExtensions = shrub_core::extensions::ShellExtensionsImpl<error_formatter::Formatter>;
 type ShrubShell = shrub_core::Shell<ShrubShellExtensions>;
 
-// WARN: this implementation shadows `clap::Parser::parse_from` one so it must be defined
-// after the `use clap::Parser`
+// WARN: this implementation shadows `clap::Parser::parse_from` one so it must
+// be defined after the `use clap::Parser`
 impl CommandLineArgs {
     // This function takes precedence over [`clap::Parser::parse_from`]
     pub(crate) fn try_parse_from(
@@ -37,10 +34,11 @@ impl CommandLineArgs {
         if let Some(args) = script_args {
             let mut args = args.peekable();
 
-            // Bash stops option parsing at the first non-option word: a script path
-            // or the `-c` command string. A `--` seen before either is the option
-            // terminator and is dropped (`bash -s -- a`, `bash -- script.sh`); one
-            // seen after is an ordinary positional (`bash script.sh -- a`).
+            // Bash stops option parsing at the first non-option word: a script
+            // path or the `-c` command string. A `--` seen before
+            // either is the option terminator and is dropped (`bash
+            // -s -- a`, `bash -- script.sh`); one seen after is an
+            // ordinary positional (`bash script.sh -- a`).
             if this.script_args.is_empty() {
                 args.next_if(|a| a == "--");
             }
@@ -105,8 +103,8 @@ pub fn run() {
         Err(e) => {
             let _ = e.print();
 
-            // Check for whether this is something we'd truly consider fatal. clap returns
-            // errors for `--help`, `--version`, etc.
+            // Check for whether this is something we'd truly consider fatal.
+            // clap returns errors for `--help`, `--version`, etc.
             let exit_code = match e.kind() {
                 clap::error::ErrorKind::DisplayVersion => 0,
                 clap::error::ErrorKind::DisplayHelp => 0,
@@ -146,8 +144,9 @@ pub fn run() {
 /// Installs panic handlers to report our panic and cleanly exit on panic.
 fn install_panic_handlers() {
     //
-    // Set up panic handler. On release builds, it will capture panic details to a
-    // temporary .toml file and report a human-readable message to the screen.
+    // Set up panic handler. On release builds, it will capture panic details to
+    // a temporary .toml file and report a human-readable message to the
+    // screen.
     //
     human_panic::setup_panic!(
         human_panic::Metadata::new(productinfo::PRODUCT_NAME, productinfo::PRODUCT_VERSION)
@@ -156,10 +155,11 @@ fn install_panic_handlers() {
     );
 
     //
-    // If stdout is connected to a terminal, then register a new panic handler that
-    // resets the terminal and then invokes the previously registered handler. In
-    // dev/debug builds, the previously registered handler will be the default
-    // handler; in release builds, it will be the one registered by `human_panic`.
+    // If stdout is connected to a terminal, then register a new panic handler
+    // that resets the terminal and then invokes the previously registered
+    // handler. In dev/debug builds, the previously registered handler will
+    // be the default handler; in release builds, it will be the one
+    // registered by `human_panic`.
     //
     if std::io::stdout().is_terminal() {
         let original_panic_handler = std::panic::take_hook();
@@ -202,14 +202,16 @@ async fn run_async(
         .into_config_or_log()
         .map_err(|e| shrub_interactive::ShellError::IoError(std::io::Error::other(e)))?;
 
-    // Instantiate an appropriately configured shell and wrap it in an `Arc`. Note that we do
-    // *not* run any code in the shell yet. We'll delay loading profiles and such until after
-    // we've set up everything else (in `run_in_shell`).
+    // Instantiate an appropriately configured shell and wrap it in an `Arc`.
+    // Note that we do *not* run any code in the shell yet. We'll delay
+    // loading profiles and such until after we've set up everything else
+    // (in `run_in_shell`).
     let shell: ShrubShell = instantiate_shell(&args, cli_args).await?;
     let shell = Arc::new(Mutex::new(shell));
 
-    // Run with the selected input backend. Each branch instantiates the concrete
-    // backend type and calls `run_in_shell`, preserving static dispatch.
+    // Run with the selected input backend. Each branch instantiates the
+    // concrete backend type and calls `run_in_shell`, preserving static
+    // dispatch.
     let default_backend = get_default_input_backend_type(&args);
     let selected_backend = args.input_backend.unwrap_or(default_backend);
 
@@ -295,9 +297,9 @@ async fn run_in_shell(
     let read_commands_from_stdin = args.will_read_commands_from_stdin();
     let interactive_options: shrub_interactive::InteractiveOptions = ui_options.into();
 
-    // Before config files run, so they (and what they source) observe it -- and only for a
-    // shell that goes on to read commands interactively below, since only such a shell
-    // dispatches hooks.
+    // Before config files run, so they (and what they source) observe it -- and
+    // only for a shell that goes on to read commands interactively below,
+    // since only such a shell dispatches hooks.
     if read_commands_from_stdin {
         shrub_interactive::init_zsh_style_hooks(
             &mut *shell_ref.lock().await,
@@ -312,8 +314,9 @@ async fn run_in_shell(
     if let Some(command) = args.command {
         shell_ref.lock().await.run_dash_c_command(command).await?;
 
-    // Otherwise read commands interactively: -s was given (positional args become parameters;
-    // a script named among them is *not* run), or nothing to run was specified.
+    // Otherwise read commands interactively: -s was given (positional args
+    // become parameters; a script named among them is *not* run), or
+    // nothing to run was specified.
     } else if read_commands_from_stdin {
         shrub_interactive::InteractiveShell::new(shell_ref, input_backend, &interactive_options)?
             .run_interactively()
@@ -368,7 +371,8 @@ async fn initialize_shell(
     Ok(())
 }
 
-/// Instantiates a shell from command-line arguments. Does *not* run any code in the shell.
+/// Instantiates a shell from command-line arguments. Does *not* run any code in
+/// the shell.
 ///
 /// # Arguments
 ///
@@ -403,8 +407,9 @@ fn instantiate_shell_from_file(
     let mut shell: ShrubShell = serde_json::from_reader(std::fs::File::open(file_path)?)
         .map_err(|e| shrub_interactive::ShellError::IoError(std::io::Error::other(e)))?;
 
-    // NOTE: We need to manually register builtins because we can't serialize/deserialize them.
-    // TODO(serde): we should consider whether we could/should at least track *which* are enabled.
+    // NOTE: We need to manually register builtins because we can't
+    // serialize/deserialize them. TODO(serde): we should consider whether
+    // we could/should at least track *which* are enabled.
     let builtin_set = if shell.options().sh_mode {
         shrub_builtins::BuiltinSet::ShMode
     } else {
@@ -426,7 +431,8 @@ fn instantiate_shell_from_file(
     Ok(shell)
 }
 
-/// Instantiates a shell from command-line arguments. Does *not* run any code in the shell.
+/// Instantiates a shell from command-line arguments. Does *not* run any code in
+/// the shell.
 ///
 /// # Arguments
 ///
@@ -460,8 +466,8 @@ async fn instantiate_shell_from_args(
         None
     };
 
-    // Commands are read from stdin if -s was provided, or if no command was specified (either via
-    // -c or as a positional argument).
+    // Commands are read from stdin if -s was provided, or if no command was
+    // specified (either via -c or as a positional argument).
     let read_commands_from_stdin = args.will_read_commands_from_stdin();
 
     let builtin_set = if args.sh_mode {
@@ -489,8 +495,9 @@ async fn instantiate_shell_from_args(
     let parser_impl = shrub_core::parser::ParserImpl::Peg;
 
     // Set up the shell builder with the requested options.
-    // NOTE: We skip loading profile and rc files here; that will be handled later after we've
-    // fully instantiated everything we want set before running any code.
+    // NOTE: We skip loading profile and rc files here; that will be handled
+    // later after we've fully instantiated everything we want set before
+    // running any code.
     let shell = shrub_core::Shell::builder_with_extensions::<ShrubShellExtensions>()
         .disable_options(args.disabled_options.clone())
         .disable_shopt_options(args.disabled_shopt_options.clone())
@@ -594,7 +601,8 @@ fn get_default_input_backend_type(args: &CommandLineArgs) -> InputBackendType {
 }
 
 /// Returns the input backend to use if none is requested: the first this build
-/// offers, of the richest for commands typed at a terminal, or else the simplest.
+/// offers, of the richest for commands typed at a terminal, or else the
+/// simplest.
 ///
 /// # Arguments
 ///
@@ -648,9 +656,10 @@ fn try_reset_terminal_to_defaults() -> Result<(), std::io::Error> {
 #[cfg(test)]
 #[allow(clippy::panic_in_result_fn)]
 mod tests {
-    use super::*;
     use anyhow::Result;
     use pretty_assertions::{assert_eq, assert_matches};
+
+    use super::*;
 
     fn args(strs: &[&str]) -> Vec<String> {
         strs.iter().map(|s| s.to_string()).collect()
@@ -851,7 +860,8 @@ mod tests {
 
     #[test]
     fn parse_c_combined_with_other_flags() -> Result<()> {
-        // `-c` groups with other short flags in any order, as in `shrub -cl "echo hi"`.
+        // `-c` groups with other short flags in any order, as in `shrub -cl
+        // "echo hi"`.
         for argv in [
             &["shrub", "-cl", "echo hi", "name"][..],
             &["shrub", "-lc", "echo hi", "name"][..],
@@ -895,10 +905,11 @@ mod tests {
 
     #[test]
     fn parse_oc_is_o_with_an_attached_value() -> Result<()> {
-        // To shrub's parser, -oc is -o with attached value "c", not -o flag + -c
-        // flag, so the -- is an ordinary option terminator here. NOTE: bash instead
-        // takes the *next* word as -o's option name; see the known-failure compat
-        // case "-oc with -- takes its option name from the next word".
+        // To shrub's parser, -oc is -o with attached value "c", not -o flag +
+        // -c flag, so the -- is an ordinary option terminator here.
+        // NOTE: bash instead takes the *next* word as -o's option name;
+        // see the known-failure compat case "-oc with -- takes its
+        // option name from the next word".
         let parsed_args = CommandLineArgs::try_parse_from(args(&["shrub", "-oc", "--", "echo"]))?;
         // -o consumed "c" as its value; -- ended the options; no -c command.
         assert!(parsed_args.command.is_none());

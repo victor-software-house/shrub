@@ -1,5 +1,8 @@
 //! Test runner implementation.
 
+use anyhow::{Context, Result};
+use colored::Colorize;
+
 use crate::comparison::{
     DirComparison, DurationComparison, ExitStatusComparison, ExpectationComparison,
     OracleComparison, SingleExpectationComparison, SnapshotResult, StringComparison,
@@ -8,8 +11,6 @@ use crate::comparison::{
 use crate::config::{RunnerConfig, TestMode, TestOptions};
 use crate::reporting::{TestCaseResult, TestCaseSetResults};
 use crate::testcase::{TestCase, TestCaseSet};
-use anyhow::{Context, Result};
-use colored::Colorize;
 
 /// The main test runner.
 pub struct TestRunner {
@@ -514,7 +515,8 @@ fn check_snapshot(
     // Collect files from the temp directory
     let files = collect_temp_dir_files(test_temp_dir, test_case);
 
-    // Build snapshot content manually with literal block style for better readability
+    // Build snapshot content manually with literal block style for better
+    // readability
     let snapshot_content = format_snapshot_yaml(
         test_result.exit_status.code().unwrap_or(-1),
         &test_result.stdout,
@@ -531,7 +533,8 @@ fn check_snapshot(
         .unwrap_or("unknown");
     let test_name = test_case.name.as_deref().unwrap_or("unnamed");
 
-    // Convert spaces to underscores in snapshot name for filesystem compatibility
+    // Convert spaces to underscores in snapshot name for filesystem
+    // compatibility
     let snapshot_name = format!("{}_{}", yaml_stem, test_name.replace(' ', "_"));
 
     // Use insta's settings to configure snapshot location
@@ -608,7 +611,8 @@ fn format_yaml_string(output: &mut String, s: &str, indent: usize) {
         for line in s.lines() {
             writeln!(output, "{indent_str}{line}").ok();
         }
-        // If string ends with newline but lines() doesn't capture trailing empty line
+        // If string ends with newline but lines() doesn't capture trailing
+        // empty line
         if s.ends_with('\n') && !s.ends_with("\n\n") {
             // Already handled by literal block indicator '|'
         } else if s.ends_with("\n\n") {
@@ -619,7 +623,8 @@ fn format_yaml_string(output: &mut String, s: &str, indent: usize) {
             }
         }
     } else {
-        // Single line - use quoted style if contains special chars, otherwise plain
+        // Single line - use quoted style if contains special chars, otherwise
+        // plain
         if s.contains(':')
             || s.contains('#')
             || s.contains('\'')

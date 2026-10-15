@@ -1,9 +1,8 @@
-use crate::{
-    ExecutionParameters, error, expansion, extensions,
-    shell::Shell,
-    sys::{self, users},
-};
 use std::path::Path;
+
+use crate::shell::Shell;
+use crate::sys::{self, users};
+use crate::{ExecutionParameters, error, expansion, extensions};
 
 const VERSION_MAJOR: &str = env!("CARGO_PKG_VERSION_MAJOR");
 const VERSION_MINOR: &str = env!("CARGO_PKG_VERSION_MINOR");
@@ -41,10 +40,11 @@ pub(crate) async fn expand_prompt(
     }
 
     if shell.options().expand_prompt_strings {
-        // Now expand any remaining escape sequences, but without tilde-expansion.
-        // Use double-quote escape rules so that backslashes emitted in the
-        // previous step survive intact unless they precede a character that
-        // would also be escapable inside a double-quoted string.
+        // Now expand any remaining escape sequences, but without
+        // tilde-expansion. Use double-quote escape rules so that
+        // backslashes emitted in the previous step survive intact
+        // unless they precede a character that would also be escapable
+        // inside a double-quoted string.
         let options = expansion::ExpanderOptions {
             tilde_expand: false,
             brace_expand: false,

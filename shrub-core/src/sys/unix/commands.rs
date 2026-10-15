@@ -1,13 +1,10 @@
 //! Command execution utilities.
 
-pub use std::os::unix::process::CommandExt;
-pub use std::os::unix::process::ExitStatusExt;
+pub use std::os::unix::process::{CommandExt, ExitStatusExt};
 
 use command_fds::{CommandFdExt, FdMapping};
 
-use crate::ShellFd;
-use crate::error;
-use crate::openfiles;
+use crate::{ShellFd, error, openfiles};
 
 /// Extension trait for injecting file descriptors into commands.
 pub trait CommandFdInjectionExt {

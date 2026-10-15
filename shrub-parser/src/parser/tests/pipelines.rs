@@ -1,8 +1,9 @@
 //! Tests for pipeline parsing.
 
+use anyhow::Result;
+
 use super::{ParseResult, test_with_snapshot};
 use crate::assert_snapshot_redacted;
-use anyhow::Result;
 
 #[test]
 fn parse_simple_pipe() -> Result<()> {

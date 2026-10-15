@@ -1,5 +1,5 @@
-//! Defines `cfg(reedline_backend)` where the reedline input backend is built: with
-//! the `reedline` feature, on a target it builds for.
+//! Defines `cfg(reedline_backend)` where the reedline input backend is built:
+//! with the `reedline` feature, on a target it builds for.
 
 fn main() {
     println!("cargo::rerun-if-changed=build.rs");

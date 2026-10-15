@@ -7,8 +7,7 @@ pub struct Child {
     inner: std::process::Child,
 }
 
-pub(crate) use std::process::ExitStatus;
-pub(crate) use std::process::Output;
+pub(crate) use std::process::{ExitStatus, Output};
 
 impl Child {
     /// Returns the process ID of the child process, if available.

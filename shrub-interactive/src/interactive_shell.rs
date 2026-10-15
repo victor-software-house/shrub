@@ -1,11 +1,7 @@
-use std::io::IsTerminal as _;
-use std::io::Write as _;
+use std::io::{IsTerminal as _, Write as _};
 use std::ops::ControlFlow;
 
-use crate::InputBackend;
-use crate::InteractivePrompt;
-use crate::ReadResult;
-use crate::ShellError;
+use crate::{InputBackend, InteractivePrompt, ReadResult, ShellError};
 
 /// Result of an interactive execution.
 pub enum InteractiveExecutionResult {
@@ -18,7 +14,8 @@ pub enum InteractiveExecutionResult {
 }
 
 impl From<&InteractiveExecutionResult> for i32 {
-    /// Converts an `InteractiveExecutionResult` into a signed, 32-bit exit code.
+    /// Converts an `InteractiveExecutionResult` into a signed, 32-bit exit
+    /// code.
     fn from(value: &InteractiveExecutionResult) -> Self {
         match value {
             InteractiveExecutionResult::Executed(result) => u8::from(result.exit_code).into(),
@@ -33,16 +30,18 @@ impl From<&InteractiveExecutionResult> for i32 {
 pub struct InteractiveOptions {
     /// Whether terminal shell integration is enabled.
     pub terminal_shell_integration: bool,
-    /// Whether to run zsh-style `precmd_functions`/`preexec_functions` hooks. Inert on its
-    /// own: the embedder must also call [`init_zsh_style_hooks`](crate::init_zsh_style_hooks)
-    /// before the shell loads its profile and rc files.
+    /// Whether to run zsh-style `precmd_functions`/`preexec_functions` hooks.
+    /// Inert on its own: the embedder must also call
+    /// [`init_zsh_style_hooks`](crate::init_zsh_style_hooks) before the
+    /// shell loads its profile and rc files.
     pub zsh_style_hooks: bool,
 }
 
-/// Reads `PROMPT_COMMAND` as bash does: a string is a single command, an indexed array is one
-/// command per element, and any other type runs nothing at all. Deliberately *not* read as a
-/// word list the way the hook registries are: bash gives `PROMPT_COMMAND` its own handling
-/// rather than expanding it as `"${PROMPT_COMMAND[@]}"`.
+/// Reads `PROMPT_COMMAND` as bash does: a string is a single command, an
+/// indexed array is one command per element, and any other type runs nothing at
+/// all. Deliberately *not* read as a word list the way the hook registries are:
+/// bash gives `PROMPT_COMMAND` its own handling rather than expanding it as
+/// `"${PROMPT_COMMAND[@]}"`.
 fn read_prompt_commands<SE: shrub_core::ShellExtensions>(
     shell: &shrub_core::Shell<SE>,
 ) -> Vec<String> {
@@ -53,13 +52,15 @@ fn read_prompt_commands<SE: shrub_core::ShellExtensions>(
     }
 }
 
-/// Represents an interactive shell that displays prompts, interactively reads user input, etc.
+/// Represents an interactive shell that displays prompts, interactively reads
+/// user input, etc.
 pub struct InteractiveShell<'a, IB: InputBackend, SE: shrub_core::ShellExtensions> {
     /// The underlying shell instance.
     shell: crate::ShellRef<SE>,
     /// The input backend to use.
     input: &'a mut IB,
-    /// Terminal integration utility; inert if integration is off or unsupported.
+    /// Terminal integration utility; inert if integration is off or
+    /// unsupported.
     terminal_integration: crate::term_integration::TerminalIntegration,
     /// Terminal-control guard, held for the lifetime of the interactive shell.
     _terminal_control: Option<shrub_core::terminal::TerminalControl>,
@@ -89,8 +90,9 @@ impl<'a, IB: InputBackend, SE: shrub_core::ShellExtensions> InteractiveShell<'a,
             None
         };
 
-        // Set up terminal integration if enabled *and* if stdin is a terminal. Otherwise a
-        // switched-off one, which every call site below can report events to unconditionally.
+        // Set up terminal integration if enabled *and* if stdin is a terminal.
+        // Otherwise a switched-off one, which every call site below can
+        // report events to unconditionally.
         let terminal_integration = if options.terminal_shell_integration && stdin_is_terminal {
             let terminfo = crate::term_detection::get_terminal_info(&HostEnvironment);
             crate::term_integration::TerminalIntegration::init(terminfo)?
@@ -107,9 +109,9 @@ impl<'a, IB: InputBackend, SE: shrub_core::ShellExtensions> InteractiveShell<'a,
         })
     }
 
-    /// Runs the interactive shell loop, reading commands from standard input and writing
-    /// results to standard output and standard error. Continues until the shell
-    /// normally exits or until a fatal error occurs.
+    /// Runs the interactive shell loop, reading commands from standard input
+    /// and writing results to standard output and standard error. Continues
+    /// until the shell normally exits or until a fatal error occurs.
     pub async fn run_interactively(&mut self) -> Result<(), ShellError> {
         let mut shell = self.shell.lock().await;
 
@@ -119,8 +121,9 @@ impl<'a, IB: InputBackend, SE: shrub_core::ShellExtensions> InteractiveShell<'a,
 
         drop(shell);
 
-        // Run commands until the shell exits or input ends. The loop yields its result
-        // rather than returning early on an error, so that the session still ends below.
+        // Run commands until the shell exits or input ends. The loop yields its
+        // result rather than returning early on an error, so that the
+        // session still ends below.
         let looped = loop {
             let result = match self.run_interactively_once().await {
                 Ok(result) => result,
@@ -159,8 +162,8 @@ impl<'a, IB: InputBackend, SE: shrub_core::ShellExtensions> InteractiveShell<'a,
 
         let mut shell = self.shell.lock().await;
 
-        // End the session whether or not the loop failed. If both failed, the loop's error
-        // is the one to report.
+        // End the session whether or not the loop failed. If both failed, the
+        // loop's error is the one to report.
         let ended = shell.end_interactive_session();
         looped?;
         ended?;
@@ -170,8 +173,9 @@ impl<'a, IB: InputBackend, SE: shrub_core::ShellExtensions> InteractiveShell<'a,
         }
 
         if let Err(e) = shell.save_history() {
-            // N.B. This seems like the sort of thing that's worth being noisy about,
-            // but bash doesn't do that -- and probably for a reason.
+            // N.B. This seems like the sort of thing that's worth being noisy
+            // about, but bash doesn't do that -- and probably for a
+            // reason.
             tracing::debug!("couldn't save history: {e}");
         }
 
@@ -183,17 +187,19 @@ impl<'a, IB: InputBackend, SE: shrub_core::ShellExtensions> InteractiveShell<'a,
         Ok(())
     }
 
-    /// Runs the interactive shell loop once, reading a single command from standard input.
+    /// Runs the interactive shell loop once, reading a single command from
+    /// standard input.
     async fn run_interactively_once(&mut self) -> Result<InteractiveExecutionResult, ShellError> {
         let mut shell = self.shell.lock().await;
 
         // Check for any completed jobs.
         shell.check_for_completed_jobs()?;
 
-        // Everything between here and reading input is prompt work, and a shell that displays
-        // no prompt does none of it: `script | shrub -s` reads commands through this loop but
-        // isn't interactive in the `$-` sense, so bash runs no PROMPT_COMMAND and expands no
-        // PS1 there.
+        // Everything between here and reading input is prompt work, and a shell
+        // that displays no prompt does none of it: `script | shrub -s`
+        // reads commands through this loop but isn't interactive in the
+        // `$-` sense, so bash runs no PROMPT_COMMAND and expands no PS1
+        // there.
         let prompt = if shell.options().interactive {
             // Run any pre-prompt actions.
             if let ControlFlow::Break(exit) =
@@ -258,8 +264,8 @@ impl<'a, IB: InputBackend, SE: shrub_core::ShellExtensions> InteractiveShell<'a,
     /// # Arguments
     ///
     /// * `read_result` - The line of input to execute.
-    /// * `user_input` - Whether the line came from direct user input (as opposed to a key binding,
-    ///   say).
+    /// * `user_input` - Whether the line came from direct user input (as
+    ///   opposed to a key binding, say).
     async fn execute_line(
         &mut self,
         read_result: String,
@@ -270,8 +276,9 @@ impl<'a, IB: InputBackend, SE: shrub_core::ShellExtensions> InteractiveShell<'a,
         // See if the the user interface has a non-empty read buffer.
         let buffer_info = self.input.get_read_buffer();
 
-        // If the user interface has a read buffer -- even an empty one -- reflect it to the
-        // shell so that bound commands see READLINE_LINE/READLINE_POINT, as they do in bash.
+        // If the user interface has a read buffer -- even an empty one --
+        // reflect it to the shell so that bound commands see
+        // READLINE_LINE/READLINE_POINT, as they do in bash.
         let had_buffer = if let Some((buffer, cursor)) = buffer_info {
             shell.set_edit_buffer(buffer, cursor)?;
             true
@@ -279,10 +286,12 @@ impl<'a, IB: InputBackend, SE: shrub_core::ShellExtensions> InteractiveShell<'a,
             false
         };
 
-        // If the line came from direct user input (as opposed to a key binding, say), then we
-        // need to do a few more things before executing it. A hook that exited the shell
-        // stands in for the command: the line never runs, and neither does the bookkeeping
-        // below, which only matters to a shell that goes on to read another line.
+        // If the line came from direct user input (as opposed to a key binding,
+        // say), then we need to do a few more things before executing
+        // it. A hook that exited the shell stands in for the command:
+        // the line never runs, and neither does the bookkeeping
+        // below, which only matters to a shell that goes on to read another
+        // line.
         if user_input
             && let ControlFlow::Break(exit) =
                 Self::run_pre_exec_actions(&mut shell, read_result.as_str(), &self.options).await?
@@ -293,9 +302,10 @@ impl<'a, IB: InputBackend, SE: shrub_core::ShellExtensions> InteractiveShell<'a,
         // Count the command's lines.
         let line_count = read_result.lines().count().max(1);
 
-        // Terminal integration brackets the command with a matched pair of markers, so both
-        // are emitted here, around the one call that runs it: no failure between them can
-        // leave a started command unclosed, and nothing below this writes to the terminal.
+        // Terminal integration brackets the command with a matched pair of
+        // markers, so both are emitted here, around the one call that
+        // runs it: no failure between them can leave a started command
+        // unclosed, and nothing below this writes to the terminal.
         self.terminal_integration
             .on_pre_exec_command(&read_result)?;
 
@@ -313,10 +323,10 @@ impl<'a, IB: InputBackend, SE: shrub_core::ShellExtensions> InteractiveShell<'a,
         // Update cumulative line counter based on actual lines in the command.
         shell.increment_interactive_line_offset(line_count);
 
-        // See if the shell has input buffer state that we need to reflect back to
-        // the user interface. It may be state that originally came from the user
-        // interface, or it may be state that was programmatically generated by
-        // the command we just executed.
+        // See if the shell has input buffer state that we need to reflect back
+        // to the user interface. It may be state that originally came
+        // from the user interface, or it may be state that was
+        // programmatically generated by the command we just executed.
         let mut buffer_and_cursor = shell.pop_edit_buffer()?;
 
         drop(shell);
@@ -332,12 +342,14 @@ impl<'a, IB: InputBackend, SE: shrub_core::ShellExtensions> InteractiveShell<'a,
         result
     }
 
-    /// Runs pre-prompt actions. Breaks with the result of one that exited the shell.
+    /// Runs pre-prompt actions. Breaks with the result of one that exited the
+    /// shell.
     async fn run_pre_prompt_actions(
         shell: &mut shrub_core::Shell<SE>,
         options: &InteractiveOptions,
     ) -> Result<ControlFlow<shrub_core::ExecutionResult>, ShellError> {
-        // precmd hooks first: bash-preexec prepends its dispatcher to PROMPT_COMMAND.
+        // precmd hooks first: bash-preexec prepends its dispatcher to
+        // PROMPT_COMMAND.
         if let ControlFlow::Break(exit) = crate::zsh_hooks::run_precmd(shell, options).await? {
             return Ok(ControlFlow::Break(exit));
         }
@@ -354,7 +366,8 @@ impl<'a, IB: InputBackend, SE: shrub_core::ShellExtensions> InteractiveShell<'a,
         Ok(ControlFlow::Continue(()))
     }
 
-    /// Runs pre-exec actions. Breaks with the result of a hook that exited the shell.
+    /// Runs pre-exec actions. Breaks with the result of a hook that exited the
+    /// shell.
     ///
     /// # Arguments
     ///
@@ -366,8 +379,9 @@ impl<'a, IB: InputBackend, SE: shrub_core::ShellExtensions> InteractiveShell<'a,
         command_line: &str,
         options: &InteractiveOptions,
     ) -> Result<ControlFlow<shrub_core::ExecutionResult>, ShellError> {
-        // Display the pre-command prompt on stderr (if there is one). Like the other prompts,
-        // this is expanded only by a shell that's interactive in the `$-` sense.
+        // Display the pre-command prompt on stderr (if there is one). Like the
+        // other prompts, this is expanded only by a shell that's
+        // interactive in the `$-` sense.
         if shell.options().interactive {
             let precmd_prompt = shell.compose_precmd_prompt().await?;
             if !precmd_prompt.is_empty() {
@@ -379,12 +393,13 @@ impl<'a, IB: InputBackend, SE: shrub_core::ShellExtensions> InteractiveShell<'a,
         // Update history (if applicable).
         shell.add_to_history(command_line.trim_end_matches('\n'))?;
 
-        // preexec hooks get the line as entered; they are the last thing before it runs, so
-        // their break is this function's.
+        // preexec hooks get the line as entered; they are the last thing before
+        // it runs, so their break is this function's.
         crate::zsh_hooks::run_preexec(shell, options, command_line).await
     }
 
-    /// Runs one `PROMPT_COMMAND` entry. Breaks with its result if it exited the shell.
+    /// Runs one `PROMPT_COMMAND` entry. Breaks with its result if it exited the
+    /// shell.
     async fn run_pre_prompt_command(
         shell: &mut shrub_core::Shell<SE>,
         prompt_cmd: String,
@@ -440,7 +455,8 @@ mod tests {
         }
     }
 
-    /// An interactive session ends even when the loop fails, so the shell isn't left in it.
+    /// An interactive session ends even when the loop fails, so the shell isn't
+    /// left in it.
     #[tokio::test]
     async fn failed_interactive_loop_ends_its_session() -> Result<(), ShellError> {
         let shell = shrub_core::Shell::builder()

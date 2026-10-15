@@ -25,8 +25,9 @@ pub enum ParseError {
 #[allow(clippy::cast_sign_loss)]
 #[allow(unused)] // Workaround unused warnings in nightly versions of the compiler
 pub mod miette {
-    use super::ParseError;
     use miette::SourceOffset;
+
+    use super::ParseError;
 
     impl ParseError {
         /// Convert the original error to one miette can pretty print
@@ -100,7 +101,8 @@ pub enum WordParseError {
     Word(String, ParseErrorLocation),
 }
 
-/// Represents an error that occurred while parsing a (non-extended) test command.
+/// Represents an error that occurred while parsing a (non-extended) test
+/// command.
 #[derive(Debug, thiserror::Error)]
 #[error(transparent)]
 pub struct TestCommandParseError(#[from] peg::error::ParseError<usize>);

@@ -62,7 +62,8 @@ pub struct Settings {
     pub echo_input: Option<bool>,
     /// Whether to enable line input (sometimes known as canonical mode).
     pub line_input: Option<bool>,
-    /// Whether to disable interrupt signals and instead yield the control characters.
+    /// Whether to disable interrupt signals and instead yield the control
+    /// characters.
     pub interrupt_signals: Option<bool>,
     /// Whether to output newline characters as CRLF pairs.
     pub output_nl_as_nlcr: Option<bool>,

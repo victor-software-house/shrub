@@ -2,11 +2,10 @@
 
 use std::os::unix::ffi::OsStringExt;
 use std::os::unix::fs::FileTypeExt;
+pub use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
 use crate::error;
-
-pub use std::os::unix::fs::MetadataExt;
 
 #[cfg(target_os = "android")]
 // _PATH_DEFPATH in https://android.googlesource.com/platform/bionic/+/refs/heads/main/libc/include/paths.h
@@ -99,12 +98,13 @@ pub(crate) fn get_default_executable_search_paths() -> Vec<PathBuf> {
     }
 }
 
-/// Retrieves the platform-specific set of paths that should contain standard system
-/// utilities. Used by `command -p`, for example.
+/// Retrieves the platform-specific set of paths that should contain standard
+/// system utilities. Used by `command -p`, for example.
 pub fn get_default_standard_utils_paths() -> Vec<PathBuf> {
     //
-    // Try to call confstr(_CS_PATH). If that fails, can't find a string value, or
-    // finds an empty string, then we'll fall back to hard-coded defaults.
+    // Try to call confstr(_CS_PATH). If that fails, can't find a string value,
+    // or finds an empty string, then we'll fall back to hard-coded
+    // defaults.
     //
 
     if let Ok(Some(cs_path)) = confstr_cs_path()
@@ -150,22 +150,25 @@ fn confstr_cs_path() -> Result<Option<PathBuf>, std::io::Error> {
     }
 }
 
-/// A wrapper for [`nix::libc::confstr`]. Returns a value for the default PATH variable which
-/// indicates where all the POSIX.2 standard utilities can be found.
+/// A wrapper for [`nix::libc::confstr`]. Returns a value for the default PATH
+/// variable which indicates where all the POSIX.2 standard utilities can be
+/// found.
 ///
-/// N.B. We would strongly prefer to use a safe API exposed (in an idiomatic way) by nix
-/// or similar. Until that exists, we accept the need to make the unsafe call directly.
+/// N.B. We would strongly prefer to use a safe API exposed (in an idiomatic
+/// way) by nix or similar. Until that exists, we accept the need to make the
+/// unsafe call directly.
 #[cfg(not(target_os = "android"))]
 fn confstr(name: nix::libc::c_int) -> Result<Option<std::ffi::OsString>, std::io::Error> {
     // SAFETY:
-    // Calling `confstr` with a null pointer and size 0 is a documented way to query
-    // the required size of the buffer to hold the value associated with `name`. It
-    // should not end up causing any undefined behavior.
+    // Calling `confstr` with a null pointer and size 0 is a documented way to
+    // query the required size of the buffer to hold the value associated
+    // with `name`. It should not end up causing any undefined behavior.
     let required_size = unsafe { nix::libc::confstr(name, std::ptr::null_mut(), 0) };
 
-    // When confstr returns 0, it either means there's no value associated with _CS_PATH, or
-    // _CS_PATH is considered invalid (and not present) on this platform. In both cases, we
-    // treat it as a non-existent value and return None.
+    // When confstr returns 0, it either means there's no value associated with
+    // _CS_PATH, or _CS_PATH is considered invalid (and not present) on this
+    // platform. In both cases, we treat it as a non-existent value and
+    // return None.
     if required_size == 0 {
         return Ok(None);
     }
@@ -173,10 +176,11 @@ fn confstr(name: nix::libc::c_int) -> Result<Option<std::ffi::OsString>, std::io
     let mut buffer = Vec::<u8>::with_capacity(required_size);
 
     // SAFETY:
-    // We are calling `confstr` with a valid pointer and size that we obtained from the
-    // allocated buffer. Writing `c_char` (i8 or u8 depending on the platform) into
-    // `Vec<u8>` is fine, as i8 and u8 have compatible representations, and Rust does
-    // not support platforms where `c_char` is not 8-bit wide.
+    // We are calling `confstr` with a valid pointer and size that we obtained
+    // from the allocated buffer. Writing `c_char` (i8 or u8 depending on
+    // the platform) into `Vec<u8>` is fine, as i8 and u8 have compatible
+    // representations, and Rust does not support platforms where `c_char`
+    // is not 8-bit wide.
     let final_size =
         unsafe { nix::libc::confstr(name, buffer.as_mut_ptr().cast(), buffer.capacity()) };
 
@@ -184,9 +188,10 @@ fn confstr(name: nix::libc::c_int) -> Result<Option<std::ffi::OsString>, std::io
         return Err(std::io::Error::last_os_error());
     }
 
-    // Per the docs on `confstr`, it *may* return a size larger than the provided buffer.
-    // In our usage we wouldn't expect to see this, as we've first queried the required size.
-    // However, we defensively check for this case and return an error if it happens.
+    // Per the docs on `confstr`, it *may* return a size larger than the
+    // provided buffer. In our usage we wouldn't expect to see this, as
+    // we've first queried the required size. However, we defensively check
+    // for this case and return an error if it happens.
     if final_size > buffer.capacity() {
         return Err(std::io::Error::other(
             "confstr needed more space than advertised",
@@ -194,10 +199,11 @@ fn confstr(name: nix::libc::c_int) -> Result<Option<std::ffi::OsString>, std::io
     }
 
     // SAFETY:
-    // We are trusting `confstr` to have written exactly `final_size` bytes into the buffer.
-    // We have checked above that it didn't return a value *larger* than the capacity of
-    // the buffer, and also checked for known error cases. Note that the returned length
-    // should include the null terminator.
+    // We are trusting `confstr` to have written exactly `final_size` bytes into
+    // the buffer. We have checked above that it didn't return a value
+    // *larger* than the capacity of the buffer, and also checked for known
+    // error cases. Note that the returned length should include the null
+    // terminator.
     unsafe { buffer.set_len(final_size) };
 
     // The last byte is a null terminator. We assert that it is.
@@ -220,7 +226,8 @@ pub fn open_null_file() -> Result<std::fs::File, error::Error> {
     Ok(f)
 }
 
-/// Gives the platform an opportunity to handle a special file path (e.g. `/dev/null`).
+/// Gives the platform an opportunity to handle a special file path (e.g.
+/// `/dev/null`).
 pub const fn try_open_special_file(_path: &Path) -> Option<Result<std::fs::File, std::io::Error>> {
     None
 }
@@ -270,17 +277,19 @@ pub fn rfind_path_separator(s: &str) -> Option<usize> {
     s.rfind('/')
 }
 
-/// Splits a string on path separator characters, returning an iterator of components.
+/// Splits a string on path separator characters, returning an iterator of
+/// components.
 ///
 /// On Unix, only `/` is used as a separator.
 pub fn split_path_for_pattern(s: &str) -> impl Iterator<Item = &str> {
     s.split('/')
 }
 
-/// Returns the root path for an absolute pattern, if the first component indicates one.
+/// Returns the root path for an absolute pattern, if the first component
+/// indicates one.
 ///
-/// On Unix, an empty first component (from splitting a path like `/foo`) indicates
-/// an absolute path rooted at `/`.
+/// On Unix, an empty first component (from splitting a path like `/foo`)
+/// indicates an absolute path rooted at `/`.
 pub fn pattern_path_root(first_component: &str) -> Option<PathBuf> {
     if first_component.is_empty() {
         Some(PathBuf::from("/"))

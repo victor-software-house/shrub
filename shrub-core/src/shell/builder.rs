@@ -1,14 +1,15 @@
 //! Module defining the builder for creating shell instances.
 
-use std::{collections::HashMap, path::PathBuf};
+use std::collections::HashMap;
+use std::path::PathBuf;
 
 pub use shell_builder::State as ShellBuilderState;
 
 use super::Shell;
+use crate::shell::KeyBindingsHelper;
 use crate::{
     ProfileLoadBehavior, RcLoadBehavior, ShellFd, ShellVariable, builtins, callstack, completion,
-    env, error, extensions, functions, jobs, openfiles, options, pathcache,
-    shell::KeyBindingsHelper, traps,
+    env, error, extensions, functions, jobs, openfiles, options, pathcache, traps,
 };
 
 impl<SE: extensions::ShellExtensions, S: shell_builder::IsComplete> ShellBuilder<SE, S> {
@@ -23,8 +24,9 @@ impl<SE: extensions::ShellExtensions, S: shell_builder::IsComplete> ShellBuilder
         // Construct the shell.
         let mut shell = Shell::new(options)?;
 
-        // Load profiles/configuration (and then history), unless skipped. Callers that skip
-        // both are expected to call `load_config` themselves before needing history.
+        // Load profiles/configuration (and then history), unless skipped.
+        // Callers that skip both are expected to call `load_config`
+        // themselves before needing history.
         if !profile.skip() || !rc.skip() {
             shell.load_config(&profile, &rc).await?;
         }
@@ -140,8 +142,9 @@ pub struct CreateOptions<SE: extensions::ShellExtensions = extensions::DefaultSh
     /// Registered builtins.
     #[builder(field)]
     pub builtins: HashMap<String, builtins::Registration<SE>>,
-    /// Provides a set of variables to be initialized in the shell. If present, they
-    /// are assigned *after* inherited or well-known variables are set (when applicable).
+    /// Provides a set of variables to be initialized in the shell. If present,
+    /// they are assigned *after* inherited or well-known variables are set
+    /// (when applicable).
     #[builder(field)]
     pub vars: HashMap<String, ShellVariable>,
     /// Error behavior implementation.
@@ -171,7 +174,8 @@ pub struct CreateOptions<SE: extensions::ShellExtensions = extensions::DefaultSh
     /// Rc file loading behavior.
     #[builder(default)]
     pub rc: RcLoadBehavior,
-    /// Whether to skip inheriting environment variables from the calling process.
+    /// Whether to skip inheriting environment variables from the calling
+    /// process.
     #[builder(default)]
     pub do_not_inherit_env: bool,
     /// Whether to skip initializing well-known variables.
@@ -185,12 +189,12 @@ pub struct CreateOptions<SE: extensions::ShellExtensions = extensions::DefaultSh
     pub external_cmd_leads_session: bool,
     /// Whether externally spawned commands should be killed when their spawning
     /// shell is dropped. Defaults to `false` (children outlive the shell, as a
-    /// real shell requires); enable for embedded shells, where a surviving child
-    /// leaks and can hold the shell's output pipe open past teardown.
+    /// real shell requires); enable for embedded shells, where a surviving
+    /// child leaks and can hold the shell's output pipe open past teardown.
     #[builder(default)]
     pub kill_external_commands_on_drop: bool,
-    /// Initial working dir for the shell. If left unspecified, will be populated from
-    /// the host environment.
+    /// Initial working dir for the shell. If left unspecified, will be
+    /// populated from the host environment.
     pub working_dir: Option<PathBuf>,
     /// Whether the shell is in POSIX compliance mode.
     #[builder(default)]
@@ -205,7 +209,8 @@ pub struct CreateOptions<SE: extensions::ShellExtensions = extensions::DefaultSh
     pub shell_name: Option<String>,
     /// Base positional arguments for the shell (not including the shell name).
     pub shell_args: Option<Vec<String>>,
-    /// Optionally provides a display string describing the version and variant of the shell.
+    /// Optionally provides a display string describing the version and variant
+    /// of the shell.
     pub shell_product_display_str: Option<String>,
     /// Whether to run in maximal POSIX sh compatibility mode.
     #[builder(default)]
@@ -276,7 +281,8 @@ impl Shell {
         CreateOptions::builder()
     }
 
-    /// Create an instance of [Shell] using the builder syntax, with custom extensions.
+    /// Create an instance of [Shell] using the builder syntax, with custom
+    /// extensions.
     pub fn builder_with_extensions<SE: extensions::ShellExtensions>()
     -> ShellBuilder<SE, shell_builder::Empty> {
         CreateOptions::builder()

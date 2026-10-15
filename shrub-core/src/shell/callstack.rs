@@ -3,18 +3,20 @@
 use crate::{callstack, env, error, functions, trace_categories};
 
 impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
-    /// Returns whether or not the shell is actively executing in a sourced script.
+    /// Returns whether or not the shell is actively executing in a sourced
+    /// script.
     pub fn in_sourced_script(&self) -> bool {
         self.call_stack.in_sourced_script()
     }
 
-    /// Returns whether or not the shell is actively executing in a shell function.
+    /// Returns whether or not the shell is actively executing in a shell
+    /// function.
     pub fn in_function(&self) -> bool {
         self.call_stack.in_function()
     }
 
-    /// Updates the shell's internal tracking state to reflect that a new interactive
-    /// session is being started.
+    /// Updates the shell's internal tracking state to reflect that a new
+    /// interactive session is being started.
     pub fn start_interactive_session(&mut self) -> Result<(), error::Error> {
         self.call_stack.push_interactive_session();
         Ok(())
@@ -58,8 +60,9 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
         Ok(())
     }
 
-    /// Enters a trap handler for `signal` on the shell, until the returned guard is dropped.
-    /// Leaving it restores `$?`, so the handler doesn't change the status that triggered it.
+    /// Enters a trap handler for `signal` on the shell, until the returned
+    /// guard is dropped. Leaving it restores `$?`, so the handler doesn't
+    /// change the status that triggered it.
     pub(crate) fn enter_trap_handler(
         &mut self,
         signal: crate::traps::TrapSignal,
@@ -89,8 +92,8 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
         ShellGuard::new(self, Leave::Script { frames })
     }
 
-    /// Enters a call to the shell function `name` on the shell, with its own scope for local
-    /// variables, until the returned guard is dropped.
+    /// Enters a call to the shell function `name` on the shell, with its own
+    /// scope for local variables, until the returned guard is dropped.
     ///
     /// # Arguments
     ///
@@ -125,22 +128,23 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
         Ok(ShellGuard::new(self, leave))
     }
 
-    /// Enters a new variable scope on the shell, until the returned guard is dropped.
+    /// Enters a new variable scope on the shell, until the returned guard is
+    /// dropped.
     pub(crate) fn enter_scope(&mut self, scope: env::EnvironmentScope) -> ShellGuard<'_, SE> {
         self.env.push_scope(scope);
         let scopes = self.env.scope_depth();
         ShellGuard::new(self, Leave::Scope { scopes, scope })
     }
 
-    /// Blocks the delivery of traps until the returned guard is dropped. Blocks nest: traps
-    /// are delivered again only once every block is dropped.
+    /// Blocks the delivery of traps until the returned guard is dropped. Blocks
+    /// nest: traps are delivered again only once every block is dropped.
     pub(crate) const fn block_trap_delivery(&mut self) -> ShellGuard<'_, SE> {
         self.call_stack.acquire_trap_delivery_block();
         ShellGuard::new(self, Leave::TrapBlock)
     }
 
-    /// Returns the *current* positional arguments for the shell ($1 and beyond).
-    /// Influenced by the current call stack.
+    /// Returns the *current* positional arguments for the shell ($1 and
+    /// beyond). Influenced by the current call stack.
     pub fn current_shell_args(&self) -> &[String] {
         for frame in self.call_stack.iter() {
             match frame.frame_type {
@@ -159,8 +163,8 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
         self.args.as_slice()
     }
 
-    /// Returns a mutable reference to *current* positional parameters for the shell
-    /// ($1 and beyond).
+    /// Returns a mutable reference to *current* positional parameters for the
+    /// shell ($1 and beyond).
     pub fn current_shell_args_mut(&mut self) -> &mut Vec<String> {
         for frame in self.call_stack.iter_mut() {
             match frame.frame_type {
@@ -184,10 +188,10 @@ fn repeated_char_str(c: char, count: usize) -> String {
     (0..count).map(|_| c).collect()
 }
 
-/// Guards something entered on a shell -- a function call, a script, a trap handler, a
-/// variable scope, or a block on trap delivery -- and leaves it when dropped: when
-/// whatever runs in it returns, fails, or is cancelled (its future dropped, as when the
-/// user hits Ctrl-C during completion).
+/// Guards something entered on a shell -- a function call, a script, a trap
+/// handler, a variable scope, or a block on trap delivery -- and leaves it when
+/// dropped: when whatever runs in it returns, fails, or is cancelled (its
+/// future dropped, as when the user hits Ctrl-C during completion).
 ///
 /// It dereferences to the shell, for running whatever's entered.
 pub(crate) struct ShellGuard<'a, SE: crate::extensions::ShellExtensions> {
@@ -195,8 +199,8 @@ pub(crate) struct ShellGuard<'a, SE: crate::extensions::ShellExtensions> {
     leave: Leave,
 }
 
-/// What a [`ShellGuard`] leaves when it's dropped, with how deep the call stack (`frames`)
-/// and variable scopes (`scopes`) were once it was entered.
+/// What a [`ShellGuard`] leaves when it's dropped, with how deep the call stack
+/// (`frames`) and variable scopes (`scopes`) were once it was entered.
 #[derive(Clone, Copy, Debug)]
 enum Leave {
     Function {
@@ -238,7 +242,8 @@ impl<SE: crate::extensions::ShellExtensions> std::ops::DerefMut for ShellGuard<'
 }
 
 impl<SE: crate::extensions::ShellExtensions> ShellGuard<'_, SE> {
-    /// Returns whether this guard's frame is on top of the call stack, `depth` frames deep.
+    /// Returns whether this guard's frame is on top of the call stack, `depth`
+    /// frames deep.
     fn frame_on_top(&self, depth: usize, is_expected: fn(&callstack::FrameType) -> bool) -> bool {
         let stack = &self.shell.call_stack;
         stack.depth() == depth
@@ -247,7 +252,8 @@ impl<SE: crate::extensions::ShellExtensions> ShellGuard<'_, SE> {
                 .is_some_and(|frame| is_expected(&frame.frame_type))
     }
 
-    /// Pops this guard's frame if it's on top, `depth` frames deep; returns whether it was.
+    /// Pops this guard's frame if it's on top, `depth` frames deep; returns
+    /// whether it was.
     fn pop_frame(&mut self, depth: usize, is_expected: fn(&callstack::FrameType) -> bool) -> bool {
         let on_top = self.frame_on_top(depth, is_expected);
         if on_top {
@@ -256,8 +262,8 @@ impl<SE: crate::extensions::ShellExtensions> ShellGuard<'_, SE> {
         on_top
     }
 
-    /// Pops this guard's variable scope if it's on top, `depth` scopes deep; returns whether
-    /// it was.
+    /// Pops this guard's variable scope if it's on top, `depth` scopes deep;
+    /// returns whether it was.
     fn pop_scope(&mut self, depth: usize, scope_type: env::EnvironmentScope) -> bool {
         self.shell.env.scope_depth() == depth && self.shell.env.pop_scope(scope_type).is_ok()
     }
@@ -275,9 +281,10 @@ impl<SE: crate::extensions::ShellExtensions> ShellGuard<'_, SE> {
 
 impl<SE: crate::extensions::ShellExtensions> Drop for ShellGuard<'_, SE> {
     fn drop(&mut self) {
-        // Whatever was entered on top of this has been left already, since its guard
-        // borrowed this one; so unless something left the shell out of balance, what this
-        // entered is on top. If it isn't, report that and pop nothing, rather than risk
+        // Whatever was entered on top of this has been left already, since its
+        // guard borrowed this one; so unless something left the shell
+        // out of balance, what this entered is on top. If it isn't,
+        // report that and pop nothing, rather than risk
         // popping something else.
         let left = match self.leave {
             Leave::Function { frames, scopes } => {
@@ -322,8 +329,9 @@ impl<SE: crate::extensions::ShellExtensions> Drop for ShellGuard<'_, SE> {
 mod tests {
     use super::*;
 
-    /// Guards pop nothing -- not even part of what they entered -- if what ran in them left
-    /// the call stack or variable scopes out of balance (as a buggy builtin could).
+    /// Guards pop nothing -- not even part of what they entered -- if what ran
+    /// in them left the call stack or variable scopes out of balance (as a
+    /// buggy builtin could).
     #[tokio::test]
     async fn guards_pop_nothing_when_out_of_balance() -> Result<(), error::Error> {
         let mut shell = crate::Shell::builder()

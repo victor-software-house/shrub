@@ -20,10 +20,10 @@ impl<SE: shrub_core::ShellExtensions> reedline::History for ReedlineHistory<SE> 
     /// * `item` - The history item to save.
     fn save(&mut self, item: reedline::HistoryItem) -> reedline::Result<reedline::HistoryItem> {
         //
-        // TODO(history): Evaluate a way to rationalize between this and the shared
-        // history saving. For now, we need to do nothing here to avoid
-        // duplicate history items since we are auto-updating the history
-        // in a non-reedline-specific way.
+        // TODO(history): Evaluate a way to rationalize between this and the
+        // shared history saving. For now, we need to do nothing here to
+        // avoid duplicate history items since we are auto-updating the
+        // history in a non-reedline-specific way.
         //
 
         // let shrub_item = reedline_history_item_to_shrub(&item);
@@ -35,7 +35,8 @@ impl<SE: shrub_core::ShellExtensions> reedline::History for ReedlineHistory<SE> 
         //         .update_by_id(id.0, shrub_item)
         //         .map_err(shrub_error_to_reedline)?;
         // } else {
-        //     let id = history.add(shrub_item).map_err(shrub_error_to_reedline)?;
+        //     let id =
+        // history.add(shrub_item).map_err(shrub_error_to_reedline)?;
         //     item.id = Some(reedline::HistoryItemId(id));
         // }
 
@@ -50,7 +51,8 @@ impl<SE: shrub_core::ShellExtensions> reedline::History for ReedlineHistory<SE> 
     fn load(&self, id: reedline::HistoryItemId) -> reedline::Result<reedline::HistoryItem> {
         let shell = self.lock_shell();
 
-        // Get the history, retrieve the item, and translate the item it into reedline's format.
+        // Get the history, retrieve the item, and translate the item it into
+        // reedline's format.
         get_shell_history(&shell)?
             .get_by_id(id.0)
             .map_err(shrub_error_to_reedline)?
@@ -107,7 +109,8 @@ impl<SE: shrub_core::ShellExtensions> reedline::History for ReedlineHistory<SE> 
     /// # Arguments
     ///
     /// * `id` - The ID of the history item to update.
-    /// * `updater` - A function that takes a history item and returns an updated history item.
+    /// * `updater` - A function that takes a history item and returns an
+    ///   updated history item.
     fn update(
         &mut self,
         id: reedline::HistoryItemId,
@@ -125,7 +128,8 @@ impl<SE: shrub_core::ShellExtensions> reedline::History for ReedlineHistory<SE> 
     fn clear(&mut self) -> reedline::Result<()> {
         let mut shell = self.lock_shell();
 
-        // Get the history, retrieve the item, and translate the item it into reedline's format.
+        // Get the history, retrieve the item, and translate the item it into
+        // reedline's format.
         get_shell_history_mut(&mut shell)?
             .clear()
             .map_err(shrub_error_to_reedline)
@@ -268,13 +272,15 @@ fn get_shell_history_mut<'a, SE: shrub_core::ShellExtensions>(
 #[cfg(test)]
 #[allow(clippy::panic_in_result_fn, reason = "assertions in a fallible test")]
 mod tests {
-    use super::*;
     use reedline::History as _;
+
+    use super::*;
 
     /// A count is of the items that match the query.
     #[tokio::test(flavor = "multi_thread")]
     async fn count_counts_matching_items() -> Result<(), Box<dyn std::error::Error>> {
-        // An interactive shell keeps history; with no HISTFILE, it's not loaded or saved.
+        // An interactive shell keeps history; with no HISTFILE, it's not loaded
+        // or saved.
         let mut shell = shrub_core::Shell::builder()
             .interactive(true)
             .profile(shrub_core::ProfileLoadBehavior::Skip)

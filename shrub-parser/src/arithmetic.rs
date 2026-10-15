@@ -1,7 +1,6 @@
 //! Parser for shell arithmetic expressions.
 
-use crate::ast;
-use crate::error;
+use crate::{ast, error};
 
 /// Parses a shell arithmetic expression.
 ///

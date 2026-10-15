@@ -125,7 +125,8 @@ mod unimp;
 pub use builder::ShellBuilderExt;
 pub use factory::{BuiltinSet, default_builtins};
 
-/// Writes an alias definition in the reusable form printed by `alias` and `command -v`.
+/// Writes an alias definition in the reusable form printed by `alias` and
+/// `command -v`.
 #[cfg(any(feature = "builtin.alias", feature = "builtin.command"))]
 fn write_alias_definition(
     mut writer: impl std::io::Write,
@@ -139,8 +140,9 @@ fn write_alias_definition(
     )
 }
 
-/// Macro to define a struct that represents a shell built-in flag argument that can be
-/// enabled or disabled by specifying an option with a leading '+' or '-' character.
+/// Macro to define a struct that represents a shell built-in flag argument that
+/// can be enabled or disabled by specifying an option with a leading '+' or '-'
+/// character.
 ///
 /// # Arguments
 ///

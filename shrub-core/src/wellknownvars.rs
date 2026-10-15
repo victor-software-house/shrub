@@ -15,7 +15,8 @@ const BASH_MACHINE: &str = "unknown";
 
 const DEFAULT_LINENO: usize = 1;
 
-/// Inherit environment variables from the host process into the shell's environment.
+/// Inherit environment variables from the host process into the shell's
+/// environment.
 ///
 /// # Arguments
 ///
@@ -28,8 +29,8 @@ pub(crate) fn inherit_env_vars(
         if let Some(func_name) = k.strip_prefix("BASH_FUNC_")
             && let Some(func_name) = func_name.strip_suffix("%%")
         {
-            // Intentionally best-effort; don't fail out of the shell if we can't
-            // parse an incoming function.
+            // Intentionally best-effort; don't fail out of the shell if we
+            // can't parse an incoming function.
             if shell.define_func_from_str(func_name, v.as_str()).is_ok()
                 && let Some(func) = shell.func_mut(func_name)
             {
@@ -201,7 +202,8 @@ pub(crate) fn init_well_known_vars(
         .set_global("BASH_VERSINFO", bash_versinfo_var)?;
 
     // BASH_VERSION
-    // This is the Bash interface version. See SHRUB_VERSION for its implementation version.
+    // This is the Bash interface version. See SHRUB_VERSION for its
+    // implementation version.
     shell.env_mut().set_global(
         "BASH_VERSION",
         ShellVariable::new(std::format!(
@@ -245,9 +247,10 @@ pub(crate) fn init_well_known_vars(
                 let since_epoch = now
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap_or_default();
-                // Match bash: seconds with exactly six fractional (microsecond) digits,
-                // zero-padded. Tools strip the dot and do integer math on the result
-                // (atuin computes command durations this way), so the width must be fixed.
+                // Match bash: seconds with exactly six fractional (microsecond)
+                // digits, zero-padded. Tools strip the dot and
+                // do integer math on the result (atuin computes
+                // command durations this way), so the width must be fixed.
                 std::format!(
                     "{}.{:06}",
                     since_epoch.as_secs(),
@@ -291,8 +294,9 @@ pub(crate) fn init_well_known_vars(
     )?;
 
     // GROUPS
-    // N.B. We could compute this up front, but we choose to make it dynamic so that we
-    // don't have to make costly system calls if the user never accesses it.
+    // N.B. We could compute this up front, but we choose to make it dynamic so
+    // that we don't have to make costly system calls if the user never
+    // accesses it.
     shell.env_mut().set_global(
         "GROUPS",
         ShellVariable::new(ShellValue::Dynamic {
@@ -416,7 +420,8 @@ pub(crate) fn init_well_known_vars(
 
     // PIPESTATUS
     // TODO(well-known-vars): Investigate what happens if this gets unset.
-    // TODO(well-known-vars): Investigate if this needs to be saved/preserved across prompt display.
+    // TODO(well-known-vars): Investigate if this needs to be saved/preserved
+    // across prompt display.
     shell.env_mut().set_global(
         "PIPESTATUS",
         ShellVariable::new(ShellValue::Dynamic {
@@ -463,7 +468,8 @@ pub(crate) fn init_well_known_vars(
 
     // SHELL (if not already set)
     if !shell.env().is_set("SHELL") {
-        // Per docs, this should be the user's default login shell -- not the current shell.
+        // Per docs, this should be the user's default login shell -- not the
+        // current shell.
         if let Some(default_shell) = sys::users::get_current_user_default_shell() {
             shell.env_mut().set_global(
                 "SHELL",
@@ -539,12 +545,13 @@ pub(crate) fn init_well_known_vars(
     Ok(())
 }
 
-/// Returns a list of the current user's group IDs, with the effective GID at the front.
+/// Returns a list of the current user's group IDs, with the effective GID at
+/// the front.
 fn get_current_user_gids() -> Vec<u32> {
     let mut groups = sys::users::get_user_group_ids().unwrap_or_default();
 
-    // If the effective GID is present but not in the first position in the list, then move
-    // it there.
+    // If the effective GID is present but not in the first position in the
+    // list, then move it there.
     if let Ok(gid) = sys::users::get_effective_gid() {
         if let Some(index) = groups.iter().position(|&g| g == gid) {
             if index > 0 {
@@ -578,7 +585,8 @@ fn get_funcname_value(shell: &dyn ShellState) -> variables::ShellValue {
     if stack.iter_function_calls().next().is_none() {
         ShellValue::Unset(variables::ShellValueUnsetType::IndexedArray)
     } else {
-        // When in a function, include both functions and sourced scripts in the stack
+        // When in a function, include both functions and sourced scripts in the
+        // stack
         stack
             .iter()
             .filter_map(|frame| match &frame.frame_type {
@@ -648,8 +656,8 @@ fn get_bash_source_value(shell: &dyn ShellState) -> variables::ShellValue {
             .collect::<Vec<_>>()
             .into()
     } else {
-        // When in a function, include both functions and sourced scripts in the stack
-        // This mirrors the FUNCNAME array structure
+        // When in a function, include both functions and sourced scripts in the
+        // stack This mirrors the FUNCNAME array structure
         stack
             .iter()
             .filter_map(|frame| match &frame.frame_type {
@@ -657,7 +665,8 @@ fn get_bash_source_value(shell: &dyn ShellState) -> variables::ShellValue {
                     Some(func.function.source().source.clone())
                 }
                 crate::callstack::FrameType::Script(script) => {
-                    // Only include sourced scripts (matching the "source" in FUNCNAME)
+                    // Only include sourced scripts (matching the "source" in
+                    // FUNCNAME)
                     if matches!(script.call_type, crate::callstack::ScriptCallType::Source) {
                         Some(script.source_info.source.clone())
                     } else {
@@ -741,7 +750,8 @@ fn get_bash_argv_value(shell: &dyn ShellState) -> variables::ShellValue {
 
     for frame in shell.call_stack().iter() {
         if let Some(args) = frame_bash_args(frame, extdebug) {
-            // Push args in reverse order per frame (last arg at lowest index = top of stack)
+            // Push args in reverse order per frame (last arg at lowest index =
+            // top of stack)
             argv.extend(args.iter().cloned().rev());
         }
     }

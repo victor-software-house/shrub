@@ -5,7 +5,6 @@ use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
 use crate::error;
-
 // Selectively re-export items from stubs that we don't override.
 pub(crate) use crate::sys::stubs::fs::MetadataExt;
 
@@ -76,9 +75,11 @@ pub fn resolve_executable(path: PathBuf) -> Option<PathBuf> {
 
 /// Resolves a path to a potential executable.
 ///
-/// This exists because Windows needs `PATHEXT` resolution to determine if a path resolves to an executable or not.
-/// For example, if the cwd is `C:/` and there's an executable at `C:/tools/my_tool.cmd`, we expect `tools/my_tool`
-/// to resolve to the executable `my_tool.cmd` (assuming `.CMD` is part of `PATHEXT`).
+/// This exists because Windows needs `PATHEXT` resolution to determine if a
+/// path resolves to an executable or not. For example, if the cwd is `C:/` and
+/// there's an executable at `C:/tools/my_tool.cmd`, we expect `tools/my_tool`
+/// to resolve to the executable `my_tool.cmd` (assuming `.CMD` is part of
+/// `PATHEXT`).
 pub(crate) fn resolve_executable_path(path: PathBuf, working_dir: &Path) -> PathBuf {
     resolve_executable(working_dir.join(&path)).unwrap_or(path)
 }
@@ -155,7 +156,8 @@ pub fn open_null_file() -> Result<std::fs::File, error::Error> {
     Ok(f)
 }
 
-/// Gives the platform an opportunity to handle a special file path (e.g. `/dev/null`).
+/// Gives the platform an opportunity to handle a special file path (e.g.
+/// `/dev/null`).
 pub fn try_open_special_file(path: &Path) -> Option<Result<std::fs::File, std::io::Error>> {
     if path.ends_with("dev/null") && path.is_absolute() {
         Some(open_null_file().map_err(std::io::Error::other))
@@ -169,7 +171,8 @@ pub(crate) fn get_default_executable_search_paths() -> Vec<PathBuf> {
     default_system_paths()
 }
 
-/// Returns the default paths where standard system utilities are found on Windows.
+/// Returns the default paths where standard system utilities are found on
+/// Windows.
 pub fn get_default_standard_utils_paths() -> Vec<PathBuf> {
     default_system_paths()
 }
@@ -215,7 +218,8 @@ pub const fn get_system_rc_path() -> Option<&'static Path> {
 
 /// Returns the platform default for case-insensitive pathname expansion.
 ///
-/// On Windows, filesystems are typically case-insensitive, so this returns `true`.
+/// On Windows, filesystems are typically case-insensitive, so this returns
+/// `true`.
 pub const fn default_case_insensitive_path_expansion() -> bool {
     true
 }
@@ -251,17 +255,20 @@ pub fn rfind_path_separator(s: &str) -> Option<usize> {
     s.rfind(PATH_SEPARATORS)
 }
 
-/// Splits a string on path separator characters, returning an iterator of components.
+/// Splits a string on path separator characters, returning an iterator of
+/// components.
 ///
 /// On Windows, both `/` and `\` are used as separators.
 pub fn split_path_for_pattern(s: &str) -> impl Iterator<Item = &str> {
     s.split(PATH_SEPARATORS)
 }
 
-/// Returns the root path for an absolute pattern, if the first component indicates one.
+/// Returns the root path for an absolute pattern, if the first component
+/// indicates one.
 ///
-/// On Windows, recognizes both a leading separator (empty first component from splitting
-/// a path like `/foo`) and a drive-letter prefix like `C:` as absolute.
+/// On Windows, recognizes both a leading separator (empty first component from
+/// splitting a path like `/foo`) and a drive-letter prefix like `C:` as
+/// absolute.
 ///
 /// TODO(windows): UNC paths like `\\server\share\foo` are not yet handled
 /// specially; they split into `["", "", "server", "share", "foo"]`, and the
@@ -308,7 +315,8 @@ pub fn push_path_for_pattern(path: &mut PathBuf, component: &str) {
 
 /// Normalizes path separators for shell output.
 ///
-/// On Windows, replaces `\` with `/` since backslash is the shell escape character.
+/// On Windows, replaces `\` with `/` since backslash is the shell escape
+/// character.
 pub fn normalize_path_separators(s: &str) -> std::borrow::Cow<'_, str> {
     if s.contains('\\') {
         std::borrow::Cow::Owned(s.replace('\\', "/"))

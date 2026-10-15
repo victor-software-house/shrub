@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
-/// Represents an error encountered while running or otherwise managing an interactive shell.
+/// Represents an error encountered while running or otherwise managing an
+/// interactive shell.
 #[derive(thiserror::Error, Debug)]
 pub enum ShellError {
     /// An error occurred with the embedded shell.

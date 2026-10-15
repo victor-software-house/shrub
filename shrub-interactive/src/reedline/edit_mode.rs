@@ -1,9 +1,11 @@
-use shrub_core::{
-    interfaces::{self, InputFunction, Key, KeyAction, KeyBindings as _, KeySequence, KeyStroke},
-    trace_categories,
-};
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use radix_trie::Trie;
-use std::{collections::HashMap, sync::Arc};
+use shrub_core::interfaces::{
+    self, InputFunction, Key, KeyAction, KeyBindings as _, KeySequence, KeyStroke,
+};
+use shrub_core::trace_categories;
 use tokio::sync::Mutex;
 
 #[derive(thiserror::Error, Debug)]
@@ -54,8 +56,8 @@ impl reedline::EditMode for MutableEditMode {
 pub(crate) struct UpdatableBindings {
     bindings: reedline::Keybindings,
     edit_mode: Box<dyn reedline::EditMode>,
-    /// Trie for raw byte sequences. Supports both exact lookups and prefix matching
-    /// during macro resolution.
+    /// Trie for raw byte sequences. Supports both exact lookups and prefix
+    /// matching during macro resolution.
     raw_mappings: Trie<Vec<u8>, interfaces::KeyAction>,
     /// Tracks defined macros.
     macros: HashMap<interfaces::KeySequence, interfaces::KeySequence>,
@@ -163,7 +165,8 @@ impl interfaces::KeyBindings for UpdatableBindings {
 
 impl UpdatableBindings {
     /// Internal implementation that optionally removes from the macros map.
-    /// When updating bindings for macros, we don't want to remove the macro definition itself.
+    /// When updating bindings for macros, we don't want to remove the macro
+    /// definition itself.
     fn try_unbind_impl(&mut self, seq: &KeySequence, remove_from_macros: bool) -> bool {
         // Optionally remove from macros.
         let removed_macro = if remove_from_macros {
@@ -253,7 +256,8 @@ impl UpdatableBindings {
             // this. We also are *extremely* limited in what we support here.
             interfaces::KeySequence::Strokes(key_strokes) => {
                 if key_strokes.is_empty() {
-                    // Empty macro target - unbind any existing binding for this sequence.
+                    // Empty macro target - unbind any existing binding for this
+                    // sequence.
                     self.try_unbind(seq);
                 } else {
                     return Err(std::io::Error::other(
@@ -262,18 +266,21 @@ impl UpdatableBindings {
                 }
             }
             interfaces::KeySequence::Bytes(items) => {
-                // Flatten all byte sequences into one contiguous buffer for prefix matching.
+                // Flatten all byte sequences into one contiguous buffer for
+                // prefix matching.
                 let flat_bytes: Vec<u8> = items.iter().flatten().copied().collect();
                 let actions = self.resolve_macro_body(&flat_bytes);
 
                 if actions.is_empty() {
-                    // No actions resolved - unbind any existing key binding for this sequence,
-                    // but keep the macro definition so it shows up in `bind -s/-S`.
+                    // No actions resolved - unbind any existing key binding for
+                    // this sequence, but keep the macro
+                    // definition so it shows up in `bind -s/-S`.
                     self.try_unbind_impl(&seq, false);
                     return Ok(());
                 }
 
-                // Create a single action: either the action itself (if just one), or a Sequence.
+                // Create a single action: either the action itself (if just
+                // one), or a Sequence.
                 let action = if let [single] = actions.as_slice() {
                     single.clone()
                 } else {
@@ -287,8 +294,9 @@ impl UpdatableBindings {
         Ok(())
     }
 
-    /// Resolve a macro body (byte sequence) into a sequence of actions using prefix matching.
-    /// Returns a flattened vector of actions (any nested Sequences are expanded).
+    /// Resolve a macro body (byte sequence) into a sequence of actions using
+    /// prefix matching. Returns a flattened vector of actions (any nested
+    /// Sequences are expanded).
     fn resolve_macro_body(&self, bytes: &[u8]) -> Vec<KeyAction> {
         let mut actions = Vec::new();
         let mut remaining = bytes;
@@ -327,7 +335,8 @@ impl UpdatableBindings {
         })
     }
 
-    /// Flatten an action into the actions vector, expanding any Sequence variants.
+    /// Flatten an action into the actions vector, expanding any Sequence
+    /// variants.
     fn flatten_action_into(actions: &mut Vec<KeyAction>, action: KeyAction) {
         match action {
             KeyAction::Sequence(inner_actions) => {
@@ -501,12 +510,14 @@ fn translate_reedline_event_to_action(event: &reedline::ReedlineEvent) -> Option
                     InputFunction::BackwardDeleteChar,
                 )),
                 [reedline::EditCommand::BackspaceWord] => {
-                    // Not quite accurate, because it doesn't save the deleted text.
+                    // Not quite accurate, because it doesn't save the deleted
+                    // text.
                     Some(KeyAction::DoInputFunction(InputFunction::BackwardKillWord))
                 }
                 [reedline::EditCommand::CapitalizeChar] => None,
                 [reedline::EditCommand::ClearToLineEnd] => {
-                    // Not quite accurate, because it doesn't save the deleted text.
+                    // Not quite accurate, because it doesn't save the deleted
+                    // text.
                     Some(KeyAction::DoInputFunction(InputFunction::KillLine))
                 }
                 [reedline::EditCommand::Complete] => {
@@ -543,7 +554,8 @@ fn translate_reedline_event_to_action(event: &reedline::ReedlineEvent) -> Option
                 }
                 [reedline::EditCommand::MoveRight { select: true }] => None,
                 [reedline::EditCommand::MoveToEnd { select: false }] => {
-                    // TODO(input): Not quite accurate, because it doesn't just go to end of line.
+                    // TODO(input): Not quite accurate, because it doesn't just
+                    // go to end of line.
                     Some(KeyAction::DoInputFunction(InputFunction::EndOfLine))
                 }
                 [reedline::EditCommand::MoveToEnd { select: true }] => None,
@@ -556,8 +568,8 @@ fn translate_reedline_event_to_action(event: &reedline::ReedlineEvent) -> Option
                 }
                 [reedline::EditCommand::MoveToLineStart { select: true }] => None,
                 [reedline::EditCommand::MoveToStart { select: false }] => {
-                    // TODO(input): Not quite accurate, because it doesn't just go to beginning of
-                    // line.
+                    // TODO(input): Not quite accurate, because it doesn't just
+                    // go to beginning of line.
                     Some(KeyAction::DoInputFunction(InputFunction::BeginningOfLine))
                 }
                 [reedline::EditCommand::MoveToStart { select: true }] => None,

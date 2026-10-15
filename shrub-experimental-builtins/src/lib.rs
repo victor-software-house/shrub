@@ -26,7 +26,8 @@ pub fn experimental_builtins<SE: shrub_core::extensions::ShellExtensions>()
     m
 }
 
-/// Extension trait that simplifies adding experimental builtins to a shell builder.
+/// Extension trait that simplifies adding experimental builtins to a shell
+/// builder.
 pub trait ShellBuilderExt {
     /// Add experimental builtins to the shell being built.
     #[must_use]

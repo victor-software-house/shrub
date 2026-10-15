@@ -1,30 +1,28 @@
 use super::line_reader::LineReader;
 use super::style::Style;
 use super::terminal::{RawMode, StdTerminal, Terminal};
-use crate::{
-    InputBackend, ShellError,
-    input_backend::{InteractivePrompt, ReadResult},
-};
+use crate::input_backend::{InteractivePrompt, ReadResult};
+use crate::{InputBackend, ShellError};
 
 /// An input backend with readline-style line editing, history, and completion.
 ///
 /// It talks to the terminal purely through bytes: it decodes keys from standard
 /// input and draws on standard error, with VT100-style escape sequences or, in
-/// the basic style ([`Self::with_basic_style`]), with backspaces alone. It needs
-/// no terminal library, so it works wherever the terminal understands those
-/// sequences, including hosts where the shell can't control the terminal through
-/// the platform and instead supplies a [`Terminal`] of its own.
+/// the basic style ([`Self::with_basic_style`]), with backspaces alone. It
+/// needs no terminal library, so it works wherever the terminal understands
+/// those sequences, including hosts where the shell can't control the terminal
+/// through the platform and instead supplies a [`Terminal`] of its own.
 ///
-/// Its default terminal, [`StdTerminal`], works only on Unix: the Windows console
-/// sends keys as bytes only in a mode that it doesn't set, and WASI has no raw
-/// mode. Elsewhere, reading a line from a terminal fails, unless the host
-/// supplies a [`Terminal`] that can switch to raw mode.
+/// Its default terminal, [`StdTerminal`], works only on Unix: the Windows
+/// console sends keys as bytes only in a mode that it doesn't set, and WASI has
+/// no raw mode. Elsewhere, reading a line from a terminal fails, unless the
+/// host supplies a [`Terminal`] that can switch to raw mode.
 ///
-/// Key bindings start as readline's Emacs-mode defaults, and can be changed with
-/// `bind`: keys and sequences of keys can be bound to readline functions (those
-/// it performs), to shell commands (`bind -x`, with the line being edited
-/// available in `READLINE_LINE` and `READLINE_POINT`), and to macros; see
-/// [`Self::install_key_bindings`].
+/// Key bindings start as readline's Emacs-mode defaults, and can be changed
+/// with `bind`: keys and sequences of keys can be bound to readline functions
+/// (those it performs), to shell commands (`bind -x`, with the line being
+/// edited available in `READLINE_LINE` and `READLINE_POINT`), and to macros;
+/// see [`Self::install_key_bindings`].
 pub struct VtInputBackend<T: Terminal = StdTerminal> {
     terminal: T,
     reader: LineReader,
@@ -50,19 +48,20 @@ impl<T: Terminal> VtInputBackend<T> {
     }
 
     /// Has this backend draw and respond to Tab in a way that's simple for
-    /// programs that drive the shell (e.g., test harnesses) to follow: the line is
-    /// drawn with backspaces alone, so a line that wraps across rows isn't redrawn
-    /// correctly; ambiguous completions are listed straight away, one per line;
-    /// and the bell never rings.
+    /// programs that drive the shell (e.g., test harnesses) to follow: the line
+    /// is drawn with backspaces alone, so a line that wraps across rows
+    /// isn't redrawn correctly; ambiguous completions are listed straight
+    /// away, one per line; and the bell never rings.
     #[must_use]
     pub const fn with_basic_style(mut self) -> Self {
         self.reader.style = Style::Basic;
         self
     }
 
-    /// Makes this backend the keeper of `shell`'s key bindings, so that bindings
-    /// made with `bind` (e.g., in startup files) take effect while it reads input.
-    /// Call this before running any of the shell's startup files.
+    /// Makes this backend the keeper of `shell`'s key bindings, so that
+    /// bindings made with `bind` (e.g., in startup files) take effect while
+    /// it reads input. Call this before running any of the shell's startup
+    /// files.
     ///
     /// # Arguments
     ///
@@ -130,7 +129,8 @@ mod tests {
         Arc::new(Mutex::new(shell))
     }
 
-    /// A terminal that sends the given input, and logs how its mode is switched.
+    /// A terminal that sends the given input, and logs how its mode is
+    /// switched.
     struct LoggingTerminal {
         input: Vec<u8>,
         log: Arc<std::sync::Mutex<Vec<&'static str>>>,
@@ -178,8 +178,8 @@ mod tests {
             log: Arc::clone(&log),
         });
 
-        // With the shell held, reading stops at Ctrl-A, which reads the history;
-        // then it's cancelled.
+        // With the shell held, reading stops at Ctrl-A, which reads the
+        // history; then it's cancelled.
         {
             let _locked = shell.lock().await;
             let read = pin!(backend.read_line(&shell, InteractivePrompt::default()));

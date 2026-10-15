@@ -4,7 +4,8 @@
 //! - **Documentation**: Man pages and markdown help text from clap definitions
 //! - **Completions**: Shell completion scripts for bash, zsh, fish, etc.
 //! - **Schemas**: JSON schemas for configuration files
-//! - **Distribution archives**: Reproducible documentation bundles with checksums
+//! - **Distribution archives**: Reproducible documentation bundles with
+//!   checksums
 //!
 //! Everything derived from shrub's command-line interface is produced by the
 //! `gen` example in `shrub-shell`, which this module shells out to. That keeps
@@ -53,7 +54,8 @@ pub enum DocsCommand {
     Man(GenerateManArgs),
     /// Generate help content in markdown format.
     Markdown(GenerateMarkdownArgs),
-    /// Generate a reproducible documentation distribution archive with checksums.
+    /// Generate a reproducible documentation distribution archive with
+    /// checksums.
     Dist(GenerateDistArgs),
 }
 
@@ -91,7 +93,8 @@ pub struct GenerateMarkdownArgs {
 /// Arguments for documentation distribution generation.
 #[derive(Parser)]
 pub struct GenerateDistArgs {
-    /// Output file path for the distribution archive (defaults to shrub-docs.tar.gz).
+    /// Output file path for the distribution archive (defaults to
+    /// shrub-docs.tar.gz).
     #[clap(long = "out", short = 'o', default_value = "shrub-docs.tar.gz")]
     output_path: PathBuf,
 
@@ -226,7 +229,8 @@ fn gen_docs_dist(sh: &Shell, args: &GenerateDistArgs, verbose: bool) -> Result<(
         );
     }
 
-    // Create reproducible distribution archive using tar with options for reproducibility:
+    // Create reproducible distribution archive using tar with options for
+    // reproducibility:
     // - --sort=name: Sort files by name for consistent ordering
     // - --mtime: Set modification time to epoch for reproducibility
     // - --owner=0 --group=0: Remove user/group ownership info

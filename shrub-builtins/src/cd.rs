@@ -2,7 +2,6 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use clap::Parser;
-
 use shrub_core::{ExecutionResult, builtins, error};
 
 /// Change the current shell working directory.
@@ -16,7 +15,8 @@ pub(crate) struct CdCommand {
     #[arg(short = 'P', overrides_with = "force_follow_symlinks")]
     use_physical_dir: bool,
 
-    /// Exit with non zero exit status if current working directory resolution fails.
+    /// Exit with non zero exit status if current working directory resolution
+    /// fails.
     #[arg(short = 'e')]
     exit_on_failed_cwd_resolution: bool,
 
@@ -25,8 +25,8 @@ pub(crate) struct CdCommand {
     #[arg(short = '@')]
     file_with_xattr_as_dir: bool,
 
-    /// By default it is the value of the HOME shell variable. If `TARGET_DIR` is "-", it is
-    /// converted to $OLDPWD.
+    /// By default it is the value of the HOME shell variable. If `TARGET_DIR`
+    /// is "-", it is converted to $OLDPWD.
     target_dir: Option<PathBuf>,
 }
 
@@ -54,7 +54,8 @@ impl builtins::Command for CdCommand {
                     return Ok(ExecutionResult::general_error());
                 }
             } else {
-                // TODO(cd): remove clone, and use temporary lifetime extension after rust 1.75
+                // TODO(cd): remove clone, and use temporary lifetime extension
+                // after rust 1.75
                 target_dir.clone()
             }
         // `cd' without arguments is equivalent to `cd $HOME'
@@ -85,9 +86,10 @@ impl builtins::Command for CdCommand {
 
         // Bash compatibility
         // https://www.gnu.org/software/bash/manual/bash.html#index-cd
-        // If a non-empty directory name from CDPATH is used, or if '-' is the first argument, and
-        // the directory change is successful, the absolute pathname of the new working
-        // directory is written to the standard output.
+        // If a non-empty directory name from CDPATH is used, or if '-' is the
+        // first argument, and the directory change is successful, the
+        // absolute pathname of the new working directory is written to
+        // the standard output.
         if should_print {
             writeln!(context.stdout(), "{}", target_dir.display())?;
         }

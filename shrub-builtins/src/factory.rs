@@ -1,17 +1,18 @@
 use std::collections::HashMap;
 
-#[allow(clippy::wildcard_imports)]
-use super::*;
-
 #[allow(unused_imports, reason = "not all builtins are used in all configs")]
 use shrub_core::builtins::{self, builtin, decl_builtin, raw_arg_builtin, simple_builtin};
+
+#[allow(clippy::wildcard_imports)]
+use super::*;
 
 /// Identifies well-known sets of builtins.
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub enum BuiltinSet {
     /// Identifies builtins appropriate for POSIX `sh` compatibility.
     ShMode,
-    /// Identifies builtins appropriate for a more full-featured `bash`-compatible shell.
+    /// Identifies builtins appropriate for a more full-featured
+    /// `bash`-compatible shell.
     BashMode,
 }
 

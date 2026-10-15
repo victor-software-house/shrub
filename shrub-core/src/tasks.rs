@@ -1,9 +1,7 @@
 //! Tasks the shell runs concurrently with itself.
 
-use std::{
-    pin::Pin,
-    task::{Context, Poll},
-};
+use std::pin::Pin;
+use std::task::{Context, Poll};
 
 use crate::error;
 

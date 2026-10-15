@@ -14,12 +14,13 @@ mod pipelines;
 mod redirections;
 mod simple_commands;
 
-use crate::ast::Program;
-use crate::error::ParseError;
-use crate::parser::{Parser, ParserImpl, ParserOptions};
 use anyhow::Result;
 #[cfg(feature = "winnow-parser")]
 use serde_json::Value;
+
+use crate::ast::Program;
+use crate::error::ParseError;
+use crate::parser::{Parser, ParserImpl, ParserOptions};
 
 /// Wrapper struct for serializing parse results with input context
 #[derive(serde::Serialize)]
@@ -29,7 +30,8 @@ pub struct ParseResult<'a, T> {
 }
 
 /// Macro to assert snapshots with location information redacted.
-/// This makes snapshots stable across parser changes that only affect source locations.
+/// This makes snapshots stable across parser changes that only affect source
+/// locations.
 #[macro_export]
 macro_rules! assert_snapshot_redacted {
     ($value:expr) => {{
@@ -42,15 +44,17 @@ macro_rules! assert_snapshot_redacted {
 }
 
 /// Recursively redact location fields from a JSON value.
-/// This normalizes AST representations for comparison by removing source location info.
+/// This normalizes AST representations for comparison by removing source
+/// location info.
 #[cfg(feature = "winnow-parser")]
 fn redact_locations(value: &mut Value) {
     match value {
         Value::Object(map) => {
             // Remove location-related fields
             map.remove("loc");
-            // Also handle tuple structs that store SourceSpan as positional element
-            // These appear as arrays with SourceSpan objects
+            // Also handle tuple structs that store SourceSpan as positional
+            // element These appear as arrays with SourceSpan
+            // objects
 
             // Recursively process remaining fields
             for (_, v) in map.iter_mut() {
@@ -63,9 +67,10 @@ fn redact_locations(value: &mut Value) {
             }
         }
         Value::Array(arr) => {
-            // Check if this array looks like a tuple struct containing SourceSpan at the end
-            // SourceSpan has: start: SourcePosition, end: SourcePosition
-            // SourcePosition has: index, line, column
+            // Check if this array looks like a tuple struct containing
+            // SourceSpan at the end SourceSpan has: start:
+            // SourcePosition, end: SourcePosition SourcePosition
+            // has: index, line, column
             if let Some(last) = arr.last() {
                 if is_source_span(last) {
                     arr.pop();
@@ -90,8 +95,8 @@ fn is_source_span(value: &Value) -> bool {
     }
 }
 
-/// Normalize a `SourceSpan` object by replacing its positions with placeholder values.
-/// This allows comparing ASTs without position differences.
+/// Normalize a `SourceSpan` object by replacing its positions with placeholder
+/// values. This allows comparing ASTs without position differences.
 #[cfg(feature = "winnow-parser")]
 fn normalize_source_span(value: &mut Value) {
     if let Value::Object(map) = value {

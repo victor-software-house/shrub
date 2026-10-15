@@ -9,16 +9,18 @@ use crate::openfiles::OpenFile;
 
 /// Polls an open file for input readability with a timeout.
 ///
-/// Returns `Ok(true)` if data is available for reading, `Ok(false)` if the timeout
-/// elapsed without data becoming available.
+/// Returns `Ok(true)` if data is available for reading, `Ok(false)` if the
+/// timeout elapsed without data becoming available.
 ///
-/// For regular files, always returns `Ok(true)` immediately since they're always
-/// "ready" (matching bash behavior where `-t` has no effect on regular files).
+/// For regular files, always returns `Ok(true)` immediately since they're
+/// always "ready" (matching bash behavior where `-t` has no effect on regular
+/// files).
 ///
 /// # Arguments
 ///
 /// * `file` - The open file to poll.
-/// * `timeout` - Maximum time to wait. Use `Duration::ZERO` to check without blocking.
+/// * `timeout` - Maximum time to wait. Use `Duration::ZERO` to check without
+///   blocking.
 ///
 /// # Errors
 ///
@@ -33,9 +35,11 @@ pub fn poll_for_input(file: &OpenFile, timeout: Duration) -> std::io::Result<boo
         return Ok(true);
     }
 
-    // Convert timeout to deadline for accurate time tracking across EINTR retries.
+    // Convert timeout to deadline for accurate time tracking across EINTR
+    // retries.
     let deadline = if timeout.is_zero() {
-        // For zero timeout, use current instant so first check sees zero remaining.
+        // For zero timeout, use current instant so first check sees zero
+        // remaining.
         Some(Instant::now())
     } else {
         Some(Instant::now() + timeout)
@@ -61,8 +65,9 @@ fn poll_fd_for_input(fd: BorrowedFd<'_>, deadline: Option<Instant>) -> std::io::
         let timeout_ms = match deadline {
             Some(d) => {
                 let remaining = d.saturating_duration_since(Instant::now());
-                // On first iteration, always do at least one poll even with zero timeout.
-                // This allows `-t 0` to check if input is immediately available.
+                // On first iteration, always do at least one poll even with
+                // zero timeout. This allows `-t 0` to check if
+                // input is immediately available.
                 if remaining.is_zero() && !first_iteration {
                     return Ok(false); // Deadline passed after initial poll.
                 }
@@ -77,8 +82,9 @@ fn poll_fd_for_input(fd: BorrowedFd<'_>, deadline: Option<Instant>) -> std::io::
             Ok(0) => return Ok(false), // Timeout
             Ok(_) => {
                 let revents = poll_fds[0].revents().unwrap_or(PollFlags::empty());
-                // POLLIN means data available. POLLHUP/POLLERR without POLLIN means
-                // EOF/error - return true so caller reads and gets the proper result.
+                // POLLIN means data available. POLLHUP/POLLERR without POLLIN
+                // means EOF/error - return true so caller reads
+                // and gets the proper result.
                 return Ok(
                     revents.intersects(PollFlags::POLLIN | PollFlags::POLLHUP | PollFlags::POLLERR)
                 );

@@ -5,8 +5,8 @@ use std::borrow::Cow;
 use crate::{ShellVariable, error};
 
 impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
-    /// Tries to retrieve a variable from the shell's environment, converting it into its
-    /// string form.
+    /// Tries to retrieve a variable from the shell's environment, converting it
+    /// into its string form.
     ///
     /// # Arguments
     ///

@@ -18,8 +18,8 @@ pub(crate) fn get_default_executable_search_paths() -> Vec<std::path::PathBuf> {
     vec![]
 }
 
-/// Returns the default paths where standard Unix utilities are typically installed.
-/// This is a stub implementation that returns an empty vector.
+/// Returns the default paths where standard Unix utilities are typically
+/// installed. This is a stub implementation that returns an empty vector.
 pub fn get_default_standard_utils_paths() -> Vec<std::path::PathBuf> {
     vec![]
 }
@@ -31,7 +31,8 @@ pub fn open_null_file() -> Result<std::fs::File, error::Error> {
     Err(error::ErrorKind::NotSupportedOnThisPlatform("opening null file").into())
 }
 
-/// Gives the platform an opportunity to handle a special file path (e.g. `/dev/null`).
+/// Gives the platform an opportunity to handle a special file path (e.g.
+/// `/dev/null`).
 //
 // This is a stub implementation that returns no result.
 pub fn try_open_special_file(
@@ -89,16 +90,19 @@ pub fn rfind_path_separator(s: &str) -> Option<usize> {
     s.rfind('/')
 }
 
-/// Splits a string on path separator characters, returning an iterator of components.
+/// Splits a string on path separator characters, returning an iterator of
+/// components.
 ///
 /// In the stub implementation, only `/` is used as a separator.
 pub fn split_path_for_pattern(s: &str) -> impl Iterator<Item = &str> {
     s.split('/')
 }
 
-/// Returns the root path for an absolute pattern, if the first component indicates one.
+/// Returns the root path for an absolute pattern, if the first component
+/// indicates one.
 ///
-/// In the stub implementation, an empty first component indicates an absolute path.
+/// In the stub implementation, an empty first component indicates an absolute
+/// path.
 pub fn pattern_path_root(first_component: &str) -> Option<std::path::PathBuf> {
     if first_component.is_empty() {
         Some(std::path::PathBuf::from("/"))

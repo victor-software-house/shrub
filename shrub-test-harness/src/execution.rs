@@ -1,14 +1,17 @@
 //! Execution logic for running shell commands.
 
-use crate::config::{ShellConfig, WhichShell};
-use crate::testcase::{ShellInvocation, TestCase, TestCaseSet, TestFile};
-use anyhow::{Context, Result};
-use assert_fs::fixture::{FileWriteStr, PathChild};
 #[cfg(pty)]
 use std::os::unix::process::ExitStatusExt;
 #[cfg(unix)]
 use std::os::unix::{fs::PermissionsExt, process::CommandExt};
-use std::{path::PathBuf, process::ExitStatus};
+use std::path::PathBuf;
+use std::process::ExitStatus;
+
+use anyhow::{Context, Result};
+use assert_fs::fixture::{FileWriteStr, PathChild};
+
+use crate::config::{ShellConfig, WhichShell};
+use crate::testcase::{ShellInvocation, TestCase, TestCaseSet, TestFile};
 
 /// Default timeout for test commands in seconds.
 pub const DEFAULT_TIMEOUT_IN_SECONDS: u64 = 15;
@@ -107,7 +110,8 @@ impl TestCase {
     /// Constructs a `Command` to invoke the given shell binary, optionally
     /// prepending a launcher (e.g., `["wasmtime", "run", "--"]`). When a
     /// launcher is provided, the first element becomes the program to execute
-    /// and the rest are passed as leading arguments before the shell binary path.
+    /// and the rest are passed as leading arguments before the shell binary
+    /// path.
     fn new_shell_command(
         shell_path: &std::path::Path,
         launcher: Option<&[String]>,
@@ -198,7 +202,8 @@ impl TestCase {
         test_cmd
     }
 
-    // Must keep the same signature as the `cfg(pty)` arm below, which does use `self`.
+    // Must keep the same signature as the `cfg(pty)` arm below, which does use
+    // `self`.
     #[cfg(not(pty))]
     #[expect(clippy::unused_self, reason = "signature must match the cfg(pty) arm")]
     fn run_command_with_pty(&self, _cmd: std::process::Command) -> Result<RunResult> {
@@ -207,8 +212,10 @@ impl TestCase {
 
     #[cfg(pty)]
     fn run_command_with_pty(&self, cmd: std::process::Command) -> Result<RunResult> {
+        use expectrl::Expect;
+        use expectrl::process::Termios as _;
+
         use crate::util::{make_expectrl_output_readable, read_expectrl_log};
-        use expectrl::{Expect, process::Termios as _};
 
         let mut log = Vec::new();
         let writer = std::io::Cursor::new(&mut log);
@@ -294,13 +301,15 @@ impl TestCase {
     #[allow(unused_mut, reason = "only mutated on some platforms")]
     fn run_command_with_stdin(&self, mut cmd: std::process::Command) -> Result<RunResult> {
         // SAFETY:
-        // To avoid bash trying to directly access /dev/tty and generate tty-related signals,
-        // we create a new session for the child process. The standard library has a setsid()
-        // API but it's unstable, so we use nix here. Calling pre_exec can be unsafe as
-        // it runs in the child process after fork() but before exec(), and there are constraints
-        // around what can be safely done in that context. However, calling setsid() is generally
-        // considered safe as it doesn't allocate memory or perform complex operations to forked
-        // state.
+        // To avoid bash trying to directly access /dev/tty and generate
+        // tty-related signals, we create a new session for the child
+        // process. The standard library has a setsid() API but it's
+        // unstable, so we use nix here. Calling pre_exec can be unsafe as
+        // it runs in the child process after fork() but before exec(), and
+        // there are constraints around what can be safely done in that
+        // context. However, calling setsid() is generally considered
+        // safe as it doesn't allocate memory or perform complex operations to
+        // forked state.
         #[cfg(unix)]
         unsafe {
             cmd.pre_exec(|| {

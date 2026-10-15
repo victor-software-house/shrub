@@ -1,13 +1,15 @@
 //! Check commands for code quality validation.
 //!
-//! This module provides various code quality checks that can be run individually
-//! or as part of a CI workflow. Each check wraps an external tool and provides
-//! consistent error handling and verbose output.
+//! This module provides various code quality checks that can be run
+//! individually or as part of a CI workflow. Each check wraps an external tool
+//! and provides consistent error handling and verbose output.
 //!
 //! Some checks require additional tools to be installed:
-//! - `cargo-udeps`: Unused dependency detection (`cargo install cargo-udeps`, requires nightly)
+//! - `cargo-udeps`: Unused dependency detection (`cargo install cargo-udeps`,
+//!   requires nightly)
 //! - `prek`: Runs everything defined in `.pre-commit-config.yaml` -- typos,
-//!   zizmor, lychee, cargo-deny, and the file hygiene hooks (`cargo binstall prek`)
+//!   zizmor, lychee, cargo-deny, and the file hygiene hooks (`cargo binstall
+//!   prek`)
 //!
 //! Where a check is defined: checks that need project knowledge (which crates
 //! sit above the workspace MSRV, how schemas are regenerated) or a component of
@@ -118,9 +120,9 @@ fn run_hooks(sh: &Shell, hooks: &[String], verbose: bool) -> Result<()> {
 fn check_fmt(sh: &Shell, verbose: bool) -> Result<()> {
     eprintln!("Checking code formatting...");
     if verbose {
-        eprintln!("Running: cargo fmt --check --all");
+        eprintln!("Running: cargo +nightly-2026-09-29 fmt --check --all");
     }
-    cmd!(sh, "cargo fmt --check --all")
+    cmd!(sh, "cargo +nightly-2026-09-29 fmt --check --all")
         .run()
         .context("Format check failed")?;
     eprintln!("Format check passed.");
@@ -244,7 +246,8 @@ fn check_build(sh: &Shell, args: &BuildArgs, verbose: bool) -> Result<()> {
 fn check_schemas(sh: &Shell, verbose: bool) -> Result<()> {
     eprintln!("Checking generated schemas...");
 
-    // Regenerate schemas to a temporary state to compare against committed versions.
+    // Regenerate schemas to a temporary state to compare against committed
+    // versions.
     if verbose {
         eprintln!(
             "Running: cargo run --package xtask -- gen schema config --out schemas/config.schema.json"

@@ -52,14 +52,18 @@ pub fn expand_backslash_escapes(
                     }
                     EscapeExpansionMode::AnsiCQuotes => {
                         if let Some(char_value) = it.next() {
-                            // Special case backslash. If it's immediately followed by another
-                            // backslash, then we consume both; if not, we still will use the
-                            // backslash character as the one to apply the control transformation
+                            // Special case backslash. If it's immediately
+                            // followed by another
+                            // backslash, then we consume both; if not, we still
+                            // will use the
+                            // backslash character as the one to apply the
+                            // control transformation
                             // to.
                             if char_value == '\\' {
                                 let orig_it = it.clone();
                                 if !matches!(it.next(), Some('\\')) {
-                                    // Didn't find another backslash; restore iterator.
+                                    // Didn't find another backslash; restore
+                                    // iterator.
                                     it = orig_it;
                                 }
                             }
@@ -76,7 +80,8 @@ pub fn expand_backslash_escapes(
 
                             if !bytes.is_empty() {
                                 if bytes[0] == b'?' {
-                                    // We can't explain why this is the case, but it is.
+                                    // We can't explain why this is the case,
+                                    // but it is.
                                     bytes[0] = 0x7f;
                                 } else {
                                     bytes[0] &= 0x1f;
@@ -123,14 +128,16 @@ pub fn expand_backslash_escapes(
                 result.push(value);
             }
             'x' => {
-                // Consume 1-2 valid hex chars (or unlimited with braces in ANSI-C mode)
+                // Consume 1-2 valid hex chars (or unlimited with braces in
+                // ANSI-C mode)
                 let mut hex_chars = String::new();
                 let mut invalid_prefix = false;
                 let mut hexits_consumed = 0;
                 let mut start_brace_consumed = false;
 
                 loop {
-                    // Save the original in case we go too far and need to restore.
+                    // Save the original in case we go too far and need to
+                    // restore.
                     let orig_it = it.clone();
 
                     let Some(next_c) = it.next() else {
@@ -168,7 +175,7 @@ pub fn expand_backslash_escapes(
                     }
                 } else {
                     let value32 = int_utils::parse::<u32>(hex_chars.as_str(), 16)?;
-                    let value8: u8 = (value32 & 0xFF) as u8;
+                    let value8: u8 = (value32 & 0xff) as u8;
                     result.push(value8);
                 }
             }
@@ -277,39 +284,45 @@ pub enum QuoteMode {
     BackslashEscape,
 }
 
-/// Options for [`quote`]: how to quote a string so that, read back as a shell word, it
-/// yields just that string, and which chars that are special only in some places (or to
-/// some readers) to treat as special.
+/// Options for [`quote`]: how to quote a string so that, read back as a shell
+/// word, it yields just that string, and which chars that are special only in
+/// some places (or to some readers) to treat as special.
 ///
-/// Build one with [`QuoteOptions::builder`]; every option defaults to off (and the mode to
-/// [`QuoteMode::SingleQuote`]), which is what [`quote_if_needed`] uses.
+/// Build one with [`QuoteOptions::builder`]; every option defaults to off (and
+/// the mode to [`QuoteMode::SingleQuote`]), which is what [`quote_if_needed`]
+/// uses.
 #[derive(Clone, Debug, Default, bon::Builder)]
 pub struct QuoteOptions {
     /// Whether to quote the input even if nothing in it needs quoting.
     #[builder(default)]
     pub(crate) always_quote: bool,
-    /// Preferred mode for quoting. It's upgraded to ANSI-C quoting (`$'...'`) if the input
-    /// has chars only that can express.
+    /// Preferred mode for quoting. It's upgraded to ANSI-C quoting (`$'...'`)
+    /// if the input has chars only that can express.
     #[builder(default)]
     pub(crate) preferred_mode: QuoteMode,
-    /// Whether to avoid ANSI-C quoting just for newlines, which otherwise require it.
+    /// Whether to avoid ANSI-C quoting just for newlines, which otherwise
+    /// require it.
     #[builder(default)]
     pub(crate) avoid_ansi_c_quoting_newline: bool,
-    /// Whether to leave a `#` starting the input unquoted. Bash does in some output that
-    /// isn't read back as shell input, e.g. tracing a `[[ -n ... ]]` test.
+    /// Whether to leave a `#` starting the input unquoted. Bash does in some
+    /// output that isn't read back as shell input, e.g. tracing a `[[ -n
+    /// ... ]]` test.
     #[builder(default)]
     pub(crate) leave_leading_hash: bool,
-    /// Whether to leave a `~` unquoted where it would be tilde-expanded. Bash does when
-    /// quoting a file name it completes, so that a `~user` completion still expands.
+    /// Whether to leave a `~` unquoted where it would be tilde-expanded. Bash
+    /// does when quoting a file name it completes, so that a `~user`
+    /// completion still expands.
     #[builder(default)]
     pub(crate) leave_tilde: bool,
-    /// Whether to quote commas, which aren't special on their own. Bash's `printf %q`
-    /// does, so its output is safe even inside a brace expansion.
+    /// Whether to quote commas, which aren't special on their own. Bash's
+    /// `printf %q` does, so its output is safe even inside a brace
+    /// expansion.
     #[builder(default)]
     pub(crate) quote_commas: bool,
 }
 
-/// Quotes `s` as `options` say, so that, read back as a shell word, it yields just `s`.
+/// Quotes `s` as `options` say, so that, read back as a shell word, it yields
+/// just `s`.
 ///
 /// # Arguments
 ///
@@ -354,7 +367,8 @@ pub fn force_quote(s: &str, mode: QuoteMode) -> String {
     quote(s, &options).to_string()
 }
 
-/// Applies the given quoting mode to the provided string, only changing it if required.
+/// Applies the given quoting mode to the provided string, only changing it if
+/// required.
 ///
 /// # Arguments
 ///
@@ -390,9 +404,9 @@ fn backslash_escape<'a>(s: &'a str, options: &QuoteOptions) -> Cow<'a, str> {
 
 /// Plain single-quoting, as bash's `sh_single_quote` does it.
 ///
-/// Unlike [`force_quote`] and [`quote_if_needed`], this never upgrades to ANSI-C quoting;
-/// control characters are emitted literally. Use it where bash prints values verbatim,
-/// such as `alias` output.
+/// Unlike [`force_quote`] and [`quote_if_needed`], this never upgrades to
+/// ANSI-C quoting; control characters are emitted literally. Use it where bash
+/// prints values verbatim, such as `alias` output.
 ///
 /// # Arguments
 ///
@@ -471,17 +485,17 @@ fn ansi_c_quote(s: &str) -> String {
     result
 }
 
-/// Returns whether `s` has a char that needs quoting for `s` to be a shell word that
-/// expands to just `s`, as `options` say.
+/// Returns whether `s` has a char that needs quoting for `s` to be a shell word
+/// that expands to just `s`, as `options` say.
 fn needs_quoting(s: &str, options: &QuoteOptions) -> bool {
     s.char_indices()
         .any(|(i, c)| needs_escaping_at(s, i, c, options))
 }
 
-/// Returns whether `c`, at byte offset `i` in `s`, needs quoting: if it's always special,
-/// or, like bash, it's a `#` starting the word (which would start a comment), or a `~`
-/// starting it or following a `=` or `:` (where it would be tilde-expanded) -- unless
-/// `options` say to leave those.
+/// Returns whether `c`, at byte offset `i` in `s`, needs quoting: if it's
+/// always special, or, like bash, it's a `#` starting the word (which would
+/// start a comment), or a `~` starting it or following a `=` or `:` (where it
+/// would be tilde-expanded) -- unless `options` say to leave those.
 fn needs_escaping_at(s: &str, i: usize, c: char, options: &QuoteOptions) -> bool {
     match c {
         '#' => i == 0 && !options.leave_leading_hash,
@@ -495,8 +509,8 @@ fn needs_escaping_at(s: &str, i: usize, c: char, options: &QuoteOptions) -> bool
     }
 }
 
-// Returns whether or not the given character needs to be escaped (or quoted) if outside
-// quotes.
+// Returns whether or not the given character needs to be escaped (or quoted) if
+// outside quotes.
 const fn needs_escaping(c: char) -> bool {
     matches!(
         c,
@@ -540,7 +554,8 @@ mod tests {
 
     #[test]
     fn test_leading_hash_and_tilde_need_quoting() {
-        // Like bash: a `#` starting a word, and a `~` starting it or following `=` or `:`.
+        // Like bash: a `#` starting a word, and a `~` starting it or following
+        // `=` or `:`.
         assert_eq!(quote_if_needed("#a", QuoteMode::BackslashEscape), r"\#a");
         assert_eq!(quote_if_needed("~/x", QuoteMode::BackslashEscape), r"\~/x");
         assert_eq!(quote_if_needed("a=~", QuoteMode::BackslashEscape), r"a=\~");
@@ -563,8 +578,9 @@ mod tests {
         assert_eq!(quote_if_needed("", QuoteMode::SingleQuote), "''");
         assert_eq!(quote_if_needed("'", QuoteMode::SingleQuote), r"\'");
 
-        // The quoted run on either side of an escaped quote is kept even when it's empty;
-        // only a string that is *nothing but* a single quote loses its surrounding quotes.
+        // The quoted run on either side of an escaped quote is kept even when
+        // it's empty; only a string that is *nothing but* a single
+        // quote loses its surrounding quotes.
         assert_eq!(quote_if_needed("a'b", QuoteMode::SingleQuote), r"'a'\''b'");
         assert_eq!(
             quote_if_needed("a''b", QuoteMode::SingleQuote),
@@ -577,8 +593,8 @@ mod tests {
 
     #[test]
     fn test_single_quote_never_upgrades() {
-        // Unlike `quote`, this never reaches for ANSI-C quoting; control characters are
-        // emitted literally.
+        // Unlike `quote`, this never reaches for ANSI-C quoting; control
+        // characters are emitted literally.
         assert_eq!(single_quote("a\tb"), "'a\tb'");
         assert_eq!(single_quote("a\nb"), "'a\nb'");
         assert_eq!(single_quote("a"), "'a'");

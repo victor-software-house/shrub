@@ -1,9 +1,10 @@
-use shrub_core::{ErrorKind, ExecutionResult, builtins};
+use std::io::Write;
+
 use cfg_if::cfg_if;
 use clap::Parser;
 #[cfg(not(any(target_os = "linux", target_os = "android")))]
 use nix::sys::stat::Mode;
-use std::io::Write;
+use shrub_core::{ErrorKind, ExecutionResult, builtins};
 
 /// Manage the process umask.
 #[derive(Parser)]

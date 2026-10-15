@@ -10,9 +10,10 @@ use std::time::Duration;
 /// Hosts that can't control the terminal through the platform (e.g., a browser
 /// page running the shell as WebAssembly) provide their own implementation.
 pub trait Terminal: Send {
-    /// Switches the terminal to raw mode for line editing: input arrives a key at
-    /// a time, without being echoed or interpreted. Output is still translated as
-    /// usual, so a newline (`\n`) moves to the start of the next line.
+    /// Switches the terminal to raw mode for line editing: input arrives a key
+    /// at a time, without being echoed or interpreted. Output is still
+    /// translated as usual, so a newline (`\n`) moves to the start of the
+    /// next line.
     fn enable_raw_mode(&mut self) -> std::io::Result<()>;
 
     /// Restores the mode the terminal was in before [`Self::enable_raw_mode`].
@@ -21,8 +22,9 @@ pub trait Terminal: Send {
     /// Returns the terminal's width, in columns, if known.
     fn columns(&self) -> Option<usize>;
 
-    /// Whether there's a terminal to edit on. If not, lines are read as they come,
-    /// without editing. By default, whether standard input is a terminal.
+    /// Whether there's a terminal to edit on. If not, lines are read as they
+    /// come, without editing. By default, whether standard input is a
+    /// terminal.
     fn is_terminal(&self) -> bool {
         std::io::stdin().is_terminal()
     }
@@ -37,10 +39,10 @@ pub trait Terminal: Send {
         std::io::stdin().read(buf)
     }
 
-    /// Waits up to `timeout` for the terminal to send more; returns whether it did.
-    /// This tells a key that sends several bytes, which may arrive separately, from
-    /// keys pressed one after another. By default, it doesn't wait, and reports that
-    /// nothing came.
+    /// Waits up to `timeout` for the terminal to send more; returns whether it
+    /// did. This tells a key that sends several bytes, which may arrive
+    /// separately, from keys pressed one after another. By default, it
+    /// doesn't wait, and reports that nothing came.
     ///
     /// # Arguments
     ///
@@ -51,9 +53,9 @@ pub trait Terminal: Send {
     }
 }
 
-/// A [`Terminal`] in raw mode, from [`Self::enable`] until [`Self::restore`]. If
-/// it's dropped first (e.g., when reading a line is cancelled), the terminal's
-/// mode is restored then, and any error in restoring it is ignored.
+/// A [`Terminal`] in raw mode, from [`Self::enable`] until [`Self::restore`].
+/// If it's dropped first (e.g., when reading a line is cancelled), the
+/// terminal's mode is restored then, and any error in restoring it is ignored.
 pub(crate) struct RawMode<'a, T: Terminal> {
     terminal: &'a mut T,
     restored: bool,
@@ -103,9 +105,9 @@ impl<T: Terminal> Drop for RawMode<'_, T> {
     }
 }
 
-/// A [`Terminal`] for the process's own controlling terminal, controlled through
-/// the platform's terminal APIs. Only on Unix can it switch to raw mode;
-/// elsewhere, [`Terminal::enable_raw_mode`] fails.
+/// A [`Terminal`] for the process's own controlling terminal, controlled
+/// through the platform's terminal APIs. Only on Unix can it switch to raw
+/// mode; elsewhere, [`Terminal::enable_raw_mode`] fails.
 #[derive(Default)]
 pub struct StdTerminal {
     mode: Option<shrub_core::terminal::AutoModeGuard>,
@@ -115,7 +117,8 @@ impl Terminal for StdTerminal {
     fn enable_raw_mode(&mut self) -> std::io::Result<()> {
         // Only a Unix terminal can be set to send keys as bytes, unechoed: the
         // Windows console sends them only in a mode shrub doesn't set, and WASI
-        // has no raw mode. Fail, rather than edit with the terminal echoing keys.
+        // has no raw mode. Fail, rather than edit with the terminal echoing
+        // keys.
         if !cfg!(unix) {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Unsupported,
@@ -128,9 +131,9 @@ impl Terminal for StdTerminal {
         let mode = shrub_core::terminal::AutoModeGuard::new(std::io::stdin().into())
             .map_err(std::io::Error::other)?;
 
-        // Raw mode, as readline sets it, with Enter and Ctrl-J told apart, and a
-        // read waiting for a byte; but with newlines output as CRLF pairs, as the
-        // drawing expects.
+        // Raw mode, as readline sets it, with Enter and Ctrl-J told apart, and
+        // a read waiting for a byte; but with newlines output as CRLF
+        // pairs, as the drawing expects.
         let settings = shrub_core::terminal::Settings::builder()
             .raw_input(true)
             .output_nl_as_nlcr(true)

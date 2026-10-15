@@ -1,12 +1,12 @@
-//! Completion's quoting model, which follows readline's: finding the quotes in a line
-//! being completed.
+//! Completion's quoting model, which follows readline's: finding the quotes in
+//! a line being completed.
 //!
 //! It differs from the shell's own quoting in small ways (see [`scan`]).
 
 /// A quote left open where a word is being completed.
 ///
-/// Unlike readline, which knows only single and double quotes, completion knows `$'...'`
-/// too. `$"..."` opens a quote as `"` does.
+/// Unlike readline, which knows only single and double quotes, completion knows
+/// `$'...'` too. `$"..."` opens a quote as `"` does.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub(super) enum Quote {
@@ -51,8 +51,8 @@ pub(super) struct ScannedChar {
     /// The byte offset of the char.
     pub index: usize,
     pub c: char,
-    /// Whether the char is unquoted, and doesn't quote anything itself (as a quote char
-    /// or a backslash does): only such a char can break words.
+    /// Whether the char is unquoted, and doesn't quote anything itself (as a
+    /// quote char or a backslash does): only such a char can break words.
     pub unquoted: bool,
     /// The quote left open after this char, if any, and its byte offset.
     pub open_quote: Option<(usize, Quote)>,
@@ -60,13 +60,15 @@ pub(super) struct ScannedChar {
     pub escapes_next: bool,
 }
 
-/// Scans `input` for quoting, like readline: quotes and backslash escapes protect the chars
-/// they quote. Unlike the shell's, a backslash escapes any char in double quotes. Unlike
-/// readline's, an unquoted `$` before a `'` opens a `$'...'` quote -- unless it ends a `$$`.
+/// Scans `input` for quoting, like readline: quotes and backslash escapes
+/// protect the chars they quote. Unlike the shell's, a backslash escapes any
+/// char in double quotes. Unlike readline's, an unquoted `$` before a `'` opens
+/// a `$'...'` quote -- unless it ends a `$$`.
 pub(super) fn scan(input: &str) -> impl Iterator<Item = ScannedChar> + '_ {
     let mut open_quote: Option<(usize, Quote)> = None;
     let mut escaped = false;
-    // The offset of the char before, if it's an unquoted `$` that could open a `$'...'`.
+    // The offset of the char before, if it's an unquoted `$` that could open a
+    // `$'...'`.
     let mut dollar = None;
 
     input.char_indices().map(move |(index, c)| {
@@ -89,7 +91,8 @@ pub(super) fn scan(input: &str) -> impl Iterator<Item = ScannedChar> + '_ {
             });
         } else {
             unquoted = true;
-            // A `$` after one that could open a quote makes `$$` with it instead.
+            // A `$` after one that could open a quote makes `$$` with it
+            // instead.
             if c == '$' && after_dollar.is_none() {
                 dollar = Some(index);
             }
@@ -105,8 +108,8 @@ pub(super) fn scan(input: &str) -> impl Iterator<Item = ScannedChar> + '_ {
     })
 }
 
-/// Ends the quoting `text` leaves open, so it parses: drops a backslash left at the end with
-/// nothing to escape, then closes the quote left open, if any.
+/// Ends the quoting `text` leaves open, so it parses: drops a backslash left at
+/// the end with nothing to escape, then closes the quote left open, if any.
 pub(super) fn close(text: &mut String) {
     let Some(last) = scan(text).last() else {
         return;
@@ -135,15 +138,16 @@ mod tests {
         assert_eq!(closed("abc"), "abc");
         assert_eq!(closed("'a b"), "'a b'");
         assert_eq!(closed(r#""a\"b"#), r#""a\"b""#);
-        // A backslash with nothing to escape is dropped, unless it's literal in single
-        // quotes; an escaped one stays.
+        // A backslash with nothing to escape is dropped, unless it's literal in
+        // single quotes; an escaped one stays.
         assert_eq!(closed(r"a\"), "a");
         assert_eq!(closed(r#""a\"#), r#""a""#);
         assert_eq!(closed(r"'a\"), r"'a\'");
         assert_eq!(closed(r"a\\"), r"a\\");
         assert_eq!(closed(r#""a\\"#), r#""a\\""#);
 
-        // In `$'...'`, a backslash escapes any char, a quote too; `$$` is no `$'`.
+        // In `$'...'`, a backslash escapes any char, a quote too; `$$` is no
+        // `$'`.
         assert_eq!(closed(r"$'a\'b"), r"$'a\'b'");
         assert_eq!(closed(r"$'a\"), r"$'a'");
         assert_eq!(closed(r"$$'a\'b"), r"$$'a\'b");

@@ -1,8 +1,10 @@
-use clap::Parser;
-use std::{ffi::OsString, io::Write, ops::ControlFlow};
-use uucore::format;
+use std::ffi::OsString;
+use std::io::Write;
+use std::ops::ControlFlow;
 
+use clap::Parser;
 use shrub_core::{Error, ErrorKind, ExecutionResult, builtins, escape, expansion};
+use uucore::format;
 
 /// Format a string.
 #[derive(Parser)]
@@ -14,10 +16,11 @@ pub(crate) struct PrintfCommand {
 
     /// Format string + arguments to the format string.
     ///
-    /// N.B. We intentionally do *not* enable `allow_hyphen_values` here. Doing so would
-    /// cause an attached short-option value such as `-va` (i.e. `-v a`) to be misparsed as
-    /// a positional argument. With it disabled, a format string that genuinely needs to
-    /// start with a hyphen must be preceded by `--`, matching other shells' behavior.
+    /// N.B. We intentionally do *not* enable `allow_hyphen_values` here. Doing
+    /// so would cause an attached short-option value such as `-va` (i.e.
+    /// `-v a`) to be misparsed as a positional argument. With it disabled,
+    /// a format string that genuinely needs to start with a hyphen must be
+    /// preceded by `--`, matching other shells' behavior.
     #[arg(trailing_var_arg = true, required = true)]
     format_and_args: Vec<String>,
 }
@@ -82,18 +85,21 @@ fn format_via_uucore(
     // Wrap the format arguments.
     let mut format_args_wrapper = format::FormatArguments::new(&format_args);
 
-    // Determine whether the format string contains any specifiers that consume arguments. If it
-    // doesn't, then we must only run through it once -- even when extra arguments are provided --
-    // since otherwise we'd loop forever waiting for arguments that will never be consumed. This
-    // matches the behavior of other shells, which print such a format string exactly once.
+    // Determine whether the format string contains any specifiers that consume
+    // arguments. If it doesn't, then we must only run through it once --
+    // even when extra arguments are provided -- since otherwise we'd loop
+    // forever waiting for arguments that will never be consumed. This
+    // matches the behavior of other shells, which print such a format string
+    // exactly once.
     let format_consumes_args = format_items
         .iter()
         .any(|(item, _)| matches!(item, format::FormatItem::Spec(_)));
 
-    // Keep going until we've exhausted all format arguments. Also make sure to run at least once
-    // even if there's no format arguments.
+    // Keep going until we've exhausted all format arguments. Also make sure to
+    // run at least once even if there's no format arguments.
     while format_args.is_empty() || !format_args_wrapper.is_exhausted() {
-        // Process all format items, in order. We'll bail when we're told to stop.
+        // Process all format items, in order. We'll bail when we're told to
+        // stop.
         for (item, backslash_quote) in &format_items {
             if let (format::FormatItem::Spec(format::Spec::QuotedString { position }), true) =
                 (item, *backslash_quote)
@@ -120,8 +126,9 @@ fn format_via_uucore(
             }
         }
 
-        // If the format string doesn't consume any arguments, stop now; otherwise we'd reprocess
-        // it forever since no arguments will ever be consumed.
+        // If the format string doesn't consume any arguments, stop now;
+        // otherwise we'd reprocess it forever since no arguments will
+        // ever be consumed.
         if !format_consumes_args {
             break;
         }
@@ -140,8 +147,8 @@ fn format_via_uucore(
 }
 
 fn quote_printf_q(s: &str) -> String {
-    // Like bash's, this escapes commas too, so the result is safe even inside a brace
-    // expansion.
+    // Like bash's, this escapes commas too, so the result is safe even inside a
+    // brace expansion.
     let options = escape::QuoteOptions::builder()
         .preferred_mode(escape::QuoteMode::BackslashEscape)
         .quote_commas(true)
@@ -185,8 +192,9 @@ fn parse_format_string(format_string: &str) -> Result<Vec<ParsedFormatItem>, shr
 #[cfg(test)]
 #[expect(clippy::panic_in_result_fn)]
 mod tests {
-    use super::*;
     use anyhow::Result;
+
+    use super::*;
 
     fn sprintf_via_uucore(
         format_string: &str,

@@ -1,7 +1,7 @@
 use std::path::Path;
 
-use shrub_core::builtins;
 use clap::Parser;
+use shrub_core::builtins;
 
 /// Evaluate the provided script in the current shell environment.
 #[derive(Parser)]

@@ -1,5 +1,4 @@
 use clap::Parser;
-
 use shrub_core::{ExecutionResult, builtins};
 
 /// Directly invokes a built-in, without going through typical search order.

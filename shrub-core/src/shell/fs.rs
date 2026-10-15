@@ -4,13 +4,9 @@ use std::path::{Path, PathBuf};
 
 use normalize_path::NormalizePath as _;
 
-use crate::{
-    ExecutionParameters, ShellFd,
-    env::{EnvironmentLookup, EnvironmentScope},
-    error, openfiles, pathsearch,
-    sys::users,
-    variables,
-};
+use crate::env::{EnvironmentLookup, EnvironmentScope};
+use crate::sys::users;
+use crate::{ExecutionParameters, ShellFd, error, openfiles, pathsearch, variables};
 
 impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
     /// Sets the shell's current working directory to the given path.
@@ -57,7 +53,8 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
         Ok(())
     }
 
-    /// Tilde-shortens the given string, replacing the user's home directory with a tilde.
+    /// Tilde-shortens the given string, replacing the user's home directory
+    /// with a tilde.
     ///
     /// # Arguments
     ///
@@ -81,8 +78,8 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
         }
     }
 
-    /// Finds executables with the given name in the shell's current PATH, yielding each match
-    /// in search order.
+    /// Finds executables with the given name in the shell's current PATH,
+    /// yielding each match in search order.
     ///
     /// # Arguments
     ///
@@ -97,8 +94,8 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
         pathsearch::search_for_executable(paths, filename)
     }
 
-    /// Finds executables in the shell's current default PATH, with filenames matching the
-    /// given prefix.
+    /// Finds executables in the shell's current default PATH, with filenames
+    /// matching the given prefix.
     ///
     /// # Arguments
     ///
@@ -114,8 +111,9 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
         pathsearch::search_for_executable_with_prefix(paths, filename_prefix, case_insensitive)
     }
 
-    /// Determines whether the given filename is the name of an executable in one of the
-    /// directories in the shell's current PATH. If found, returns the path.
+    /// Determines whether the given filename is the name of an executable in
+    /// one of the directories in the shell's current PATH. If found,
+    /// returns the path.
     ///
     /// # Arguments
     ///
@@ -128,9 +126,10 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
             .next()
     }
 
-    /// Uses the shell's hash-based path cache to check whether the given filename is the name
-    /// of an executable in one of the directories in the shell's current PATH. If found,
-    /// ensures the path is in the cache and returns it.
+    /// Uses the shell's hash-based path cache to check whether the given
+    /// filename is the name of an executable in one of the directories in
+    /// the shell's current PATH. If found, ensures the path is in the cache
+    /// and returns it.
     ///
     /// # Arguments
     ///
@@ -155,8 +154,9 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
 
     /// Resolves a command name by searching the shell's current PATH.
     ///
-    /// Unlike [`Self::find_first_executable_in_path`], a non-executable entry in the PATH
-    /// resolves as the command; the shell reports it as the command and then fails to run it.
+    /// Unlike [`Self::find_first_executable_in_path`], a non-executable entry
+    /// in the PATH resolves as the command; the shell reports it as the
+    /// command and then fails to run it.
     /// See [`pathsearch::resolve_command`].
     ///
     /// # Arguments
@@ -168,8 +168,8 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
         pathsearch::resolve_command(paths, candidate_name.as_ref())
     }
 
-    /// Like [`Self::resolve_command_in_path`], but consults the shell's hash-based path cache
-    /// first and caches whatever a search turns up.
+    /// Like [`Self::resolve_command_in_path`], but consults the shell's
+    /// hash-based path cache first and caches whatever a search turns up.
     ///
     /// # Arguments
     ///
@@ -206,12 +206,14 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
         }
     }
 
-    /// Opens the given file, using the context of this shell and the provided execution parameters.
+    /// Opens the given file, using the context of this shell and the provided
+    /// execution parameters.
     ///
     /// # Arguments
     ///
     /// * `options` - The options to use opening the file.
-    /// * `path` - The path to the file to open; may be relative to the shell's working directory.
+    /// * `path` - The path to the file to open; may be relative to the shell's
+    ///   working directory.
     /// * `params` - Execution parameters.
     pub(crate) fn open_file(
         &self,

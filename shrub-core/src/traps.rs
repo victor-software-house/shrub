@@ -1,7 +1,8 @@
 //! Facilities for configuring trap handlers.
 
+use std::collections::HashMap;
+use std::fmt::Display;
 use std::str::FromStr;
-use std::{collections::HashMap, fmt::Display};
 
 use itertools::Itertools as _;
 
@@ -62,7 +63,8 @@ impl TrapSignal {
         iter
     }
 
-    /// Converts [`TrapSignal`] into its corresponding signal name as a [`&'static str`](str)
+    /// Converts [`TrapSignal`] into its corresponding signal name as a
+    /// [`&'static str`](str)
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Signal(s) => s.as_str(),
@@ -108,9 +110,10 @@ impl FromStr for TrapSignal {
 impl TryFrom<i32> for TrapSignal {
     type Error = error::Error;
     fn try_from(value: i32) -> Result<Self, Self::Error> {
-        // NOTE: DEBUG and ERR are real-time signals, defined based on NSIG or SIGRTMAX (is not
-        // available on bsd-like systems),
-        // and don't have persistent numbers across platforms, so we skip them here.
+        // NOTE: DEBUG and ERR are real-time signals, defined based on NSIG or
+        // SIGRTMAX (is not available on bsd-like systems),
+        // and don't have persistent numbers across platforms, so we skip them
+        // here.
         Ok(match value {
             0 => Self::Exit,
             value => Self::Signal(
@@ -135,7 +138,8 @@ impl TryFrom<&str> for TrapSignal {
             "RETURN" => Self::Return,
             _ => {
                 // Bash compatibility:
-                // support for signal names without the `SIG` prefix, for example `HUP` -> `SIGHUP`
+                // support for signal names without the `SIG` prefix, for
+                // example `HUP` -> `SIGHUP`
                 if !s.starts_with("SIG") {
                     s.insert_str(0, "SIG");
                 }
@@ -208,7 +212,8 @@ impl TrapHandlerConfig {
     ///
     /// * `signal_type` - The type of signal to register a handler for.
     /// * `command` - The command to execute when the signal is trapped.
-    /// * `source_info` - The source info for where the trap handler was defined.
+    /// * `source_info` - The source info for where the trap handler was
+    ///   defined.
     pub fn register_handler(
         &mut self,
         signal_type: TrapSignal,

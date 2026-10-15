@@ -1,7 +1,8 @@
-use shrub_core::{ExecutionResult, builtins};
+use std::io::Write;
+
 use clap::Parser;
 use itertools::Itertools;
-use std::io::Write;
+use shrub_core::{ExecutionResult, builtins};
 
 /// Display command help.
 #[derive(Parser)]
@@ -35,7 +36,8 @@ impl builtins::Command for HelpCommand {
         }
 
         // Match bash: succeed if at least one requested topic pattern matched
-        // something; return a non-zero exit code only when none of them matched.
+        // something; return a non-zero exit code only when none of them
+        // matched.
         let mut any_matched = false;
         for topic_pattern in &self.topic_patterns {
             if self.display_help_for_topic_pattern(&context, topic_pattern)? {
@@ -83,8 +85,8 @@ impl HelpCommand {
         Ok(())
     }
 
-    /// Displays help for the builtins matching `topic_pattern`, returning whether
-    /// at least one topic matched.
+    /// Displays help for the builtins matching `topic_pattern`, returning
+    /// whether at least one topic matched.
     fn display_help_for_topic_pattern(
         &self,
         context: &shrub_core::ExecutionContext<'_, impl shrub_core::ShellExtensions>,

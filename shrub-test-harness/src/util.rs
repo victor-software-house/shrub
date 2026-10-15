@@ -68,7 +68,8 @@ pub fn write_diff(
     Ok(())
 }
 
-/// Resolves the first element of the given launcher token list to an absolute path.
+/// Resolves the first element of the given launcher token list to an absolute
+/// path.
 ///
 /// This is needed because the test harness clears env vars (including `PATH`)
 /// before spawning child processes, so a launcher binary referenced by name

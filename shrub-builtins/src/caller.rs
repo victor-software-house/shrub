@@ -1,6 +1,7 @@
-use shrub_core::{ExecutionResult, builtins, callstack};
-use clap::Parser;
 use std::io::Write;
+
+use clap::Parser;
+use shrub_core::{ExecutionResult, builtins, callstack};
 
 /// Return the context of the current subroutine call.
 #[derive(Parser)]

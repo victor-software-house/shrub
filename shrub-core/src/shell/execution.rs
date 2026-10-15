@@ -1,11 +1,13 @@
 //! Execution support for shell.
 
-use std::{io::Read, path::Path};
+use std::io::Read;
+use std::path::Path;
 
+use crate::arithmetic::Evaluatable as _;
+use crate::interp::Execute as _;
 use crate::{
     ExecutionControlFlow, ExecutionParameters, ExecutionResult, ProcessGroupPolicy, SourceInfo,
-    arithmetic::Evaluatable as _, callstack, error, interp::Execute as _, openfiles,
-    trace_categories,
+    callstack, error, openfiles, trace_categories,
 };
 
 impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
@@ -60,7 +62,8 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
         .await
     }
 
-    /// Parse and execute the given file as a shell script, returning the execution result.
+    /// Parse and execute the given file as a shell script, returning the
+    /// execution result.
     ///
     /// # Arguments
     ///
@@ -103,9 +106,10 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
             .source_file(opened_file, &source_info, args, params, call_type)
             .await?;
 
-        // Handle control flow at script execution boundary. If execution completed
-        // with a `return`, we need to clear it since it's already been "used". All
-        // other control flow types are preserved.
+        // Handle control flow at script execution boundary. If execution
+        // completed with a `return`, we need to clear it since it's
+        // already been "used". All other control flow types are
+        // preserved.
         if matches!(
             result.next_control_flow,
             ExecutionControlFlow::ReturnFromFunctionOrScript
@@ -146,7 +150,8 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
             .await
     }
 
-    /// Executes the given string as a shell program, returning the resulting exit status.
+    /// Executes the given string as a shell program, returning the resulting
+    /// exit status.
     ///
     /// # Arguments
     ///
@@ -164,8 +169,8 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
             .await
     }
 
-    /// Executes the given command, provided to a shell executable on the command
-    /// line (i.e., via `-c`).
+    /// Executes the given command, provided to a shell executable on the
+    /// command line (i.e., via `-c`).
     ///
     /// It is expected that the shell will not be used for any further execution
     /// after this command; this function will perform any necessary shell exit
@@ -230,7 +235,8 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
         source_info: &crate::SourceInfo,
         params: &ExecutionParameters,
     ) -> Result<ExecutionResult, error::Error> {
-        // If parsing succeeded, run the program. If there's a parse error, it's fatal (per spec).
+        // If parsing succeeded, run the program. If there's a parse error, it's
+        // fatal (per spec).
         let result = match parse_result {
             Ok(prog) => self.run_program(prog, params).await,
             Err(parse_err) => Err(error::Error::from(error::ErrorKind::ParseError(
@@ -254,7 +260,8 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
         }
     }
 
-    /// Executes the given parsed shell program, returning the resulting exit status.
+    /// Executes the given parsed shell program, returning the resulting exit
+    /// status.
     ///
     /// # Arguments
     ///

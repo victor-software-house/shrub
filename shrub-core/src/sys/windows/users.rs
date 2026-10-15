@@ -1,9 +1,10 @@
 #![allow(clippy::missing_const_for_fn)]
 #![allow(clippy::unnecessary_wraps)]
 
-use crate::error;
 use std::path::PathBuf;
 use std::sync::LazyLock;
+
+use crate::error;
 
 /// Placeholder UID for non-elevated Windows processes.
 ///
@@ -12,7 +13,8 @@ use std::sync::LazyLock;
 /// regular-user UID on Linux).
 const NON_ELEVATED_UID: u32 = 1000;
 
-/// Placeholder GID for non-elevated Windows processes (see [`NON_ELEVATED_UID`]).
+/// Placeholder GID for non-elevated Windows processes (see
+/// [`NON_ELEVATED_UID`]).
 const NON_ELEVATED_GID: u32 = 1000;
 
 /// Cached elevation status. The underlying check queries the process token,

@@ -19,17 +19,14 @@ mod tokenizer;
 #[cfg(test)]
 mod snapshot_tests;
 
+#[cfg(feature = "diagnostics")]
+pub use error::miette::PrettyError;
 pub use error::{
     BindingParseError, ParseError, ParseErrorLocation, TestCommandParseError, WordParseError,
 };
-
-#[cfg(feature = "diagnostics")]
-pub use error::miette::PrettyError;
-
 #[cfg(feature = "winnow-parser")]
 pub use parser::winnow_str;
 pub use parser::{Parser, ParserBuilder, ParserImpl, ParserOptions, SourceInfo, parse_tokens};
-
 pub use source::{SourcePosition, SourcePositionOffset, SourceSpan};
 pub use tokenizer::{
     Token, TokenLocation, TokenizerError, TokenizerOptions, tokenize_str,

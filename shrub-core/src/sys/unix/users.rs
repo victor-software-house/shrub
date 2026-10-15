@@ -1,7 +1,8 @@
-use crate::{error, trace_categories};
 use std::path::PathBuf;
 
 use uzers::os::unix::UserExt;
+
+use crate::{error, trace_categories};
 
 pub(crate) fn is_root() -> bool {
     uzers::get_current_uid() == 0
@@ -66,15 +67,15 @@ pub(crate) fn get_user_group_ids() -> Result<Vec<u32>, error::Error> {
 }
 
 pub(crate) fn get_all_users() -> Result<Vec<String>, error::Error> {
-    // TODO(#475): uzers::all_users() is available but unsafe; for now we just return the current
-    // user. That's better than nothing.
+    // TODO(#475): uzers::all_users() is available but unsafe; for now we just
+    // return the current user. That's better than nothing.
     let user = get_current_username()?;
     Ok(vec![user])
 }
 
 pub(crate) fn get_all_groups() -> Result<Vec<String>, error::Error> {
-    // TODO(#475): uzers::all_groups() is available but unsafe; for now we just return the current
-    // user's groups. That's better than nothing.
+    // TODO(#475): uzers::all_groups() is available but unsafe; for now we just
+    // return the current user's groups. That's better than nothing.
     let groups = get_current_user_groups()?;
     let group_names = groups
         .into_iter()

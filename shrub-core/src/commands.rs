@@ -1,27 +1,23 @@
 //! Command execution
 
-use std::{
-    borrow::Cow,
-    ffi::OsStr,
-    fmt::{Display, Write as _},
-    path::{Path, PathBuf},
-    process::Stdio,
-};
+use std::borrow::Cow;
+use std::ffi::OsStr;
+use std::fmt::{Display, Write as _};
+use std::path::{Path, PathBuf};
+use std::process::Stdio;
 
-use shrub_parser::ast;
 use itertools::Itertools;
+use shrub_parser::ast;
 use sys::commands::{CommandExt, CommandFdInjectionExt, CommandFgControlExt};
 
+use crate::extensions::{self, ShellExtensions};
+use crate::interp::{self, Execute, ProcessGroupPolicy};
+use crate::openfiles::{self, OpenFile, OpenFiles};
+use crate::results::ExecutionSpawnResult;
 use crate::{
     ErrorKind, ExecutionControlFlow, ExecutionExitCode, ExecutionParameters, ExecutionResult,
-    Shell, ShellFd, builtins, commands, env, error, escape,
-    extensions::{self, ShellExtensions},
-    functions,
-    interp::{self, Execute, ProcessGroupPolicy},
-    openfiles::{self, OpenFile, OpenFiles},
-    pathsearch, processes,
-    results::ExecutionSpawnResult,
-    sys, trace_categories, traps, variables,
+    Shell, ShellFd, builtins, commands, env, error, escape, functions, pathsearch, processes, sys,
+    trace_categories, traps, variables,
 };
 
 /// Encapsulates the result of waiting for a command to complete.
@@ -164,18 +160,20 @@ impl<SE: extensions::ShellExtensions> std::ops::DerefMut for ShellForCommand<'_,
     }
 }
 
-/// Composes a `std::process::Command` to execute the given command. Appropriately
-/// configures the command name and arguments, redirections, injected file
-/// descriptors, environment variables, etc.
+/// Composes a `std::process::Command` to execute the given command.
+/// Appropriately configures the command name and arguments, redirections,
+/// injected file descriptors, environment variables, etc.
 ///
 /// # Arguments
 ///
 /// * `context` - The execution context in which the command is being composed.
 /// * `command_name` - The name of the command to execute.
-/// * `argv0` - The value to use for `argv[0]` (may be different from the command).
+/// * `argv0` - The value to use for `argv[0]` (may be different from the
+///   command).
 /// * `args` - The arguments to pass to the command.
-/// * `empty_env` - If true, the command will be executed with an empty environment; if false, the
-///   command will inherit environment variables marked as exported in the provided `Shell`.
+/// * `empty_env` - If true, the command will be executed with an empty
+///   environment; if false, the command will inherit environment variables
+///   marked as exported in the provided `Shell`.
 #[allow(unused_variables, reason = "argv0 is only used on unix platforms")]
 pub fn compose_std_command<S: AsRef<OsStr>, SE: extensions::ShellExtensions>(
     context: &ExecutionContext<'_, SE>,
@@ -318,15 +316,16 @@ pub struct SimpleCommand<'a, SE: extensions::ShellExtensions> {
     pub args: Vec<CommandArg>,
 
     /// Whether to consider shell functions when looking up the command name.
-    /// If true, shell functions will be checked; if false, they will be ignored.
+    /// If true, shell functions will be checked; if false, they will be
+    /// ignored.
     pub use_functions: bool,
 
     /// Optional list of directories to search for external commands. If left
     /// `None`, the default search logic will be used.
     pub path_dirs: Option<Vec<PathBuf>>,
 
-    /// The process group ID to use for externally executed commands. This may be
-    /// `None`, in which case the default behavior will be used.
+    /// The process group ID to use for externally executed commands. This may
+    /// be `None`, in which case the default behavior will be used.
     pub process_group_id: Option<i32>,
 
     /// Optional override for the `argv[0]` value presented to an externally
@@ -377,8 +376,8 @@ impl<'a, SE: extensions::ShellExtensions> SimpleCommand<'a, SE> {
         // First see if it's the name of a builtin.
         let builtin = self.shell.builtins().get(&self.command_name).cloned();
 
-        // If we're in POSIX mode and found a special builtin (that's not disabled), then invoke it
-        // without considering functions.
+        // If we're in POSIX mode and found a special builtin (that's not
+        // disabled), then invoke it without considering functions.
         if self.shell.options().posix_mode
             && builtin
                 .as_ref()
@@ -399,18 +398,20 @@ impl<'a, SE: extensions::ShellExtensions> SimpleCommand<'a, SE> {
             }
         }
 
-        // If we haven't yet resolved the command name and found a builtin that's not disabled,
-        // then invoke it.
+        // If we haven't yet resolved the command name and found a builtin
+        // that's not disabled, then invoke it.
         if let Some(builtin) = builtin {
             if !builtin.disabled {
                 return self.execute_via_builtin(builtin).await;
             }
         }
 
-        // We still haven't found a command to invoke. We'll need to look for an external command.
+        // We still haven't found a command to invoke. We'll need to look for an
+        // external command.
         if !sys::fs::contains_path_separator(&self.command_name) {
-            // All else failed; if we were given path directories to search, look through them
-            // for a match. Otherwise, use our default search logic.
+            // All else failed; if we were given path directories to search,
+            // look through them for a match. Otherwise, use our
+            // default search logic.
             let path = if let Some(path_dirs) = &self.path_dirs {
                 pathsearch::resolve_command(path_dirs, self.command_name.as_str())
             } else {
@@ -474,8 +475,8 @@ impl<'a, SE: extensions::ShellExtensions> SimpleCommand<'a, SE> {
         args: Vec<CommandArg>,
     ) -> impl Future<Output = ExecutionSpawnResult> + use<SE> {
         let last_arg = Self::take_last_arg(&args);
-        // Builtins may block (e.g., reading input), so keep them from holding up the
-        // rest of the pipeline.
+        // Builtins may block (e.g., reading input), so keep them from holding
+        // up the rest of the pipeline.
         let task = sys::tasks::spawn_blocking(async move {
             let cmd_context = ExecutionContext {
                 shell: &mut shell,
@@ -659,7 +660,8 @@ pub(crate) fn execute_external_command(
         })
         .collect::<Vec<_>>();
 
-    // Before we lose ownership of the open files, figure out if stdin will be a terminal.
+    // Before we lose ownership of the open files, figure out if stdin will be a
+    // terminal.
     let child_stdin_is_terminal = context
         .try_fd(openfiles::OpenFiles::STDIN_FD)
         .is_some_and(|f| f.is_terminal());
@@ -670,9 +672,10 @@ pub(crate) fn execute_external_command(
         ProcessGroupPolicy::NewProcessGroup
     );
 
-    // Compose the std::process::Command that encapsulates what we want to launch.
-    // argv[0] defaults to context.command_name (the user-facing name of the
-    // command) unless the caller specified an explicit override.
+    // Compose the std::process::Command that encapsulates what we want to
+    // launch. argv[0] defaults to context.command_name (the user-facing
+    // name of the command) unless the caller specified an explicit
+    // override.
     let argv0 = argv0_override.unwrap_or(context.command_name.as_str());
     #[allow(unused_mut, reason = "only mutated on unix platforms")]
     let mut cmd = compose_std_command(
@@ -685,7 +688,8 @@ pub(crate) fn execute_external_command(
 
     // Set up process group state.
     if new_pg {
-        // Check if we'll be doing terminal control setup (which includes setsid)
+        // Check if we'll be doing terminal control setup (which includes
+        // setsid)
         if child_stdin_is_terminal && context.shell.options().external_cmd_leads_session {
             // Don't set process_group(0) - setsid() in pre_exec will handle it
             cmd.lead_session();
@@ -760,13 +764,15 @@ async fn execute_builtin_command<SE: extensions::ShellExtensions>(
     context: ExecutionContext<'_, SE>,
     args: Vec<CommandArg>,
 ) -> Result<ExecutionResult, error::Error> {
-    // In POSIX mode, special builtins that return errors are to be treated as fatal.
+    // In POSIX mode, special builtins that return errors are to be treated as
+    // fatal.
     let mark_errors_fatal = builtin.special_builtin && context.shell.options().posix_mode;
 
     match (builtin.execute_func)(context, args).await {
         Ok(result) => Ok(result),
         Err(e) => {
-            // Broken pipe errors should silently return the appropriate exit code
+            // Broken pipe errors should silently return the appropriate exit
+            // code
             if let Some(io_err) = e.as_io_error() {
                 if io_err.kind() == std::io::ErrorKind::BrokenPipe {
                     return Ok(ExecutionExitCode::from(io_err).into());
@@ -794,16 +800,19 @@ pub(crate) async fn invoke_shell_function(
 
     let positional_args = args.iter().map(|a| a.to_string());
 
-    // Enter the function; it's left however its body ends, even if it's cancelled.
+    // Enter the function; it's left however its body ends, even if it's
+    // cancelled.
     let mut shell =
         context
             .shell
             .enter_function(context.command_name.as_str(), &function, positional_args)?;
 
-    // A function executes within the current shell process and shares its caller's open files,
-    // so the parameters are passed through by shared reference rather than cloned. This prevents
-    // direct mutation of the caller's `ExecutionParameters` open-file table, though the function
-    // may still change the shell's persistent open files via builtins (e.g. `exec`).
+    // A function executes within the current shell process and shares its
+    // caller's open files, so the parameters are passed through by shared
+    // reference rather than cloned. This prevents direct mutation of the
+    // caller's `ExecutionParameters` open-file table, though the function
+    // may still change the shell's persistent open files via builtins (e.g.
+    // `exec`).
     let result = body.execute(&mut shell, &context.params).await;
 
     // Leave the function: pop its frame and its local variables.
@@ -835,8 +844,9 @@ pub(crate) async fn invoke_command_in_subshell_and_get_output(
     // Instantiate a subshell to run the command in.
     let mut subshell = shell.clone();
 
-    // Command substitutions don't inherit errexit by default. Only inherit it when
-    // command_subst_inherits_errexit is enabled, otherwise disable errexit in the subshell.
+    // Command substitutions don't inherit errexit by default. Only inherit it
+    // when command_subst_inherits_errexit is enabled, otherwise disable
+    // errexit in the subshell.
     if !shell.options().command_subst_inherits_errexit {
         subshell.options_mut().exit_on_nonzero_command_exit = false;
     }

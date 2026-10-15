@@ -1,5 +1,5 @@
-/// The shell's reserved words, in the order bash lists them (e.g. for `compgen -k`), each
-/// with whether it's reserved in sh mode too.
+/// The shell's reserved words, in the order bash lists them (e.g. for `compgen
+/// -k`), each with whether it's reserved in sh mode too.
 const KEYWORDS: [(&str, bool); 22] = [
     ("if", true),
     ("then", true),
@@ -25,7 +25,8 @@ const KEYWORDS: [(&str, bool); 22] = [
     ("coproc", false),
 ];
 
-/// Returns the reserved words, in bash's order; in sh mode, only those reserved there.
+/// Returns the reserved words, in bash's order; in sh mode, only those reserved
+/// there.
 pub(crate) fn keywords(sh_mode: bool) -> impl Iterator<Item = &'static str> {
     KEYWORDS
         .iter()

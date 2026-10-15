@@ -1,8 +1,10 @@
 //! History management for shells.
 
-use std::{collections::BTreeSet, path::PathBuf};
+use std::collections::BTreeSet;
+use std::path::PathBuf;
 
-use crate::{error, history::HistoryControl, openfiles};
+use crate::history::HistoryControl;
+use crate::{error, openfiles};
 
 impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
     pub(super) fn load_history(&self) -> Result<Option<crate::history::History>, error::Error> {
@@ -23,14 +25,16 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
             let file_metadata = file.metadata()?;
             let file_size = file_metadata.len();
 
-            // If the file is empty, no reason to try reading it. Note that this will also
-            // end up excluding non-regular files that report a 0 file size but appear
-            // to have contents when read.
+            // If the file is empty, no reason to try reading it. Note that this
+            // will also end up excluding non-regular files that
+            // report a 0 file size but appear to have contents when
+            // read.
             if file_size == 0 {
                 return Ok(None);
             }
 
-            // Bail if the file is unrealistically large. For now we just refuse to import it.
+            // Bail if the file is unrealistically large. For now we just refuse
+            // to import it.
             if file_size > MAX_FILE_SIZE_FOR_HISTORY_IMPORT {
                 return Err(error::ErrorKind::HistoryFileTooLargeToImport.into());
             }
@@ -57,8 +61,8 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
         if let Some(history_file_path) = self.history_file_path()
             && let Some(history) = &mut self.history
         {
-            // See if there's *any* time format configured. That triggers writing out
-            // timestamps.
+            // See if there's *any* time format configured. That triggers
+            // writing out timestamps.
             let write_timestamps = self.env.is_set("HISTTIMEFORMAT");
 
             // TODO(history): Observe options.append_to_history_file
@@ -73,8 +77,9 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
         Ok(())
     }
 
-    /// Adds a command to history. Like bash, an interactive shell leaves it out or makes room
-    /// for it as the colon-separated values of `HISTCONTROL` say:
+    /// Adds a command to history. Like bash, an interactive shell leaves it out
+    /// or makes room for it as the colon-separated values of `HISTCONTROL`
+    /// say:
     ///
     /// - `ignorespace`: leave it out if it starts with a space.
     /// - `ignoredups`: leave it out if it's the same as the last entry.
@@ -97,8 +102,8 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
             return Ok(());
         }
 
-        // Like bash, save the command as typed, surrounding whitespace and all, but leave out
-        // blank ones.
+        // Like bash, save the command as typed, surrounding whitespace and all,
+        // but leave out blank ones.
         if command.trim().is_empty() {
             return Ok(());
         }

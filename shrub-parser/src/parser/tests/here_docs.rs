@@ -1,8 +1,9 @@
 //! Tests for here-document parsing.
 
+use anyhow::Result;
+
 use super::{ParseResult, test_with_snapshot};
 use crate::assert_snapshot_redacted;
-use anyhow::Result;
 
 #[test]
 fn parse_here_doc_basic() -> Result<()> {
@@ -130,8 +131,8 @@ EOF
 
 #[test]
 fn parse_pathological_here_docs() {
-    // Expansions left open around a here-document, including one nested in another. Each must
-    // be reported as an error.
+    // Expansions left open around a here-document, including one nested in
+    // another. Each must be reported as an error.
     let peg = super::ParserConfig {
         name: "peg",
         parser_impl: crate::parser::ParserImpl::Peg,
@@ -152,10 +153,11 @@ fn parse_pathological_here_docs() {
 
 #[test]
 fn parse_here_doc_left_open_in_nested_command_substitution() -> Result<()> {
-    // The inner substitution ends before the here-document's body, which follows the line;
-    // bash accepts this (with a warning). The body belongs in the inner substitution's text,
-    // with its operator and tag, and the outer substitution must still end at its own
-    // closing paren, after the body and the command that follows it.
+    // The inner substitution ends before the here-document's body, which
+    // follows the line; bash accepts this (with a warning). The body
+    // belongs in the inner substitution's text, with its operator and tag,
+    // and the outer substitution must still end at its own closing paren,
+    // after the body and the command that follows it.
     let input = "echo $(echo $(cat <<EOF)\nbody\nEOF\necho more\n)\n";
     let result = test_with_snapshot(input)?;
     assert_snapshot_redacted!(ParseResult {

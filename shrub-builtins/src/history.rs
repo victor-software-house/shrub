@@ -1,9 +1,8 @@
-use shrub_core::{ExecutionExitCode, ExecutionResult, builtins, error, history};
+use std::io::Write;
+use std::path::{Path, PathBuf};
+
 use clap::Parser;
-use std::{
-    io::Write,
-    path::{Path, PathBuf},
-};
+use shrub_core::{ExecutionExitCode, ExecutionResult, builtins, error, history};
 
 /// Query or manipulate the shell's command history.
 // TODO(history): Evaluate which of the options conflict with each other.
@@ -14,8 +13,9 @@ pub(crate) struct HistoryCommand {
     #[arg(short = 'c')]
     clear_history: bool,
 
-    /// Deletes the history entry at the given offset. Positive offsets are relative to the
-    /// beginning of the history, while negative offsets are relative to the end of the history.
+    /// Deletes the history entry at the given offset. Positive offsets are
+    /// relative to the beginning of the history, while negative offsets are
+    /// relative to the end of the history.
     #[arg(short = 'd', value_name = "OFFSET")]
     delete_offset: Option<i64>,
 
@@ -23,7 +23,8 @@ pub(crate) struct HistoryCommand {
     #[arg(short = 'a', group = "anrw", num_args = 0..=1, value_name = "HIST_FILE")]
     append_session_to_file: Option<Option<String>>,
 
-    /// Appends any remaining history from the history file to the current session.
+    /// Appends any remaining history from the history file to the current
+    /// session.
     #[arg(short = 'n', group = "anrw", num_args = 0..=1, value_name = "HIST_FILE")]
     append_rest_of_file_to_session: Option<Option<String>>,
 
@@ -223,9 +224,10 @@ fn get_effective_history_file_path<'a>(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use anyhow::Result;
     use pretty_assertions::{assert_eq, assert_matches};
+
+    use super::*;
 
     #[test]
     fn test_parse_dash_a() -> Result<()> {

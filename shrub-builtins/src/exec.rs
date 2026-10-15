@@ -1,6 +1,7 @@
-use clap::Parser;
-use std::{borrow::Cow, os::unix::process::CommandExt};
+use std::borrow::Cow;
+use std::os::unix::process::CommandExt;
 
+use clap::Parser;
 use shrub_core::{ErrorKind, ExecutionExitCode, ExecutionResult, builtins, commands};
 
 /// Exec the provided command.
@@ -31,8 +32,9 @@ impl builtins::Command for ExecCommand {
         context: shrub_core::ExecutionContext<'_, SE>,
     ) -> Result<ExecutionResult, Self::Error> {
         if self.args.is_empty() {
-            // When no arguments are present, then there's nothing for us to execute -- but we need
-            // to ensure that any redirections setup for this builtin get applied to the calling
+            // When no arguments are present, then there's nothing for us to
+            // execute -- but we need to ensure that any
+            // redirections setup for this builtin get applied to the calling
             // shell instance.
             #[allow(clippy::needless_collect)]
             let fds: Vec<_> = context.iter_fds().collect();
@@ -41,10 +43,10 @@ impl builtins::Command for ExecCommand {
             return Ok(ExecutionResult::success());
         }
 
-        // If we know we're already running in a subshell, then `exec`ing is actually
-        // unsafe, since it would also replace the *parent* shell instance. We instead
-        // delegate to the `command` builtin to perform the execution, with an expectation
-        // of returning.
+        // If we know we're already running in a subshell, then `exec`ing is
+        // actually unsafe, since it would also replace the *parent*
+        // shell instance. We instead delegate to the `command` builtin
+        // to perform the execution, with an expectation of returning.
         if context.shell.is_subshell() {
             if self.empty_environment || self.exec_as_login || self.name_for_argv0.is_some() {
                 return shrub_core::error::unimp("exec with options in subshell not yet supported");

@@ -3,8 +3,8 @@
 use crate::{completion, error, extensions};
 
 impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
-    /// Completes the word at the cursor in a line being edited, with programmable
-    /// completion (see the [`completion`] module).
+    /// Completes the word at the cursor in a line being edited, with
+    /// programmable completion (see the [`completion`] module).
     ///
     /// # Arguments
     ///
@@ -22,8 +22,9 @@ impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
         completion::complete(self, input, cursor).await
     }
 
-    /// Returns the options of the programmable completion in progress, if any (e.g.
-    /// while its completion function runs), which the `compopt` builtin changes.
+    /// Returns the options of the programmable completion in progress, if any
+    /// (e.g. while its completion function runs), which the `compopt`
+    /// builtin changes.
     pub fn in_progress_completion_options_mut(
         &mut self,
     ) -> Option<&mut completion::GenerationOptions> {
@@ -33,7 +34,8 @@ impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
             .map(|in_progress| &mut in_progress.options)
     }
 
-    /// Returns a mutable reference to the programmable completion in progress, if any.
+    /// Returns a mutable reference to the programmable completion in progress,
+    /// if any.
     pub(crate) const fn in_progress_completion_mut(
         &mut self,
     ) -> &mut Option<completion::InProgressCompletion> {

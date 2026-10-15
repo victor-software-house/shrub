@@ -1,6 +1,6 @@
-use clap::Parser;
 use std::io::Write;
 
+use clap::Parser;
 use shrub_core::{
     ErrorKind, ExecutionExitCode, ExecutionParameters, ExecutionResult, Shell, builtins, tests,
 };
@@ -16,9 +16,10 @@ pub(crate) struct TestCommand {
 impl builtins::Command for TestCommand {
     type Error = shrub_core::Error;
 
-    /// Override the default [`builtins::Command::new`] function to handle clap's limitation related
-    /// to `--`. See [`builtins::parse_known`] for more information
-    /// TODO(test): we can safely remove this after the issue is resolved
+    /// Override the default [`builtins::Command::new`] function to handle
+    /// clap's limitation related to `--`. See [`builtins::parse_known`] for
+    /// more information TODO(test): we can safely remove this after the
+    /// issue is resolved
     fn new<I>(args: I) -> Result<Self, clap::Error>
     where
         I: IntoIterator<Item = String>,

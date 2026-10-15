@@ -1,6 +1,6 @@
-use clap::Parser;
 use std::io::Write;
 
+use clap::Parser;
 use shrub_core::{ExecutionExitCode, ExecutionResult, builtins, error};
 
 /// Wait for jobs to terminate.
@@ -15,7 +15,8 @@ pub(crate) struct WaitCommand {
     #[arg(short = 'n')]
     wait_for_first_or_next: bool,
 
-    /// Name of variable to receive the job ID of the job whose status is indicated.
+    /// Name of variable to receive the job ID of the job whose status is
+    /// indicated.
     #[arg(short = 'p', value_name = "VAR_NAME")]
     variable_to_receive_id: Option<String>,
 

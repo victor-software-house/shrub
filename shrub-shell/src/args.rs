@@ -1,12 +1,15 @@
 //! Types for shrub command-line parsing.
 
-use clap::{Parser, builder::styling};
 use std::io::IsTerminal;
 use std::path::PathBuf;
 
+use clap::Parser;
+use clap::builder::styling;
+
 use crate::{events, productinfo};
 
-const SHORT_DESCRIPTION: &str = "Bo[u]rn[e] RUsty SHell 🦀 (https://github.com/victor-software-house/shrub)";
+const SHORT_DESCRIPTION: &str =
+    "Bo[u]rn[e] RUsty SHell 🦀 (https://github.com/victor-software-house/shrub)";
 
 const LONG_DESCRIPTION: &str = r"shrub is a bash-compatible, Rust-implemented, POSIX-style shell.
 
@@ -14,7 +17,8 @@ shrub is distributed under the terms of the MIT license. If you encounter any is
 
 For more information, visit https://github.com/victor-software-house/shrub.";
 
-// The second usage form is indented to line up under the first, past clap's "Usage: " prefix.
+// The second usage form is indented to line up under the first, past clap's
+// "Usage: " prefix.
 const USAGE: &str = color_print::cstr!(
     "<bold>shrub</bold> <italics>[OPTIONS]</italics>... <italics>[SCRIPT_PATH [SCRIPT_ARGS]...]</italics>\n       <bold>shrub</bold> <italics>[OPTIONS]</italics>... -c <italics>COMMAND_STRING [NAME [ARGS]...]</italics>"
 );
@@ -41,8 +45,8 @@ pub enum InputBackendType {
     /// wasm targets.
     Reedline,
     /// The `vt` backend's line editing, drawn with backspaces alone and listing
-    /// ambiguous completions straight away: output that test harnesses can follow.
-    /// Available only on Unix.
+    /// ambiguous completions straight away: output that test harnesses can
+    /// follow. Available only on Unix.
     Basic,
     /// Most minimal input backend.
     Minimal,
@@ -85,8 +89,8 @@ pub struct CommandLineArgs {
 
     /// Execute the command given as the first operand and then exit.
     ///
-    /// Only an input to parsing: `try_parse_from` moves the command string into `command`,
-    /// which is what everything else consults.
+    /// Only an input to parsing: `try_parse_from` moves the command string into
+    /// `command`, which is what everything else consults.
     #[arg(short = 'c', help_heading = HEADING_STANDARD_OPTIONS)]
     pub(crate) command_string_mode: bool,
 
@@ -125,12 +129,13 @@ pub struct CommandLineArgs {
     #[clap(long = "noediting", help_heading = HEADING_STANDARD_OPTIONS)]
     pub no_editing: bool,
 
-    /// Don't process any profile/login files (`/etc/profile`, `~/.bash_profile`, `~/.bash_login`,
-    /// `~/.profile`).
+    /// Don't process any profile/login files (`/etc/profile`,
+    /// `~/.bash_profile`, `~/.bash_login`, `~/.profile`).
     #[clap(long = "noprofile", help_heading = HEADING_STANDARD_OPTIONS)]
     pub no_profile: bool,
 
-    /// Don't process "rc" files if the shell is interactive (e.g., `~/.bashrc`, `~/.shrubrc`).
+    /// Don't process "rc" files if the shell is interactive (e.g., `~/.bashrc`,
+    /// `~/.shrubrc`).
     #[clap(long = "norc", help_heading = HEADING_STANDARD_OPTIONS)]
     pub no_rc: bool,
 
@@ -158,8 +163,8 @@ pub struct CommandLineArgs {
     #[clap(long = "posix", help_heading = HEADING_STANDARD_OPTIONS)]
     pub posix: bool,
 
-    /// Path to the rc file to load in interactive shells (instead of `bash.bashrc` and
-    /// `~/.bashrc`).
+    /// Path to the rc file to load in interactive shells (instead of
+    /// `bash.bashrc` and `~/.bashrc`).
     #[clap(long = "rcfile", alias = "init-file", value_name = "FILE", help_heading = HEADING_STANDARD_OPTIONS)]
     pub rc_file: Option<PathBuf>,
 
@@ -230,7 +235,8 @@ pub struct CommandLineArgs {
     #[clap(long = "debug", alias = "log-enable", value_name = "EVENT", help_heading = HEADING_UI_OPTIONS)]
     pub enabled_debug_events: Vec<events::TraceEvent>,
 
-    /// Disable logging for classes of tracing events (takes same event types as `--debug`).
+    /// Disable logging for classes of tracing events (takes same event types as
+    /// `--debug`).
     #[clap(
         long = "disable-event",
         alias = "log-disable",
@@ -252,8 +258,9 @@ pub struct CommandLineArgs {
 impl CommandLineArgs {
     /// Returns a `CommandLineArgs` with all clap-defined default values.
     ///
-    /// This is useful for detecting which CLI arguments were explicitly provided
-    /// vs. which retained their default values (e.g., for config file merging).
+    /// This is useful for detecting which CLI arguments were explicitly
+    /// provided vs. which retained their default values (e.g., for config
+    /// file merging).
     #[must_use]
     #[allow(
         clippy::missing_panics_doc,
@@ -266,29 +273,34 @@ impl CommandLineArgs {
         Self::try_parse_from([String::from("shrub")]).expect("parsing defaults should never fail")
     }
 
-    /// Returns whether the shell will read its commands from standard input, as opposed to
-    /// running a command given with `-c` or a script named on the command line.
+    /// Returns whether the shell will read its commands from standard input, as
+    /// opposed to running a command given with `-c` or a script named on
+    /// the command line.
     ///
-    /// This is the single source of truth for that question; it decides which shell mode
-    /// `entry::run_in_shell` enters, whether `$-` reports `s`, whether the shell can be
-    /// interactive, and which input backend gets selected.
+    /// This is the single source of truth for that question; it decides which
+    /// shell mode `entry::run_in_shell` enters, whether `$-` reports `s`,
+    /// whether the shell can be interactive, and which input backend gets
+    /// selected.
     pub const fn will_read_commands_from_stdin(&self) -> bool {
         if self.command.is_some() {
             // -c supplies the command.
             false
         } else if self.read_commands_from_stdin {
-            // -s makes any non-option arguments positional parameters, not a script to run.
+            // -s makes any non-option arguments positional parameters, not a
+            // script to run.
             true
         } else {
-            // Otherwise the first non-option argument, if any, names a script to run.
+            // Otherwise the first non-option argument, if any, names a script
+            // to run.
             self.script_args.is_empty()
         }
     }
 
-    /// Returns whether or not the arguments indicate that the shell should run in interactive mode.
+    /// Returns whether or not the arguments indicate that the shell should run
+    /// in interactive mode.
     pub fn is_interactive(&self) -> bool {
-        // If -i is provided, then that overrides any further consideration; it forces
-        // interactive mode.
+        // If -i is provided, then that overrides any further consideration; it
+        // forces interactive mode.
         if self.interactive {
             return true;
         }
@@ -298,7 +310,8 @@ impl CommandLineArgs {
             return false;
         }
 
-        // If *either* stdin or stderr is not a terminal, then we're not in interactive mode.
+        // If *either* stdin or stderr is not a terminal, then we're not in
+        // interactive mode.
         if !std::io::stdin().is_terminal() || !std::io::stderr().is_terminal() {
             return false;
         }
@@ -363,9 +376,11 @@ mod tests {
         ];
 
         for (args, expected) in cases {
-            // NOTE: This deliberately goes through the crate's own `try_parse_from` (which
-            // takes `String`s) and not `clap::Parser::try_parse_from`; only the former
-            // applies shrub's `--` handling, so only the former sees what the shell sees.
+            // NOTE: This deliberately goes through the crate's own
+            // `try_parse_from` (which takes `String`s) and not
+            // `clap::Parser::try_parse_from`; only the former
+            // applies shrub's `--` handling, so only the former sees what the
+            // shell sees.
             let parsed = CommandLineArgs::try_parse_from(
                 std::iter::once("shrub")
                     .chain(args.iter().copied())

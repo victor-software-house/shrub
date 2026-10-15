@@ -1,10 +1,12 @@
-use shrub_core::{ExecutionResult, sys};
-use clap::{Parser, Subcommand};
 use std::io::Write;
+
+use clap::{Parser, Subcommand};
+use shrub_core::{ExecutionResult, sys};
 
 use crate::events;
 
-/// Extension trait for adding shrub-specific built-in commands to a shell builder.
+/// Extension trait for adding shrub-specific built-in commands to a shell
+/// builder.
 pub(crate) trait ShellBuilderShrubBuiltinExt {
     /// Add shrub-specific builtins to a shell being built.
     #[must_use]
@@ -15,8 +17,9 @@ impl<SE: shrub_core::extensions::ShellExtensions, S: shrub_core::ShellBuilderSta
     ShellBuilderShrubBuiltinExt for shrub_core::ShellBuilder<SE, S>
 {
     fn shrub_builtins(self) -> Self {
-        // For compatibility with previous releases, we register the command under both
-        // `shrubctl` and `shrubinfo` names. It will behave identically across the two.
+        // For compatibility with previous releases, we register the command
+        // under both `shrubctl` and `shrubinfo` names. It will behave
+        // identically across the two.
         self.builtin(
             "shrubctl",
             shrub_core::builtins::builtin::<ShrubCtlCommand, SE>(),

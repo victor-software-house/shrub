@@ -1,11 +1,14 @@
 //! Facilities for configuring event tracing in the shrub shell.
 
-use std::{collections::HashSet, fmt::Display};
+use std::collections::HashSet;
+use std::fmt::Display;
 
 use shrub_core::Error;
-use tracing_subscriber::{
-    Layer, Registry, filter::Targets, layer::SubscriberExt, reload::Handle, util::SubscriberInitExt,
-};
+use tracing_subscriber::filter::Targets;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::reload::Handle;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::{Layer, Registry};
 
 /// Type of event to trace.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, clap::ValueEnum)]
@@ -84,7 +87,8 @@ impl TraceEventConfig {
 
         let filter = config.compose_filter();
 
-        // Make the filter reloadable so that we can change the log level at runtime.
+        // Make the filter reloadable so that we can change the log level at
+        // runtime.
         let (reload_filter, handle) = tracing_subscriber::reload::Layer::new(filter);
 
         let layer = tracing_subscriber::fmt::layer()

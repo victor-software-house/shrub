@@ -1,14 +1,14 @@
+use std::collections::HashMap;
+use std::io::Write;
+use std::str::FromStr as _;
+use std::sync::Arc;
+
 use clap::{Parser, ValueEnum};
 use itertools::Itertools as _;
-use std::{collections::HashMap, io::Write, str::FromStr as _, sync::Arc};
+use shrub_core::interfaces::{self, InputFunction, KeyAction, KeySequence};
+use shrub_core::{ExecutionExitCode, ExecutionResult, builtins, sys, trace_categories};
 use strum::IntoEnumIterator;
 use tokio::sync::Mutex;
-
-use shrub_core::{
-    ExecutionExitCode, ExecutionResult, builtins,
-    interfaces::{self, InputFunction, KeyAction, KeySequence},
-    sys, trace_categories,
-};
 
 /// Identifier for a keymap
 #[derive(Clone, ValueEnum)]
@@ -57,7 +57,8 @@ pub(crate) struct BindCommand {
     /// List key sequences that invoke macros.
     #[arg(short = 'S')]
     list_key_seqs_that_invoke_macros: bool,
-    /// List key sequences that invoke macros in a format suitable for use as input.
+    /// List key sequences that invoke macros in a format suitable for use as
+    /// input.
     #[arg(short = 's')]
     list_key_seqs_that_invoke_macros_reusable: bool,
     /// List variables.
@@ -394,8 +395,9 @@ fn key_sequence_to_abstract_strokes(
     for mut phys_stroke in phys_strokes {
         let mut key = sys::input::try_get_key_from_key_code(phys_stroke.key_code.as_slice());
 
-        // If we couldn't interpret it directly but we see it starts with the escape character,
-        // try to see if we can parse it as an Alt+<key> sequence.
+        // If we couldn't interpret it directly but we see it starts with the
+        // escape character, try to see if we can parse it as an
+        // Alt+<key> sequence.
         if key.is_none() && phys_stroke.key_code.len() > 1 && phys_stroke.key_code[0] == b'\x1b' {
             key = sys::input::try_get_key_from_key_code(&phys_stroke.key_code[1..]);
             if key.is_some() {
@@ -408,7 +410,7 @@ fn key_sequence_to_abstract_strokes(
         if phys_stroke.control {
             for byte in &mut raw_bytes {
                 // Control characters are computed by ANDing with 0x1F
-                *byte &= 0x1F;
+                *byte &= 0x1f;
             }
         }
         key_code_bytes.push(raw_bytes);
@@ -525,8 +527,9 @@ fn find_key_seqs_bound_to_function(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use pretty_assertions::{assert_eq, assert_matches};
+
+    use super::*;
 
     #[test]
     fn parse_example_key_sequence_and_readline_func() {

@@ -1,5 +1,6 @@
-use nu_ansi_term::{Color, Style};
 use std::borrow::BorrowMut;
+
+use nu_ansi_term::{Color, Style};
 
 use crate::{completion, refs};
 

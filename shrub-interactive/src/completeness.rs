@@ -1,16 +1,17 @@
 //! Deciding whether accumulated input forms a complete shell program.
 //!
-//! Input backends read a line at a time and need to know when they have enough to hand
-//! over for execution.
+//! Input backends read a line at a time and need to know when they have enough
+//! to hand over for execution.
 
 use shrub_core::Shell;
 
-/// Returns whether the given accumulated input is an incomplete shell program, i.e.
-/// whether more input must be read before it can be executed.
+/// Returns whether the given accumulated input is an incomplete shell program,
+/// i.e. whether more input must be read before it can be executed.
 ///
-/// Acquires the shell lock without blocking. Input is read between commands, with no
-/// other task holding the lock, so acquisition is expected to succeed; blocking instead
-/// isn't an option because backends also run on single-threaded runtimes.
+/// Acquires the shell lock without blocking. Input is read between commands,
+/// with no other task holding the lock, so acquisition is expected to succeed;
+/// blocking instead isn't an option because backends also run on
+/// single-threaded runtimes.
 ///
 /// # Arguments
 ///
@@ -52,8 +53,8 @@ fn needs_more_input_locked(shell: &Shell<impl shrub_core::ShellExtensions>, inpu
     }
 }
 
-/// Returns whether the given input ends with a backslash-newline acting as a line
-/// continuation.
+/// Returns whether the given input ends with a backslash-newline acting as a
+/// line continuation.
 fn ends_with_line_continuation(
     shell: &Shell<impl shrub_core::ShellExtensions>,
     input: &str,
@@ -96,15 +97,18 @@ mod tests {
     async fn treats_input_ending_before_here_tag_as_incomplete() {
         let shell = test_shell().await;
 
-        // A line continuation right after the operator: the tag comes on the next line.
+        // A line continuation right after the operator: the tag comes on the
+        // next line.
         assert!(needs_more_input_locked(&shell, "cat << \\\n"));
-        // Input ending right at the operator is incomplete too (the parser reports it).
+        // Input ending right at the operator is incomplete too (the parser
+        // reports it).
         assert!(needs_more_input_locked(&shell, "cat <<"));
         assert!(needs_more_input_locked(&shell, "cat <<\\\n"));
-        // A line continuation after what would be a here-document's end tag joins the next
-        // line onto it, so the body hasn't ended.
+        // A line continuation after what would be a here-document's end tag
+        // joins the next line onto it, so the body hasn't ended.
         assert!(needs_more_input_locked(&shell, "cat <<E\nabc\nE\\\n"));
-        // A newline where the tag belongs is an error, though, not a reason to wait.
+        // A newline where the tag belongs is an error, though, not a reason to
+        // wait.
         assert!(!needs_more_input_locked(&shell, "cat <<\n"));
     }
 
@@ -112,8 +116,9 @@ mod tests {
     async fn treats_here_doc_with_empty_tag_as_incomplete_until_empty_line() {
         let shell = test_shell().await;
 
-        // As in bash, an empty tag's body ends at the first empty line, which hasn't been
-        // read yet; the input isn't complete (with an empty body) at the tag's newline.
+        // As in bash, an empty tag's body ends at the first empty line, which
+        // hasn't been read yet; the input isn't complete (with an empty
+        // body) at the tag's newline.
         assert!(needs_more_input_locked(&shell, "cat <<''\n"));
         assert!(needs_more_input_locked(&shell, "cat <<\"\"\n"));
         assert!(needs_more_input_locked(&shell, "cat <<''\nbody\n"));
@@ -127,7 +132,8 @@ mod tests {
 
         assert!(!needs_more_input_locked(&shell, "echo a\n"));
         assert!(!needs_more_input_locked(&shell, ""));
-        // An escaped backslash is a literal backslash, not an escape of the newline.
+        // An escaped backslash is a literal backslash, not an escape of the
+        // newline.
         assert!(!needs_more_input_locked(&shell, "echo a\\\\\n"));
         // A continuation that isn't at the end has already been joined.
         assert!(!needs_more_input_locked(&shell, "echo a\\\nb\n"));
@@ -151,7 +157,8 @@ mod tests {
     async fn honors_quoting_context() {
         let shell = test_shell().await;
 
-        // A `#` inside quotes doesn't start a comment, so these really are continuations.
+        // A `#` inside quotes doesn't start a comment, so these really are
+        // continuations.
         assert!(needs_more_input_locked(
             &shell,
             "echo \"# not a comment\" \\\n"

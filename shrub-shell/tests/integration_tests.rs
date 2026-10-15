@@ -5,10 +5,11 @@
 
 #![cfg(any(unix, windows))]
 
-use anyhow::Result;
-use shrub_test_harness::{RunnerConfig, TestMode, TestOptions, TestRunner};
-use clap::Parser;
 use std::path::{Path, PathBuf};
+
+use anyhow::Result;
+use clap::Parser;
+use shrub_test_harness::{RunnerConfig, TestMode, TestOptions, TestRunner};
 
 async fn run_shrub_tests(mut options: TestOptions) -> Result<bool> {
     // Resolve path to the shell-under-test.

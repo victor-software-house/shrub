@@ -2,8 +2,8 @@
 
 use std::collections::HashMap;
 
-use shrub_core::interfaces::{self, InputFunction, Key, KeyAction, KeySequence, KeyStroke};
 use indexmap::IndexMap;
+use shrub_core::interfaces::{self, InputFunction, Key, KeyAction, KeySequence, KeyStroke};
 
 use super::keys::{self, Keypress};
 
@@ -229,9 +229,9 @@ fn is_stroke(key: &Keypress, stroke: &KeyStroke) -> bool {
         || (!key.bytes.is_empty() && key.bytes == keys::encode(stroke))
 }
 
-/// Returns the bytes `seq` matches, if there's only one way to send it: as bytes,
-/// or keys that each send a single byte (e.g., Enter, as CR). A key that can be
-/// sent several ways (e.g., Up, as `\e[A` or `\eOA`) has no such bytes.
+/// Returns the bytes `seq` matches, if there's only one way to send it: as
+/// bytes, or keys that each send a single byte (e.g., Enter, as CR). A key that
+/// can be sent several ways (e.g., Up, as `\e[A` or `\eOA`) has no such bytes.
 fn only_bytes(seq: &KeySequence) -> Option<Vec<u8>> {
     match seq {
         KeySequence::Bytes(bytes) => Some(bytes.concat()),
@@ -303,8 +303,9 @@ impl interfaces::KeyBindings for VtKeyBindings {
 #[cfg(test)]
 #[allow(clippy::panic_in_result_fn, reason = "assertions in tests")]
 mod tests {
-    use super::*;
     use interfaces::KeyBindings as _;
+
+    use super::*;
 
     fn ctrl(c: char) -> KeyStroke {
         KeyStroke {
@@ -388,8 +389,8 @@ mod tests {
 
     #[test]
     fn binds_keys_that_send_the_same_bytes_as_others() -> Result<(), std::io::Error> {
-        // `bind` records \C-i, \C-m, and \C-? as Ctrl strokes, but terminals send
-        // them as Tab, Enter, and Backspace; and \C-h is 0x08.
+        // `bind` records \C-i, \C-m, and \C-? as Ctrl strokes, but terminals
+        // send them as Tab, Enter, and Backspace; and \C-h is 0x08.
         let mut bindings = VtKeyBindings::default();
         for (c, name) in [
             ('i', "tab"),
@@ -497,7 +498,8 @@ mod tests {
         assert!(bindings.try_unbind(ctrl_m));
         assert_eq!(bindings.lookup(&typed(b"\r")), unbound());
 
-        // Up can be sent other ways too, so binding one of them leaves the rest.
+        // Up can be sent other ways too, so binding one of them leaves the
+        // rest.
         bindings.bind(KeySequence::Bytes(vec![b"\x1b[A".to_vec()]), command("up"))?;
         assert_eq!(
             bindings.lookup(&typed(b"\x1bOA")).bound,

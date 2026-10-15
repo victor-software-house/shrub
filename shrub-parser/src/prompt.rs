@@ -34,7 +34,8 @@ pub enum PromptPiece {
     Date(PromptDateFormat),
     /// The dollar or pound character.
     DollarOrPound,
-    /// Special marker indicating the end of a non-printing sequence of characters.
+    /// Special marker indicating the end of a non-printing sequence of
+    /// characters.
     EndNonPrintingSequence,
     /// The escape character.
     EscapeCharacter,
@@ -57,7 +58,8 @@ pub enum PromptPiece {
     ShellRelease,
     /// The version of the shell.
     ShellVersion,
-    /// Special marker indicating the start of a non-printing sequence of characters.
+    /// Special marker indicating the start of a non-printing sequence of
+    /// characters.
     StartNonPrintingSequence,
     /// The base name of the terminal device.
     TerminalDeviceBaseName,
@@ -160,9 +162,10 @@ pub fn parse(s: &str) -> Result<Vec<PromptPiece>, error::WordParseError> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use anyhow::Result;
     use pretty_assertions::assert_eq;
+
+    use super::*;
 
     #[test]
     fn basic_prompt() -> Result<()> {

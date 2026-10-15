@@ -5,10 +5,11 @@
 
 #[cfg(unix)]
 mod unix {
+    use std::hint::black_box;
+
+    use criterion::Criterion;
     use shrub_builtins::ShellBuilderExt;
     use shrub_parser::SourceSpan;
-    use criterion::Criterion;
-    use std::hint::black_box;
 
     async fn instantiate_shell() -> shrub_core::Shell {
         shrub_core::Shell::builder()

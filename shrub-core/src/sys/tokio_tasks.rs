@@ -2,7 +2,8 @@
 
 use futures::FutureExt as _;
 
-use crate::{error, tasks::TaskHandle};
+use crate::error;
+use crate::tasks::TaskHandle;
 
 /// Starts running a future concurrently with the caller.
 ///
@@ -96,8 +97,8 @@ mod tests {
         let (sender, receiver) = std::sync::mpsc::channel();
         let task = spawn_blocking(async move { receiver.recv_timeout(TIMEOUT).is_ok() }).await;
 
-        // If the task held up the caller, it has given up by now and dropped the
-        // receiver, so this fails and so does the assertion below.
+        // If the task held up the caller, it has given up by now and dropped
+        // the receiver, so this fails and so does the assertion below.
         let _ = sender.send(());
         assert!(task.await?, "the task should have been signaled");
 

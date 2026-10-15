@@ -18,9 +18,9 @@ enum ReaderWriterError {
 
 /// An implementation of `std::io::Read` and `std::io::Write` that always fails.
 ///
-/// Also implements `openfiles::Stream` for use with `openfiles::OpenFile`. Useful
-/// for providing a valid stream that gracefully fails all operations in cases where
-/// no real I/O is possible.
+/// Also implements `openfiles::Stream` for use with `openfiles::OpenFile`.
+/// Useful for providing a valid stream that gracefully fails all operations in
+/// cases where no real I/O is possible.
 #[derive(Clone)]
 pub(crate) struct FailingReaderWriter {
     message: &'static str,

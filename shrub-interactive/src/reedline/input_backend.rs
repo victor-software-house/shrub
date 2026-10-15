@@ -2,10 +2,11 @@ use nu_ansi_term::Style;
 use reedline::MenuBuilder;
 
 use super::{completer, edit_mode, highlighter, history, validator};
-use crate::{InputBackend, ReadResult, ShellError, input_backend::InteractivePrompt, refs};
+use crate::input_backend::InteractivePrompt;
+use crate::{InputBackend, ReadResult, ShellError, refs};
 
-/// Represents an interactive shell capable of taking commands from standard input
-/// and reporting results to standard output and standard error streams.
+/// Represents an interactive shell capable of taking commands from standard
+/// input and reporting results to standard output and standard error streams.
 pub struct ReedlineInputBackend {
     reedline: Option<reedline::Reedline>,
 }
@@ -33,7 +34,8 @@ fn history_hint_style() -> Style {
 }
 
 impl ReedlineInputBackend {
-    /// Returns a new interactive shell instance, created with the provided options.
+    /// Returns a new interactive shell instance, created with the provided
+    /// options.
     ///
     /// # Arguments
     ///
@@ -106,9 +108,10 @@ impl ReedlineInputBackend {
             .with_edit_mode(Box::new(mutable_edit_mode))
             .with_history(Box::new(history));
 
-        // Override Reedline's default example highlighter, which hard-codes white as the
-        // neutral input color. When syntax highlighting is disabled we still install a plain
-        // highlighter so typed text follows the terminal's default foreground color.
+        // Override Reedline's default example highlighter, which hard-codes
+        // white as the neutral input color. When syntax highlighting is
+        // disabled we still install a plain highlighter so typed text
+        // follows the terminal's default foreground color.
         if !options.disable_color {
             reedline = if options.disable_highlighting {
                 reedline.with_highlighter(Box::new(highlighter::PlainTextHighlighter))
@@ -132,14 +135,16 @@ impl ReedlineInputBackend {
 
 impl Drop for ReedlineInputBackend {
     fn drop(&mut self) {
-        // It's unpleasant to need to do so, but if we detect a panic in the process of being
-        // unwound, then we arrange for our reedline::Reedline instance to *not* get dropped.
-        // Without this, then there's a chance that our panic handler emitted important
-        // diagnostics to stdout but dropping the Reedline object will end up erasing it
-        // when the latter object's internal Painter gets dropped and, in turn, may flush
-        // some not-yet-flushed terminal control sequences. This isn't theoretical; we've
-        // actively seen this in various cases where a panic occurs with Reedline::read_line()
-        // on the stack.
+        // It's unpleasant to need to do so, but if we detect a panic in the
+        // process of being unwound, then we arrange for our
+        // reedline::Reedline instance to *not* get dropped.
+        // Without this, then there's a chance that our panic handler emitted
+        // important diagnostics to stdout but dropping the Reedline
+        // object will end up erasing it when the latter object's
+        // internal Painter gets dropped and, in turn, may flush
+        // some not-yet-flushed terminal control sequences. This isn't
+        // theoretical; we've actively seen this in various cases where
+        // a panic occurs with Reedline::read_line() on the stack.
         if std::thread::panicking() {
             let reedline = std::mem::take(&mut self.reedline);
             std::mem::forget(reedline);
@@ -221,9 +226,10 @@ fn compose_key_bindings(completion_menu_name: &str) -> reedline::Keybindings {
     );
 
     // Add undo.
-    // NOTE: To match readline, we bind Ctrl+_ to undo; in practice, the only way
-    // to get that to work out is to specify Ctrl+7 for the binding. It's not clear
-    // that this is terribly portable across terminals/environments.
+    // NOTE: To match readline, we bind Ctrl+_ to undo; in practice, the only
+    // way to get that to work out is to specify Ctrl+7 for the binding.
+    // It's not clear that this is terribly portable across
+    // terminals/environments.
     key_bindings.add_binding(
         reedline::KeyModifiers::CONTROL,
         reedline::KeyCode::Char('7'),

@@ -1,7 +1,7 @@
-use clap::Parser;
-use itertools::Itertools;
 use std::io::Write;
 
+use clap::Parser;
+use itertools::Itertools;
 use shrub_core::{ExecutionExitCode, ExecutionResult, builtins};
 
 /// Manage shopt-style options.

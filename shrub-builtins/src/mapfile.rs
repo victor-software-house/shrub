@@ -1,7 +1,6 @@
 use std::io::{Read, Write};
 
 use clap::Parser;
-
 use shrub_core::{ErrorKind, ExecutionExitCode, ExecutionResult, builtins, env, error, variables};
 
 /// Read lines from standard input into an indexed array variable.
@@ -88,7 +87,8 @@ impl builtins::Command for MapFileCommand {
         if let Some(origin) = self.origin {
             // -O: preserve existing array, assign at offset.
             for (elem_idx, (_key, value)) in results.0.into_iter().enumerate() {
-                // If the user is getting to wraparounds in *bash*, they got bigger problems.
+                // If the user is getting to wraparounds in *bash*, they got
+                // bigger problems.
                 #[allow(clippy::cast_possible_wrap)]
                 let elem_idx = elem_idx as i64;
                 context.shell.env_mut().update_or_add_array_element(

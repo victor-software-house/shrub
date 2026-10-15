@@ -1,7 +1,8 @@
-use clap::Parser;
 use std::io::Write;
 
-use shrub_core::{ExecutionExitCode, ExecutionResult, arithmetic::Evaluatable, builtins};
+use clap::Parser;
+use shrub_core::arithmetic::Evaluatable;
+use shrub_core::{ExecutionExitCode, ExecutionResult, builtins};
 
 /// Evaluate arithmetic expressions.
 #[derive(Parser)]

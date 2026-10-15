@@ -1,10 +1,8 @@
-use shrub_core::ExecutionResult;
-use clap::Parser;
-use itertools::Itertools;
 use std::io::Write;
 
-use shrub_core::builtins;
-use shrub_core::error;
+use clap::Parser;
+use itertools::Itertools;
+use shrub_core::{ExecutionResult, builtins, error};
 
 /// Enable, disable, or display built-in commands.
 #[derive(Parser)]

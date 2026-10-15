@@ -1,14 +1,16 @@
 //! Reporting utilities for test results.
 
+use std::io::Write;
+
+use anyhow::Result;
+use colored::Colorize;
+
 use crate::comparison::{
     DirComparison, DirComparisonEntry, ExitStatusComparison, ExpectationComparison,
     OracleComparison, SingleExpectationComparison, StringComparison, TestComparison,
 };
 use crate::config::{OutputFormat, TestOptions};
 use crate::util::{make_expectrl_output_readable, write_diff};
-use anyhow::Result;
-use colored::Colorize;
-use std::io::Write;
 
 /// Result of running a single test case.
 pub struct TestCaseResult {

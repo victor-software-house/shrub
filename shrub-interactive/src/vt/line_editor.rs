@@ -17,8 +17,8 @@ pub(crate) enum Action {
     Insert(char),
     /// Run a shell command (bound with `bind -x`).
     Command(String),
-    /// Nothing: an unbound key that doesn't type a char. Whether it's the Escape
-    /// key matters while searching, which it ends.
+    /// Nothing: an unbound key that doesn't type a char. Whether it's the
+    /// Escape key matters while searching, which it ends.
     Unbound {
         /// Whether it's the Escape key on its own.
         escape: bool,
@@ -26,8 +26,8 @@ pub(crate) enum Action {
 }
 
 /// The history a [`LineEditor`] browses and searches: entries numbered from 0,
-/// the oldest. It's consulted only as history is browsed or searched, an entry at
-/// a time, rather than copied for each line.
+/// the oldest. It's consulted only as history is browsed or searched, an entry
+/// at a time, rather than copied for each line.
 pub(crate) trait History {
     /// Returns how many entries there are.
     fn len(&self) -> usize;
@@ -79,8 +79,8 @@ pub(crate) struct KillBuffer {
 }
 
 impl KillBuffer {
-    /// Keeps `killed`, which was deleted before the cursor if `backward`, or after
-    /// it otherwise.
+    /// Keeps `killed`, which was deleted before the cursor if `backward`, or
+    /// after it otherwise.
     fn kill(&mut self, killed: &str, backward: bool) {
         // Killing nothing keeps what was killed before.
         if killed.is_empty() {
@@ -97,8 +97,8 @@ impl KillBuffer {
     }
 }
 
-/// Whether `function` kills text (so that another kill straight after it adds to
-/// what it killed).
+/// Whether `function` kills text (so that another kill straight after it adds
+/// to what it killed).
 pub(crate) const fn is_kill(function: &InputFunction) -> bool {
     matches!(
         function,
@@ -124,7 +124,8 @@ pub(crate) struct LineEditor<'a> {
     search: Option<Search>,
     renderer: Renderer,
     style: Style,
-    /// Whether the last action was completion (so another lists the candidates).
+    /// Whether the last action was completion (so another lists the
+    /// candidates).
     pub completed_last: bool,
 }
 
@@ -133,8 +134,8 @@ struct Search {
     query: String,
     /// The history entry last found, if there is one.
     found: Option<usize>,
-    /// Whether the query, as it is, matches nothing more; what was last found is
-    /// still shown.
+    /// Whether the query, as it is, matches nothing more; what was last found
+    /// is still shown.
     failed: bool,
     /// What to go back to if the search is cancelled.
     original: LineBuffer,
@@ -157,8 +158,9 @@ impl<'a> LineEditor<'a> {
     /// # Arguments
     ///
     /// * `prompt` - The prompt's last line, drawn with the line.
-    /// * `prompt_above` - The prompt's earlier lines, as written to the terminal
-    ///   (shown again when the screen is cleared or candidates listed).
+    /// * `prompt_above` - The prompt's earlier lines, as written to the
+    ///   terminal (shown again when the screen is cleared or candidates
+    ///   listed).
     /// * `style` - How to draw.
     pub fn new(prompt: &'a str, prompt_above: String, style: Style) -> Self {
         Self {
@@ -207,10 +209,10 @@ impl<'a> LineEditor<'a> {
             .finish(out, prompt, self.buffer.text(), columns)
     }
 
-    /// Takes the line off the terminal while a bound command runs. As bash does, it's
-    /// erased, to be drawn again where it was; returns `true`. Without cursor
-    /// addressing, there's no erasing it, so it's left in place and the next line
-    /// is drawn afresh below; returns `false`.
+    /// Takes the line off the terminal while a bound command runs. As bash
+    /// does, it's erased, to be drawn again where it was; returns `true`.
+    /// Without cursor addressing, there's no erasing it, so it's left in
+    /// place and the next line is drawn afresh below; returns `false`.
     pub fn set_aside(&mut self, out: &mut impl Write, columns: usize) -> std::io::Result<bool> {
         if let Renderer::Vt(renderer) = &mut self.renderer {
             renderer.erase(out)?;
@@ -221,8 +223,8 @@ impl<'a> LineEditor<'a> {
         }
     }
 
-    /// Moves to the start of a row of its own to start drawing, so the line doesn't
-    /// overwrite output that didn't end with a newline.
+    /// Moves to the start of a row of its own to start drawing, so the line
+    /// doesn't overwrite output that didn't end with a newline.
     pub fn start_on_own_row(&self, out: &mut impl Write, columns: usize) -> std::io::Result<()> {
         self.renderer.start_on_own_row(out, columns)
     }
@@ -249,8 +251,8 @@ impl<'a> LineEditor<'a> {
         self.buffer.insert(c.encode_utf8(&mut [0; 4]));
     }
 
-    /// Performs a readline function. Returns the line, if the function accepts it.
-    /// Functions this editor doesn't perform do nothing.
+    /// Performs a readline function. Returns the line, if the function accepts
+    /// it. Functions this editor doesn't perform do nothing.
     ///
     /// # Arguments
     ///
@@ -302,9 +304,9 @@ impl<'a> LineEditor<'a> {
         Ok(None)
     }
 
-    /// Clears the screen, leaving the line to be drawn at the top. Without cursor
-    /// addressing there's no clearing it, so, as readline does, the line is drawn
-    /// afresh on the next.
+    /// Clears the screen, leaving the line to be drawn at the top. Without
+    /// cursor addressing there's no clearing it, so, as readline does, the
+    /// line is drawn afresh on the next.
     fn clear_screen(&mut self, out: &mut impl Write, columns: usize) -> std::io::Result<()> {
         match self.style {
             Style::Vt => {
@@ -376,8 +378,8 @@ impl<'a> LineEditor<'a> {
 
     /// Takes an action while searching, as readline's incremental search does:
     /// typing extends the query, Backspace shortens it, Ctrl-R finds an older
-    /// match, Ctrl-G cancels the search, and Escape ends it. Anything else ends the
-    /// search, and is then to take effect as usual.
+    /// match, Ctrl-G cancels the search, and Escape ends it. Anything else ends
+    /// the search, and is then to take effect as usual.
     pub fn search_step(
         &mut self,
         action: &Action,
@@ -416,10 +418,11 @@ impl<'a> LineEditor<'a> {
         SearchStep::Taken
     }
 
-    /// Searches for the query in history, back from (and not including) the given
-    /// entry, or from the newest for `None`, and shows the most recent match, with
-    /// the cursor at the start of what matched. If nothing matches, what was shown
-    /// stays, as it does for an empty query, which matches nothing.
+    /// Searches for the query in history, back from (and not including) the
+    /// given entry, or from the newest for `None`, and shows the most
+    /// recent match, with the cursor at the start of what matched. If
+    /// nothing matches, what was shown stays, as it does for an empty
+    /// query, which matches nothing.
     fn search_from(
         &mut self,
         search: &mut Search,
@@ -451,8 +454,9 @@ impl<'a> LineEditor<'a> {
 #[cfg(test)]
 #[allow(clippy::panic_in_result_fn, reason = "assertions in tests")]
 mod tests {
-    use super::*;
     use InputFunction as F;
+
+    use super::*;
 
     fn strings(items: &[&str]) -> Vec<String> {
         items.iter().map(|s| (*s).to_owned()).collect()
@@ -476,7 +480,8 @@ mod tests {
             }
         }
 
-        /// Takes actions as the line reader does, returning the line if accepted.
+        /// Takes actions as the line reader does, returning the line if
+        /// accepted.
         fn act(&mut self, actions: &[Action]) -> std::io::Result<Option<String>> {
             for action in actions {
                 if self.editor.searching()
@@ -736,8 +741,9 @@ mod tests {
         assert!(!e.editor.searching());
         assert_eq!(e.text(), "cargo build");
 
-        // Ctrl-G cancels, going back to the line as it was before searching. (This
-        // search goes back from the entry shown, so it finds the older `make`.)
+        // Ctrl-G cancels, going back to the line as it was before searching.
+        // (This search goes back from the entry shown, so it finds the
+        // older `make`.)
         e.act(&[vec![f(F::ReverseSearchHistory)], typing("make")].concat())?;
         assert_eq!(e.text(), "make test");
         e.act(&[f(F::Abort)])?;

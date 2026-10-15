@@ -5,8 +5,8 @@
 use std::sync::LazyLock;
 
 use anyhow::Result;
-use shrub_parser::ast;
 use libfuzzer_sys::fuzz_target;
+use shrub_parser::ast;
 
 static TOKIO_RT: LazyLock<tokio::runtime::Runtime> =
     LazyLock::new(|| tokio::runtime::Runtime::new().unwrap());
@@ -31,7 +31,8 @@ fn eval_arithmetic(mut shell: shrub_core::Shell, input: &ast::ArithmeticExpr) ->
     let input_str = input.to_string();
 
     //
-    // Instantiate a shrub shell with defaults, then try to evaluate the expression.
+    // Instantiate a shrub shell with defaults, then try to evaluate the
+    // expression.
     //
     let parsed_expr = shrub_parser::arithmetic::parse(input_str.as_str()).ok();
     let our_eval_result = if let Some(parsed_expr) = parsed_expr {
@@ -82,7 +83,8 @@ fuzz_target!(|input: ast::ArithmeticExpr| {
     let s = input.to_string();
     let s = s.trim();
 
-    // For now, intentionally ignore known problematic cases without actually running them.
+    // For now, intentionally ignore known problematic cases without actually
+    // running them.
     if s.contains("+ 0")
         || s.is_empty()
         || s.contains(|c: char| c.is_ascii_control() || !c.is_ascii())

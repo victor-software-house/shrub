@@ -1,8 +1,8 @@
 //! Signal processing utilities
 
-use crate::{error, sys, traps};
-
 pub(crate) use nix::sys::signal::Signal;
+
+use crate::{error, sys, traps};
 
 pub(crate) fn continue_process(pid: sys::process::ProcessId) -> Result<(), error::Error> {
     nix::sys::signal::kill(nix::unistd::Pid::from_raw(pid), nix::sys::signal::SIGCONT)
@@ -50,9 +50,9 @@ pub(crate) fn kill_process_group(
     Ok(())
 }
 
-/// Returns whether a stopped process sent the given signal must be continued for it to act on
-/// it, as bash continues a stopped job sent SIGTERM or SIGHUP: some systems leave those pending
-/// until then.
+/// Returns whether a stopped process sent the given signal must be continued
+/// for it to act on it, as bash continues a stopped job sent SIGTERM or SIGHUP:
+/// some systems leave those pending until then.
 pub(crate) const fn continue_stopped_on(signal: traps::TrapSignal) -> bool {
     matches!(
         signal,
@@ -137,9 +137,10 @@ pub(crate) fn mask_sigttou() -> Result<(), error::Error> {
     Ok(())
 }
 
-/// Returns whether the given child process has stopped, consuming its stop status, and leaving
-/// other children's stops to whoever waits on them. On NetBSD and OpenBSD, where one child
-/// can't be looked at (see `waitid_one`), any child's stop counts, as before.
+/// Returns whether the given child process has stopped, consuming its stop
+/// status, and leaving other children's stops to whoever waits on them. On
+/// NetBSD and OpenBSD, where one child can't be looked at (see `waitid_one`),
+/// any child's stop counts, as before.
 ///
 /// # Arguments
 ///
@@ -190,8 +191,8 @@ fn waitid_for(
     waitid_one(pid, flags)
 }
 
-// There's no looking at one child on NetBSD/OpenBSD (see `waitid_one`), so look at any
-// child, as before.
+// There's no looking at one child on NetBSD/OpenBSD (see `waitid_one`), so look
+// at any child, as before.
 #[cfg(any(target_os = "netbsd", target_os = "openbsd"))]
 fn waitid_for(
     _pid: sys::process::ProcessId,
@@ -211,8 +212,8 @@ fn waitid_one(
     )
 }
 
-// nix does not expose `waitid` on NetBSD/OpenBSD, and `waitpid` would reap a child
-// that has exited, so don't look.
+// nix does not expose `waitid` on NetBSD/OpenBSD, and `waitpid` would reap a
+// child that has exited, so don't look.
 #[cfg(any(target_os = "netbsd", target_os = "openbsd"))]
 #[allow(clippy::unnecessary_wraps, reason = "matches other platforms")]
 const fn waitid_one(
@@ -233,8 +234,8 @@ fn waitid_all(
 
 //
 // N.B. These functions were mostly copied from nix::sys::wait (https://github.com/nix-rust/nix, MIT license)
-// to enable use of the `waitid` call on macOS. Ideally nix would expose it on macOS and we would
-// remove this code.
+// to enable use of the `waitid` call on macOS. Ideally nix would expose it on
+// macOS and we would remove this code.
 //
 
 #[cfg(target_os = "macos")]
@@ -253,14 +254,15 @@ fn waitid_macos(
     flags: nix::sys::wait::WaitPidFlag,
 ) -> Result<nix::sys::wait::WaitStatus, nix::errno::Errno> {
     // SAFETY:
-    // Code copied from nix::sys::wait implementation of waitid for other platforms.
-    // The siginfo structure is valid when filled with zeroes. Memory is zeroed
-    // rather than uninitialized, as not all platforms initialize the memory in
-    // the StillAlive case.
+    // Code copied from nix::sys::wait implementation of waitid for other
+    // platforms. The siginfo structure is valid when filled with zeroes.
+    // Memory is zeroed rather than uninitialized, as not all platforms
+    // initialize the memory in the StillAlive case.
     let mut siginfo: nix::libc::siginfo_t = unsafe { std::mem::zeroed() };
 
     // SAFETY:
-    // Code copied from nix::sys::wait implementation of waitid for other platforms.
+    // Code copied from nix::sys::wait implementation of waitid for other
+    // platforms.
     nix::errno::Errno::result(unsafe {
         nix::libc::waitid(idtype, id, &raw mut siginfo, flags.bits())
     })?;
@@ -273,7 +275,8 @@ fn siginfo_to_wait_status(
     siginfo: nix::libc::siginfo_t,
 ) -> Result<nix::sys::wait::WaitStatus, nix::errno::Errno> {
     // SAFETY:
-    // Code copied from nix::sys::wait implementation of waitid for other platforms.
+    // Code copied from nix::sys::wait implementation of waitid for other
+    // platforms.
     let si_pid = unsafe { siginfo.si_pid() };
     if si_pid == 0 {
         return Ok(nix::sys::wait::WaitStatus::StillAlive);
@@ -282,7 +285,8 @@ fn siginfo_to_wait_status(
     let pid = nix::unistd::Pid::from_raw(si_pid);
 
     // SAFETY:
-    // Code copied from nix::sys::wait implementation of waitid for other platforms.
+    // Code copied from nix::sys::wait implementation of waitid for other
+    // platforms.
     let si_status = unsafe { siginfo.si_status() };
 
     let status = match siginfo.si_code {

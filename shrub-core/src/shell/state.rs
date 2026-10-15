@@ -1,15 +1,13 @@
 //! Defines state traits for the shell.
 
-use std::{
-    borrow::Cow,
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
+use std::borrow::Cow;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
-use crate::{
-    completion, env::ShellEnvironment, jobs, openfiles, options::RuntimeOptions, pathcache,
-    shell::KeyBindingsHelper,
-};
+use crate::env::ShellEnvironment;
+use crate::options::RuntimeOptions;
+use crate::shell::KeyBindingsHelper;
+use crate::{completion, jobs, openfiles, pathcache};
 
 /// A dyn-safe trait for constrained access to shell state.
 pub trait ShellState {
@@ -61,7 +59,8 @@ pub trait ShellState {
     /// Returns the statuses of commands in the last pipeline.
     fn last_pipeline_statuses(&self) -> &[u8];
 
-    /// Returns a mutable reference to the statuses of commands in the last pipeline.
+    /// Returns a mutable reference to the statuses of commands in the last
+    /// pipeline.
     fn last_pipeline_statuses_mut(&mut self) -> &mut Vec<u8>;
 
     /// Returns the shell's program location cache.
@@ -85,7 +84,8 @@ pub trait ShellState {
     /// Returns the *current* name of the shell ($0).
     fn current_shell_name(&self) -> Option<Cow<'_, str>>;
 
-    /// Returns the current subshell depth; 0 is returned if this shell is not a subshell.
+    /// Returns the current subshell depth; 0 is returned if this shell is not a
+    /// subshell.
     fn depth(&self) -> usize;
 
     /// Returns the call stack for the shell.

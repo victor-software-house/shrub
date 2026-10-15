@@ -2,12 +2,13 @@
 //!
 //! This module provides commands for running different types of tests:
 //!
-//! - **Unit tests**: Fast tests that don't execute the shrub binary (excludes integration test
-//!   binaries like shrub-compat-tests, shrub-interactive-tests, shrub-completion-tests)
-//! - **Integration tests**: All workspace tests including unit tests and integration tests that
-//!   execute the shrub binary
-//! - **End-to-end tests**: Real applications' own suites (including bash-completion's), run in
-//!   containers; see `e2e/README.md`
+//! - **Unit tests**: Fast tests that don't execute the shrub binary (excludes
+//!   integration test binaries like shrub-compat-tests,
+//!   shrub-interactive-tests, shrub-completion-tests)
+//! - **Integration tests**: All workspace tests including unit tests and
+//!   integration tests that execute the shrub binary
+//! - **End-to-end tests**: Real applications' own suites (including
+//!   bash-completion's), run in containers; see `e2e/README.md`
 //!
 //! Both unit and integration tests support optional coverage collection via
 //! `cargo-llvm-cov`.
@@ -35,7 +36,8 @@ const TEST_BINARIES_DISABLED_ON_WINDOWS: &[&str] = &["shrub-compat-tests"];
 #[derive(Args, Debug, Clone)]
 pub struct BinaryArgs {
     /// Path to the shrub binary to test. If not specified, uses the binary
-    /// from the workspace's target directory based on --profile/--debug/--release.
+    /// from the workspace's target directory based on
+    /// --profile/--debug/--release.
     #[clap(long, global = true)]
     pub shrub_path: Option<PathBuf>,
 
@@ -53,7 +55,8 @@ pub struct BinaryArgs {
 }
 
 impl BinaryArgs {
-    /// Resolve the effective build profile, considering --debug/--release shorthands.
+    /// Resolve the effective build profile, considering --debug/--release
+    /// shorthands.
     #[must_use]
     pub const fn effective_profile(&self) -> BuildProfile {
         if self.debug {
@@ -89,8 +92,8 @@ pub struct TestCommand {
 pub enum TestSubcommand {
     /// Run unit tests (fast tests that don't execute the shrub binary).
     ///
-    /// Excludes integration test binaries: shrub-compat-tests, shrub-interactive-tests,
-    /// shrub-completion-tests.
+    /// Excludes integration test binaries: shrub-compat-tests,
+    /// shrub-interactive-tests, shrub-completion-tests.
     Unit(UnitTestArgs),
 
     /// Run all workspace tests (unit + integration tests).
@@ -120,7 +123,8 @@ pub struct IntegrationTestArgs {
     pub coverage: CoverageArgs,
 
     /// Copy the nextest `JUnit` XML results to this path after the test run.
-    /// The copy is performed even if tests fail, so CI can always upload results.
+    /// The copy is performed even if tests fail, so CI can always upload
+    /// results.
     #[clap(long)]
     pub results_output: Option<PathBuf>,
 
@@ -136,7 +140,8 @@ pub struct IntegrationTestArgs {
     /// Launcher command for the WASI runtime (only used with --wasi).
     /// The first token is resolved against `PATH`; subsequent tokens are
     /// passed as leading arguments before the shrub binary path.
-    /// Defaults to `wasmtime run -S inherit-env --dir=.::/ --allow-precompiled --`.
+    /// Defaults to `wasmtime run -S inherit-env --dir=.::/ --allow-precompiled
+    /// --`.
     #[clap(long)]
     pub wasi_launcher: Option<String>,
 
@@ -250,7 +255,8 @@ pub fn run_integration_tests(
         })
     };
 
-    // Copy nextest results if requested (even on test failure, so CI can upload them).
+    // Copy nextest results if requested (even on test failure, so CI can upload
+    // them).
     if let Some(ref output) = args.results_output {
         copy_nextest_results(output)?;
     }
@@ -343,11 +349,13 @@ fn run_integration_tests_wasi(
     let _shrub_launcher = sh.push_env("SHRUB_LAUNCHER", launcher);
     let _shrub_platform_tags = sh.push_env("SHRUB_PLATFORM_TAGS", "wasi wasm");
 
-    // Only run the shrub integration tests; compat tests require a native binary.
+    // Only run the shrub integration tests; compat tests require a native
+    // binary.
     let filter = "binary(shrub-integration-tests)";
     let test_result = run_nextest(sh, profile, Some(filter), verbose);
 
-    // Copy nextest results if requested (even on test failure, so CI can upload them).
+    // Copy nextest results if requested (even on test failure, so CI can upload
+    // them).
     if let Some(ref output) = args.results_output {
         copy_nextest_results(output)?;
     }
@@ -460,8 +468,8 @@ fn run_tests_with_coverage(
         eprintln!("Running: cargo {}", test_args.join(" "));
     }
 
-    // Run tests - let output pass through naturally, but continue on failure to generate coverage
-    // report
+    // Run tests - let output pass through naturally, but continue on failure to
+    // generate coverage report
     let test_result = cmd!(sh, "cargo {test_args...}").run();
     let test_failed = test_result.is_err();
 

@@ -1,5 +1,5 @@
-//! Keeps the embedding snippet in the repository `README.md` identical to the one
-//! compiled and run as `examples/readme.rs`.
+//! Keeps the embedding snippet in the repository `README.md` identical to the
+//! one compiled and run as `examples/readme.rs`.
 
 #![cfg(test)]
 
