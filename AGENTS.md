@@ -60,7 +60,7 @@ cargo xtask -v ci full
 ```
 
 `cargo xtask ci quick` needs only the Rust toolchain. `cargo xtask ci full` also
-needs `prek` on `PATH` (see CONTRIBUTING.md for install commands). If `prek` is
+needs `prek` on `PATH` (`cargo binstall prek` or `brew install prek`). If `prek` is
 unavailable in your environment, run `cargo xtask ci full --no-hooks`; CI
 still runs the hooks.
 

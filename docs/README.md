@@ -8,7 +8,7 @@ The docs here are for people working on shrub itself:
 * [Reference material](reference/README.md) for compatibility, configuration, experimental features, and project policies
 * [Explanation](explanation/README.md) of how shrub is built, starting with its [architecture](explanation/architecture.md)
 
-If you're just getting started with the codebase, start with the [How to build](how-to/build.md) guide and [CONTRIBUTING.md](../CONTRIBUTING.md).
+If you're just getting started with the codebase, start with the [How to build](how-to/build.md) guide.
 
 ---
 

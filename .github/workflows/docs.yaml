@@ -41,7 +41,7 @@ jobs:
         run: mkdir -p ./md ./man
 
       - name: Build markdown info
-        run: cargo xtask gen docs markdown --out ./md/brush.md
+        run: cargo xtask gen docs markdown --out ./md/shrub.md
 
       - name: Upload markdown docs
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

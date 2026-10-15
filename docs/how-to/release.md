@@ -1,15 +1,22 @@
 # How to release
 
-_(This is only relevant for project maintainers.)_
+Releases go through [verctl](https://github.com/victor-software-house/verctl), configured in `.ctl/ver.yaml`.
 
-* Install [release-plz](https://github.com/MarcoIeni/release-plz)
-* Checkout the `main` branch (with a clean working tree).
-* Refresh the compatibility-test count badge in `README.md` if it has drifted (round down to the nearest hundred; count `- name:` entries under `shrub-shell/tests/cases/compat`).
-* Run: `release-plz update`. Review its changes, notable including the changelog updates.
-* PR through any generated changes with a `chore: prepare release` commit summary.
-* After the changes have merged into `main`, update your local `main` branch.
-* Acquire GitHub and `crates.io` tokens that have sufficient permissions to publish.
-* Authenticate with `crates.io` by running: `cargo login`.
-* Run: `release-plz release --backend github --git-token <TOKEN>`.
-* Update the published GitHub release to include an auto-generated changelog.
-* Run: `cargo install --locked shrub-shell` to verify the release.
+1. A pull request that changes a published crate adds a fragment, `.changeset/<slug>.md`:
+
+   ```md
+   ---
+   shrub: patch
+   ---
+
+   What changed, for the changelog.
+   ```
+
+   Every crate shares the workspace version, so the fragment always names `shrub`.
+2. When it merges, the Version PR workflow opens or updates the `version-packages` pull request.
+   It bumps `[workspace.package].version`, rewrites the exact internal requirements in `[workspace.dependencies]`, refreshes `Cargo.lock`, and writes `CHANGELOG.md`.
+3. Merging the Version PR runs the publish workflow.
+   It runs `cargo publish --locked --workspace`, which uploads every publishable crate in dependency order, then tags the release and opens the GitHub Release.
+
+Preview a release locally with `MISE_ENV=release mise x -- verctl prepare --dry-run`.
+Versions stay on the `0.0.x` line; moving to `0.1.0` is a separate decision.

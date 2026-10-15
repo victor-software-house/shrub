@@ -1,0 +1,6 @@
+# Loaded when MISE_ENV contains `ci` (GitHub Actions). The toolchain comes from
+# mise.toml; this file holds only the CI environment.
+
+[env]
+CARGO_INCREMENTAL = "0"
+CARGO_TERM_COLOR = "always"

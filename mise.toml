@@ -1,0 +1,15 @@
+# The latest stable mise is the floor; CI pins the same version.
+min_version = "2026.10.10"
+
+[settings]
+lockfile = true
+# The platforms CI and contributors use.
+lockfile_platforms = ["linux-x64", "macos-arm64"]
+
+# Every tool this root declares must match mise.lock or mise.<env>.lock.
+[tool_config]
+locked = true
+
+# The stable pin equals rust-toolchain.toml.
+[tools]
+rust = { version = "1.99.0", components = "clippy,rustfmt" }

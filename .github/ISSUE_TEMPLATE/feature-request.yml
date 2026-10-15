@@ -1,13 +1,13 @@
 name: Feature Request
-description: Suggest a new feature or enhancement for brush
+description: Suggest a new feature or enhancement for shrub
 labels: ["enhancement"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to suggest an improvement to brush! We welcome and appreciate all input and feedback. While we can't commit to prioritizing or implementing all such requests, we'd rather you make the suggestion than not.
+        Thanks for taking the time to suggest an improvement to shrub! We welcome and appreciate all input and feedback. While we can't commit to prioritizing or implementing all such requests, we'd rather you make the suggestion than not.
 
-        Our only requests: (1) please ensure you follow our project's [Code of Conduct](https://github.com/reubeno/brush#coc-ov-file), and (2) before submitting, please [search existing issues](https://github.com/reubeno/brush/issues) to check if a similar request already exists. If it does, feel free to add a comment to the existing issue instead.
+        Our only requests: (1) please ensure you follow our project's [Code of Conduct](https://github.com/victor-software-house/shrub#coc-ov-file), and (2) before submitting, please [search existing issues](https://github.com/victor-software-house/shrub/issues) to check if a similar request already exists. If it does, feel free to add a comment to the existing issue instead.
 
   - type: textarea
     id: description

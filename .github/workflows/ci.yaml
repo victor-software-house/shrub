@@ -1,14 +1,11 @@
 name: "CI"
 on:
   pull_request:
-    paths-ignore:
-      - "release-plz.toml"
   push:
     paths-ignore:
       - "docs/**"
       - "**.md"
       - "LICENSE"
-      - "release-plz.toml"
     branches:
       - main
 
@@ -49,7 +46,7 @@ jobs:
             cross_tool_to_install: ""
             os: "linux"
             arch: "x86_64"
-            binary_name: "brush"
+            binary_name: "shrub"
             extra_build_args: ""
           # Build for x86_64/linux using musl as target C runtime.
           # We don't bother pinning to an earlier version of Ubuntu because
@@ -60,7 +57,7 @@ jobs:
             cross_tool_to_install: "cross"
             os: "linux-musl"
             arch: "x86_64"
-            binary_name: "brush"
+            binary_name: "shrub"
             extra_build_args: ""
           # Build for aarch64/macos target on native host.
           - host: "macos-latest"
@@ -70,7 +67,7 @@ jobs:
             os: "macos"
             arch: "aarch64"
             required_tools: ""
-            binary_name: "brush"
+            binary_name: "shrub"
             extra_build_args: ""
           # Build for aarch64/linux target on x86_64/Linux host.
           - host: "ubuntu-24.04"
@@ -80,7 +77,7 @@ jobs:
             os: "linux"
             arch: "aarch64"
             required_tools: "gcc-aarch64-linux-gnu"
-            binary_name: "brush"
+            binary_name: "shrub"
             extra_build_args: ""
           # Build for wasm32 target on x86_64/linux host.
           - host: "ubuntu-24.04"
@@ -90,7 +87,7 @@ jobs:
             os: "unknown"
             arch: "wasm32"
             required_tools: ""
-            binary_name: "brush.wasm"
+            binary_name: "shrub.wasm"
             extra_build_args: ""
           # Build for WASI-0.3 target on x86_64/linux host. wasm32-wasip3 first
           # ships prebuilt std in Rust 1.100; until rust-toolchain.toml is at
@@ -102,7 +99,7 @@ jobs:
             os: "wasi-0.3"
             arch: "wasm32"
             required_tools: ""
-            binary_name: "brush.wasm"
+            binary_name: "shrub.wasm"
             extra_build_args: ""
             toolchain: "nightly"
           # Build for x86_64/windows target on x86_64/linux host.
@@ -113,7 +110,7 @@ jobs:
             os: "windows"
             arch: "x86_64"
             required_tools: ""
-            binary_name: "brush.exe"
+            binary_name: "shrub.exe"
             extra_build_args: ""
           # Build for x86_64/android target on x86_64/linux host.
           - host: "ubuntu-24.04"
@@ -123,7 +120,7 @@ jobs:
             os: "android"
             arch: "x86_64"
             required_tools: ""
-            binary_name: "brush"
+            binary_name: "shrub"
             extra_build_args: ""
           # x86_64/FreeBSD target on x86_64/linux host, via cross. Compile-check
           # only (check_only): cross's curated sysroot omits some base-system
@@ -138,7 +135,7 @@ jobs:
             os: "freebsd"
             arch: "x86_64"
             required_tools: ""
-            binary_name: "brush"
+            binary_name: "shrub"
             extra_build_args: ""
             check_only: true
           # x86_64/NetBSD target on x86_64/linux host, via cross. Compile-check
@@ -150,7 +147,7 @@ jobs:
             os: "netbsd"
             arch: "x86_64"
             required_tools: ""
-            binary_name: "brush"
+            binary_name: "shrub"
             extra_build_args: ""
             check_only: true
           # OpenBSD is tier-3 with no prebuilt std, so even compile-checking it
@@ -167,7 +164,7 @@ jobs:
             os: "openbsd"
             arch: "x86_64"
             required_tools: ""
-            binary_name: "brush"
+            binary_name: "shrub"
             extra_build_args: "-Zbuild-std=std,panic_abort"
             toolchain: "nightly"
             components: "rust-src"
@@ -252,7 +249,7 @@ jobs:
         with:
           name: integration-tests-${{ matrix.arch }}-${{ matrix.os }}
           path: |
-            target/${{ matrix.target }}/release/deps/brush_*_tests-*
+            target/${{ matrix.target }}/release/deps/shrub_*_tests-*
             !**/*.d
 
   # Test functional correctness
@@ -643,7 +640,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Download prebuilt brush binaries
+      - name: Download prebuilt shrub binaries
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: "binaries-x86_64-linux"
@@ -660,7 +657,7 @@ jobs:
 
       - name: Run e2e suites
         run: |
-          cargo xtask test --brush-path "${GITHUB_WORKSPACE}/binaries/brush" \
+          cargo xtask test --shrub-path "${GITHUB_WORKSPACE}/binaries/shrub" \
               e2e --with bash-completion --timeout 600 \
               --results-dir e2e-results --summary-output e2e-results/dashboard.md
 
@@ -774,7 +771,7 @@ jobs:
           echo "BASH_COMPLETION_PATH=$(nix path-info 'nixpkgs#bash-completion')/share/bash-completion/bash_completion">>"$GITHUB_ENV"
 
           # Forcibly add system paths
-          echo "BRUSH_TEST_PATH_VAR=$PATH">>"$GITHUB_ENV"
+          echo "SHRUB_TEST_PATH_VAR=$PATH">>"$GITHUB_ENV"
 
       # Checkout sources for YAML-based test cases
       - name: Checkout
@@ -783,7 +780,7 @@ jobs:
           persist-credentials: false
           path: sources
 
-      - name: Download prebuilt brush binaries
+      - name: Download prebuilt shrub binaries
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: binaries-x86_64-linux
@@ -800,21 +797,21 @@ jobs:
           # N.B. Can't use -o pipefail because it's not supported on Debian.
           set -eux
           chmod +x binaries/*
-          ls -l -R sources/brush-shell/tests
+          ls -l -R sources/shrub-shell/tests
           ls -l binaries
 
       - name: Run tests
         shell: bash
         run: |
-          export BRUSH_PATH=$PWD/binaries/brush
-          export BRUSH_VERBOSE=true
+          export SHRUB_PATH=$PWD/binaries/shrub
+          export SHRUB_VERBOSE=true
 
           result=0
           for test_name in binaries/*tests*; do
             if [[ ${test_name} == *compat* ]]; then
-              export BRUSH_TEST_CASES=$PWD/sources/brush-shell/tests/cases/compat
+              export SHRUB_TEST_CASES=$PWD/sources/shrub-shell/tests/cases/compat
             elif [[ ${test_name} == *integration* ]]; then
-              export BRUSH_TEST_CASES=$PWD/sources/brush-shell/tests/cases/brush
+              export SHRUB_TEST_CASES=$PWD/sources/shrub-shell/tests/cases/shrub
             elif [[ ${test_name} == *interactive* || ${test_name} == *version* ]]; then
               # TODO(tests): Re-enable these tests.
               echo "WARNING: skipping test: ${test_name}"

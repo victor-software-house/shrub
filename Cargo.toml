@@ -16,7 +16,7 @@ members = [
 default-members = ["shrub-shell"]
 
 [workspace.package]
-version = "0.0.2"
+version = "0.0.1"
 categories = ["command-line-utilities", "development-tools"]
 edition = "2024"
 keywords = ["cli", "shell", "sh", "bash", "script"]
@@ -28,13 +28,13 @@ rust-version = "1.88.0"
 [workspace.dependencies]
 # Internal crates. Exact versions: every crate releases together at the workspace
 # version, and .ctl/ver.yaml rewrites these requirements on each bump.
-shrub-builtins = { version = "=0.0.2", path = "shrub-builtins" }
-shrub-core = { version = "=0.0.2", path = "shrub-core" }
-shrub-coreutils-builtins = { version = "=0.0.2", path = "shrub-coreutils-builtins" }
-shrub-experimental-builtins = { version = "=0.0.2", path = "shrub-experimental-builtins" }
-shrub-interactive = { version = "=0.0.2", path = "shrub-interactive" }
-shrub-parser = { version = "=0.0.2", path = "shrub-parser" }
-shrub-shell = { version = "=0.0.2", path = "shrub-shell", default-features = false }
+shrub-builtins = { version = "=0.0.1", path = "shrub-builtins" }
+shrub-core = { version = "=0.0.1", path = "shrub-core" }
+shrub-coreutils-builtins = { version = "=0.0.1", path = "shrub-coreutils-builtins" }
+shrub-experimental-builtins = { version = "=0.0.1", path = "shrub-experimental-builtins" }
+shrub-interactive = { version = "=0.0.1", path = "shrub-interactive" }
+shrub-parser = { version = "=0.0.1", path = "shrub-parser" }
+shrub-shell = { version = "=0.0.1", path = "shrub-shell", default-features = false }
 shrub-test-harness = { path = "shrub-test-harness" }
 
 [workspace.lints.rust]

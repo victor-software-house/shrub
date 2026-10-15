@@ -1,20 +1,20 @@
 name: Compatibility Bug Report
-description: Report a case where brush behaves differently from bash
+description: Report a case where shrub behaves differently from bash
 labels: ["bug", "area: compat"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for helping improve brush's compatibility!
+        Thanks for helping improve shrub's compatibility!
 
-        This template is for reporting cases where brush produces different behavior than bash for the same input. Before submitting, please [search existing issues](https://github.com/reubeno/brush/issues) to check if this has already been reported.
+        This template is for reporting cases where shrub produces different behavior than bash for the same input. Before submitting, please [search existing issues](https://github.com/victor-software-house/shrub/issues) to check if this has already been reported.
 
   - type: input
-    id: brush-version
+    id: shrub-version
     attributes:
-      label: brush version
-      description: The version of brush you're using. You can find this with `brush --version`.
-      placeholder: "e.g., brush 0.2.9"
+      label: shrub version
+      description: The version of shrub you're using. You can find this with `shrub --version`.
+      placeholder: "e.g., shrub 0.2.9"
     validations:
       required: true
 
@@ -50,16 +50,16 @@ body:
         reproducing example, that's very helpful but not required.
       placeholder: |
         # Example:
-        brush -c 'some command'
+        shrub -c 'some command'
     validations:
       required: true
 
   - type: textarea
     id: actual-behavior
     attributes:
-      label: Actual behavior (brush)
-      description: What did brush do in this case?
-      placeholder: Describe or paste the brush output...
+      label: Actual behavior (shrub)
+      description: What did shrub do in this case?
+      placeholder: Describe or paste the shrub output...
     validations:
       required: true
 

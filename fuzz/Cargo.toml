@@ -3,7 +3,6 @@ name = "shrub-fuzz"
 description = "Fuzz tests for shrub"
 publish = false
 version = "0.2.2"
-authors.workspace = true
 categories.workspace = true
 edition.workspace = true
 keywords.workspace = true
@@ -26,14 +25,14 @@ libfuzzer-sys = "0.4"
 tokio = { version = "1.52.3", features = ["rt"] }
 
 [dependencies.shrub-core]
-path = "../shrub-core"
+workspace = true
 
 [dependencies.shrub-parser]
-path = "../shrub-parser"
+workspace = true
 features = ["arbitrary"]
 
 [dependencies.shrub-interactive]
-path = "../shrub-interactive"
+workspace = true
 features = ["highlighting"]
 
 [[bin]]

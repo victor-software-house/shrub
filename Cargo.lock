@@ -368,319 +368,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "brush"
-version = "0.4.0"
-dependencies = [
- "shrub-shell",
-]
-
-[[package]]
-name = "shrub-builtins"
-version = "0.2.0"
-dependencies = [
- "anyhow",
- "shrub-core",
- "shrub-parser",
- "cfg-if",
- "chrono",
- "clap",
- "fancy-regex",
- "itertools 0.15.0",
- "nix 0.31.3",
- "pretty_assertions",
- "procfs",
- "rlimit",
- "strum",
- "thiserror 2.0.21",
- "tokio",
- "tracing",
- "utf8-chars",
- "uucore",
-]
-
-[[package]]
-name = "shrub-core"
-version = "0.5.0"
-dependencies = [
- "anyhow",
- "async-recursion",
- "async-trait",
- "bon",
- "shrub-parser",
- "cached",
- "cfg-if",
- "check_elevation",
- "chrono",
- "clap",
- "color-print",
- "command-fds",
- "fancy-regex",
- "futures",
- "getrandom 0.4.3",
- "hostname",
- "inherent",
- "itertools 0.15.0",
- "libc",
- "nix 0.31.3",
- "normalize-path",
- "pretty_assertions",
- "rand 0.10.3",
- "rpds",
- "serde",
- "strum",
- "strum_macros",
- "tempfile",
- "terminal_size",
- "terminfo",
- "thiserror 2.0.21",
- "tokio",
- "tracing",
- "uuid",
- "uzers",
- "whoami",
-]
-
-[[package]]
-name = "shrub-coreutils-builtins"
-version = "0.1.0"
-dependencies = [
- "uu_arch",
- "uu_b2sum",
- "uu_base32",
- "uu_base64",
- "uu_basename",
- "uu_basenc",
- "uu_cat",
- "uu_cksum",
- "uu_comm",
- "uu_cp",
- "uu_csplit",
- "uu_cut",
- "uu_date",
- "uu_dd",
- "uu_df",
- "uu_dir",
- "uu_dircolors",
- "uu_dirname",
- "uu_du",
- "uu_echo",
- "uu_env",
- "uu_expand",
- "uu_expr",
- "uu_factor",
- "uu_false",
- "uu_fmt",
- "uu_fold",
- "uu_head",
- "uu_hostname",
- "uu_join",
- "uu_link",
- "uu_ln",
- "uu_ls",
- "uu_md5sum",
- "uu_mkdir",
- "uu_mktemp",
- "uu_more",
- "uu_mv",
- "uu_nl",
- "uu_nproc",
- "uu_numfmt",
- "uu_od",
- "uu_paste",
- "uu_pr",
- "uu_printenv",
- "uu_printf",
- "uu_ptx",
- "uu_pwd",
- "uu_readlink",
- "uu_realpath",
- "uu_rm",
- "uu_rmdir",
- "uu_seq",
- "uu_sha1sum",
- "uu_sha224sum",
- "uu_sha256sum",
- "uu_sha384sum",
- "uu_sha512sum",
- "uu_shred",
- "uu_shuf",
- "uu_sleep",
- "uu_sort",
- "uu_split",
- "uu_sum",
- "uu_sync",
- "uu_tac",
- "uu_tail",
- "uu_tee",
- "uu_test",
- "uu_touch",
- "uu_tr",
- "uu_true",
- "uu_truncate",
- "uu_tsort",
- "uu_uname",
- "uu_unexpand",
- "uu_uniq",
- "uu_unlink",
- "uu_vdir",
- "uu_wc",
- "uu_whoami",
- "uu_yes",
- "uucore",
-]
-
-[[package]]
-name = "shrub-experimental-builtins"
-version = "0.1.0"
-dependencies = [
- "shrub-core",
- "clap",
- "serde_json",
-]
-
-[[package]]
-name = "brush-fuzz"
-version = "0.2.2"
-dependencies = [
- "anyhow",
- "assert_cmd",
- "shrub-core",
- "shrub-interactive",
- "shrub-parser",
- "libfuzzer-sys",
- "tokio",
-]
-
-[[package]]
-name = "shrub-interactive"
-version = "0.4.0"
-dependencies = [
- "bon",
- "shrub-core",
- "shrub-parser",
- "indexmap",
- "nu-ansi-term",
- "pretty_assertions",
- "radix_trie",
- "reedline",
- "thiserror 2.0.21",
- "tokio",
- "tracing",
- "unicode-width 0.2.2",
- "vt100",
-]
-
-[[package]]
-name = "shrub-parser"
-version = "0.4.0"
-dependencies = [
- "anyhow",
- "arbitrary",
- "bon",
- "cached",
- "criterion",
- "getrandom 0.4.3",
- "indenter",
- "insta",
- "miette",
- "peg",
- "pretty_assertions",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "tracing",
- "utf8-chars",
- "uuid",
- "winnow",
- "yaml_serde",
-]
-
-[[package]]
-name = "shrub-shell"
-version = "0.4.0"
-dependencies = [
- "anyhow",
- "assert_cmd",
- "assert_fs",
- "shrub-builtins",
- "shrub-core",
- "shrub-coreutils-builtins",
- "shrub-experimental-builtins",
- "shrub-interactive",
- "shrub-parser",
- "shrub-test-harness",
- "clap",
- "clap-markdown",
- "clap_complete",
- "clap_mangen",
- "color-print",
- "colored",
- "const_format",
- "criterion",
- "crossterm",
- "descape",
- "diff",
- "etcetera",
- "expectrl",
- "getrandom 0.4.3",
- "git-version",
- "glob",
- "human-panic",
- "indent",
- "indexmap",
- "junit-report",
- "nix 0.31.3",
- "os-release",
- "predicates",
- "pretty_assertions",
- "regex",
- "schemars",
- "serde",
- "serde_json",
- "strip-ansi-escapes",
- "tempfile",
- "test-with",
- "thiserror 2.0.21",
- "tokio",
- "toml",
- "tracing",
- "tracing-subscriber",
- "uuid",
- "version-compare",
- "walkdir",
- "which",
- "yaml_serde",
-]
-
-[[package]]
-name = "shrub-test-harness"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "assert_cmd",
- "assert_fs",
- "cfg_aliases",
- "clap",
- "colored",
- "descape",
- "diff",
- "expectrl",
- "glob",
- "indent",
- "insta",
- "junit-report",
- "nix 0.31.3",
- "os-release",
- "regex",
- "serde",
- "strip-ansi-escapes",
- "tokio",
- "version-compare",
- "walkdir",
- "yaml_serde",
-]
-
-[[package]]
 name = "bstr"
 version = "1.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3887,6 +3574,319 @@ name = "shlex"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
+
+[[package]]
+name = "shrub"
+version = "0.0.1"
+dependencies = [
+ "shrub-shell",
+]
+
+[[package]]
+name = "shrub-builtins"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "cfg-if",
+ "chrono",
+ "clap",
+ "fancy-regex",
+ "itertools 0.15.0",
+ "nix 0.31.3",
+ "pretty_assertions",
+ "procfs",
+ "rlimit",
+ "shrub-core",
+ "shrub-parser",
+ "strum",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+ "utf8-chars",
+ "uucore",
+]
+
+[[package]]
+name = "shrub-core"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "async-recursion",
+ "async-trait",
+ "bon",
+ "cached",
+ "cfg-if",
+ "check_elevation",
+ "chrono",
+ "clap",
+ "color-print",
+ "command-fds",
+ "fancy-regex",
+ "futures",
+ "getrandom 0.4.3",
+ "hostname",
+ "inherent",
+ "itertools 0.15.0",
+ "libc",
+ "nix 0.31.3",
+ "normalize-path",
+ "pretty_assertions",
+ "rand 0.10.3",
+ "rpds",
+ "serde",
+ "shrub-parser",
+ "strum",
+ "strum_macros",
+ "tempfile",
+ "terminal_size",
+ "terminfo",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+ "uuid",
+ "uzers",
+ "whoami",
+]
+
+[[package]]
+name = "shrub-coreutils-builtins"
+version = "0.0.1"
+dependencies = [
+ "uu_arch",
+ "uu_b2sum",
+ "uu_base32",
+ "uu_base64",
+ "uu_basename",
+ "uu_basenc",
+ "uu_cat",
+ "uu_cksum",
+ "uu_comm",
+ "uu_cp",
+ "uu_csplit",
+ "uu_cut",
+ "uu_date",
+ "uu_dd",
+ "uu_df",
+ "uu_dir",
+ "uu_dircolors",
+ "uu_dirname",
+ "uu_du",
+ "uu_echo",
+ "uu_env",
+ "uu_expand",
+ "uu_expr",
+ "uu_factor",
+ "uu_false",
+ "uu_fmt",
+ "uu_fold",
+ "uu_head",
+ "uu_hostname",
+ "uu_join",
+ "uu_link",
+ "uu_ln",
+ "uu_ls",
+ "uu_md5sum",
+ "uu_mkdir",
+ "uu_mktemp",
+ "uu_more",
+ "uu_mv",
+ "uu_nl",
+ "uu_nproc",
+ "uu_numfmt",
+ "uu_od",
+ "uu_paste",
+ "uu_pr",
+ "uu_printenv",
+ "uu_printf",
+ "uu_ptx",
+ "uu_pwd",
+ "uu_readlink",
+ "uu_realpath",
+ "uu_rm",
+ "uu_rmdir",
+ "uu_seq",
+ "uu_sha1sum",
+ "uu_sha224sum",
+ "uu_sha256sum",
+ "uu_sha384sum",
+ "uu_sha512sum",
+ "uu_shred",
+ "uu_shuf",
+ "uu_sleep",
+ "uu_sort",
+ "uu_split",
+ "uu_sum",
+ "uu_sync",
+ "uu_tac",
+ "uu_tail",
+ "uu_tee",
+ "uu_test",
+ "uu_touch",
+ "uu_tr",
+ "uu_true",
+ "uu_truncate",
+ "uu_tsort",
+ "uu_uname",
+ "uu_unexpand",
+ "uu_uniq",
+ "uu_unlink",
+ "uu_vdir",
+ "uu_wc",
+ "uu_whoami",
+ "uu_yes",
+ "uucore",
+]
+
+[[package]]
+name = "shrub-experimental-builtins"
+version = "0.0.1"
+dependencies = [
+ "clap",
+ "serde_json",
+ "shrub-core",
+]
+
+[[package]]
+name = "shrub-fuzz"
+version = "0.2.2"
+dependencies = [
+ "anyhow",
+ "assert_cmd",
+ "libfuzzer-sys",
+ "shrub-core",
+ "shrub-interactive",
+ "shrub-parser",
+ "tokio",
+]
+
+[[package]]
+name = "shrub-interactive"
+version = "0.0.1"
+dependencies = [
+ "bon",
+ "indexmap",
+ "nu-ansi-term",
+ "pretty_assertions",
+ "radix_trie",
+ "reedline",
+ "shrub-core",
+ "shrub-parser",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+ "unicode-width 0.2.2",
+ "vt100",
+]
+
+[[package]]
+name = "shrub-parser"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "arbitrary",
+ "bon",
+ "cached",
+ "criterion",
+ "getrandom 0.4.3",
+ "indenter",
+ "insta",
+ "miette",
+ "peg",
+ "pretty_assertions",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tracing",
+ "utf8-chars",
+ "uuid",
+ "winnow",
+ "yaml_serde",
+]
+
+[[package]]
+name = "shrub-shell"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "assert_cmd",
+ "assert_fs",
+ "clap",
+ "clap-markdown",
+ "clap_complete",
+ "clap_mangen",
+ "color-print",
+ "colored",
+ "const_format",
+ "criterion",
+ "crossterm",
+ "descape",
+ "diff",
+ "etcetera",
+ "expectrl",
+ "getrandom 0.4.3",
+ "git-version",
+ "glob",
+ "human-panic",
+ "indent",
+ "indexmap",
+ "junit-report",
+ "nix 0.31.3",
+ "os-release",
+ "predicates",
+ "pretty_assertions",
+ "regex",
+ "schemars",
+ "serde",
+ "serde_json",
+ "shrub-builtins",
+ "shrub-core",
+ "shrub-coreutils-builtins",
+ "shrub-experimental-builtins",
+ "shrub-interactive",
+ "shrub-parser",
+ "shrub-test-harness",
+ "strip-ansi-escapes",
+ "tempfile",
+ "test-with",
+ "thiserror 2.0.21",
+ "tokio",
+ "toml",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+ "version-compare",
+ "walkdir",
+ "which",
+ "yaml_serde",
+]
+
+[[package]]
+name = "shrub-test-harness"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "assert_cmd",
+ "assert_fs",
+ "cfg_aliases",
+ "clap",
+ "colored",
+ "descape",
+ "diff",
+ "expectrl",
+ "glob",
+ "indent",
+ "insta",
+ "junit-report",
+ "nix 0.31.3",
+ "os-release",
+ "regex",
+ "serde",
+ "strip-ansi-escapes",
+ "tokio",
+ "version-compare",
+ "walkdir",
+ "yaml_serde",
+]
 
 [[package]]
 name = "signal-hook"
