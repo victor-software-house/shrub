@@ -1,0 +1,32 @@
+# Cargo.lock carries the version too, so a bump leaves it stale. `after`
+# regenerates it and `stage` puts it on the Version PR commit.
+prepare:
+  after: [cargo, update, --workspace]
+  stage: [Cargo.lock]
+
+# Every crate releases at the version in [workspace.package]; the stock cargo
+# driver reads it there. `cargo publish --workspace` uploads every publishable
+# member in dependency order.
+packages:
+  - name: shrub
+    path: Cargo.toml
+    publish: [cargo, publish, --locked, --workspace]
+
+# The members depend on each other through exact requirements in
+# [workspace.dependencies], one per publishable internal crate.
+patterns:
+  internal:
+    match: 'version = "={version}", path = "shrub-'
+    occurrences: { exactly: 7 }
+
+pins:
+  - file: Cargo.toml
+    package: shrub
+    patterns: [internal]
+
+# Maintainers and Apps a changelog never credits.
+changelog:
+  internal_authors:
+    - any-victor
+    - "github-actions[bot]"
+    - "vsh-changeset-version[bot]"

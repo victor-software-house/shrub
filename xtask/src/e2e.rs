@@ -1,10 +1,11 @@
-//! Containerized end-to-end tests that run real applications' own shell-integration
-//! suites against the shell under test.
+//! Containerized end-to-end tests that run real applications' own
+//! shell-integration suites against the shell under test.
 //!
-//! Each adapter lives in `e2e/<app>/`: a Dockerfile whose entrypoint runs the suite and
-//! writes `log.txt` plus `JUnit` XML under `/results`. This module builds and runs those
-//! images, then decides each adapter's result from the `JUnit` it left behind, weighed
-//! against the adapter's `xfail-list.txt`. See `e2e/README.md` for the full contract.
+//! Each adapter lives in `e2e/<app>/`: a Dockerfile whose entrypoint runs the
+//! suite and writes `log.txt` plus `JUnit` XML under `/results`. This module
+//! builds and runs those images, then decides each adapter's result from the
+//! `JUnit` it left behind, weighed against the adapter's `xfail-list.txt`. See
+//! `e2e/README.md` for the full contract.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsString;
@@ -24,8 +25,8 @@ use crate::test::BinaryArgs;
 /// Arguments for containerized end-to-end tests.
 #[derive(Args, Clone)]
 pub struct E2eArgs {
-    /// Applications to test. Runs all adapters except the opt-in ones (blesh, bash-tests,
-    /// bash-completion) when omitted.
+    /// Applications to test. Runs all adapters except the opt-in ones (blesh,
+    /// bash-tests, bash-completion) when omitted.
     #[clap(value_name = "APP")]
     apps: Vec<String>,
 
@@ -33,7 +34,7 @@ pub struct E2eArgs {
     #[clap(long = "with", value_name = "APP", conflicts_with = "apps")]
     with: Vec<String>,
 
-    /// Test the applications against Bash instead of brush.
+    /// Test the applications against Bash instead of shrub.
     #[clap(long, conflicts_with = "shell")]
     baseline: bool,
 
@@ -41,16 +42,19 @@ pub struct E2eArgs {
     #[clap(long, value_name = "PATH", conflicts_with = "baseline")]
     shell: Option<PathBuf>,
 
-    /// Seconds an adapter's container may run before it is killed. Bounds a hung shell: only
-    /// ble.sh bounds itself, and its suite alone takes about nine minutes.
+    /// Seconds an adapter's container may run before it is killed. Bounds a
+    /// hung shell: only ble.sh bounds itself, and its suite alone takes
+    /// about nine minutes.
     #[clap(long, value_name = "SECS", default_value_t = 1800)]
     timeout: u64,
 
-    /// Root directory for retained run directories containing per-application results.
+    /// Root directory for retained run directories containing per-application
+    /// results.
     #[clap(long, value_name = "DIR", default_value = "target/e2e")]
     results_dir: PathBuf,
 
-    /// Write a Markdown dashboard of the run (one row per adapter) to this file, for CI to post.
+    /// Write a Markdown dashboard of the run (one row per adapter) to this
+    /// file, for CI to post.
     #[clap(long, value_name = "PATH")]
     summary_output: Option<PathBuf>,
 
@@ -64,9 +68,10 @@ pub fn run(binary_args: &BinaryArgs, args: &E2eArgs, verbose: bool) -> Result<()
     let e2e_dir = workspace.join("e2e");
     let apps = select_e2e_apps(&e2e_dir, args)?;
     let shell = resolve_shell(binary_args, args)?;
-    // Read up front: an unreadable list should fail before any container time is spent, not
-    // halfway through a run whose earlier reports would then be lost. `--baseline`/`--shell`
-    // runs carry no expectations, since those describe brush.
+    // Read up front: an unreadable list should fail before any container time
+    // is spent, not halfway through a run whose earlier reports would then
+    // be lost. `--baseline`/`--shell` runs carry no expectations, since
+    // those describe shrub.
     let expectations: Vec<BTreeSet<String>> = if args.baseline || args.shell.is_some() {
         vec![BTreeSet::new(); apps.len()]
     } else {
@@ -106,9 +111,10 @@ pub fn run(binary_args: &BinaryArgs, args: &E2eArgs, verbose: bool) -> Result<()
     let color = terminal
         && std::env::var_os("NO_COLOR").is_none_or(|value| value.is_empty())
         && std::env::var_os("TERM").is_none_or(|value| value != "dumb");
-    // On a terminal, name the adapter while it runs: blesh alone takes about nine minutes, and a
-    // silent wait that long reads as a hang. Piped output skips the marker so logs stay clean, as
-    // does `--verbose`, whose streamed output would scroll over it anyway.
+    // On a terminal, name the adapter while it runs: blesh alone takes about
+    // nine minutes, and a silent wait that long reads as a hang. Piped
+    // output skips the marker so logs stay clean, as does `--verbose`,
+    // whose streamed output would scroll over it anyway.
     let progress = terminal && !verbose;
     let run = E2eRun {
         docker: &docker,
@@ -149,8 +155,8 @@ pub fn run(binary_args: &BinaryArgs, args: &E2eArgs, verbose: bool) -> Result<()
         reports.push(report);
     }
 
-    // Written before the summary, which fails the process when an adapter did: the dashboard is
-    // most needed then.
+    // Written before the summary, which fails the process when an adapter did:
+    // the dashboard is most needed then.
     if let Some(path) = &args.summary_output {
         fs::write(path, render_markdown(&reports, overall.elapsed()))
             .with_context(|| format!("failed to write summary: {}", path.display()))?;
@@ -158,9 +164,9 @@ pub fn run(binary_args: &BinaryArgs, args: &E2eArgs, verbose: bool) -> Result<()
     report_e2e_results(&reports, overall.elapsed(), color)
 }
 
-/// The run as a Markdown dashboard: a one-line verdict, a table with one row per adapter, then a
-/// collapsible list of names for each thing worth acting on. A clean run is the verdict and the
-/// table alone.
+/// The run as a Markdown dashboard: a one-line verdict, a table with one row
+/// per adapter, then a collapsible list of names for each thing worth acting
+/// on. A clean run is the verdict and the table alone.
 fn render_markdown(reports: &[AdapterReport], elapsed: Duration) -> String {
     use std::fmt::Write as _;
 
@@ -178,7 +184,8 @@ fn render_markdown(reports: &[AdapterReport], elapsed: Duration) -> String {
         totals.skips.extend_from_slice(&summary.skips);
     }
 
-    // Known gaps keep a pass from reading as all clear, as the terminal's yellow does.
+    // Known gaps keep a pass from reading as all clear, as the terminal's
+    // yellow does.
     let verdict = |failed: bool, gaps: bool| {
         if failed {
             "❌"
@@ -250,8 +257,9 @@ fn render_markdown(reports: &[AdapterReport], elapsed: Duration) -> String {
     md
 }
 
-/// The first lines of a runner's failure message, indented for a code block inside a list item.
-/// pytest and minitest put the assertion here; the traceback stays in the log.
+/// The first lines of a runner's failure message, indented for a code block
+/// inside a list item. pytest and minitest put the assertion here; the
+/// traceback stays in the log.
 fn excerpt(message: &str) -> String {
     const LINES: usize = 6;
     const WIDTH: usize = 200;
@@ -273,8 +281,9 @@ fn excerpt(message: &str) -> String {
     shown.join("\n")
 }
 
-/// The collapsible lists under the table for one adapter: the test names grouped by what to do
-/// about them, and the run error when no test failure explains a failed adapter.
+/// The collapsible lists under the table for one adapter: the test names
+/// grouped by what to do about them, and the run error when no test failure
+/// explains a failed adapter.
 fn render_markdown_details(md: &mut String, report: &AdapterReport) {
     use std::fmt::Write as _;
 
@@ -284,8 +293,8 @@ fn render_markdown_details(md: &mut String, report: &AdapterReport) {
         let _ = writeln!(md, "\n<details{open}><summary>{heading}</summary>\n");
         for name in names {
             let _ = writeln!(md, "- `{name}`");
-            // Only failures carry a message; for them, what the runner said and how to see it
-            // again, without opening any archive.
+            // Only failures carry a message; for them, what the runner said and
+            // how to see it again, without opening any archive.
             if let Some(message) = report
                 .summary
                 .as_ref()
@@ -336,8 +345,8 @@ fn render_markdown_details(md: &mut String, report: &AdapterReport) {
             }
         }
     }
-    // The run error explains a failure only when no test failure does, as in the terminal
-    // report; with no results at all it is the whole story.
+    // The run error explains a failure only when no test failure does, as in
+    // the terminal report; with no results at all it is the whole story.
     if report.failed && report.summary.as_ref().is_none_or(|s| !s.is_failure()) {
         let error = report
             .error
@@ -378,18 +387,20 @@ fn select_e2e_apps(e2e_dir: &Path, args: &E2eArgs) -> Result<Vec<String>> {
     Ok(apps)
 }
 
-/// The shell binary to bind-mount into each container, or `None` for the container's own bash.
+/// The shell binary to bind-mount into each container, or `None` for the
+/// container's own bash.
 fn resolve_shell(binary_args: &BinaryArgs, args: &E2eArgs) -> Result<Option<PathBuf>> {
-    if (args.baseline || args.shell.is_some()) && binary_args.brush_path.is_some() {
-        anyhow::bail!("--brush-path cannot be combined with --baseline or --shell");
+    if (args.baseline || args.shell.is_some()) && binary_args.shrub_path.is_some() {
+        anyhow::bail!("--shrub-path cannot be combined with --baseline or --shell");
     }
     if args.baseline {
         return Ok(None);
     }
     let Some(path) = &args.shell else {
-        return Ok(Some(binary_args.find_brush_binary()?));
+        return Ok(Some(binary_args.find_shrub_binary()?));
     };
-    // Resolved, since a symlink or a relative path would not survive the bind mount.
+    // Resolved, since a symlink or a relative path would not survive the bind
+    // mount.
     let path = path
         .canonicalize()
         .with_context(|| format!("shell not found at: {}", path.display()))?;
@@ -397,7 +408,8 @@ fn resolve_shell(binary_args: &BinaryArgs, args: &E2eArgs) -> Result<Option<Path
     Ok(Some(path))
 }
 
-/// Retain a fresh directory for each invocation; never clear caller-provided directories.
+/// Retain a fresh directory for each invocation; never clear caller-provided
+/// directories.
 fn create_e2e_results_root(root: &Path) -> Result<PathBuf> {
     fs::create_dir_all(root)
         .with_context(|| format!("failed to create results root: {}", root.display()))?;
@@ -416,7 +428,8 @@ fn e2e_style(color: bool, foreground: AnsiColor) -> Style {
     }
 }
 
-/// Prints the closing summary, then the failing test names and where to read the rest.
+/// Prints the closing summary, then the failing test names and where to read
+/// the rest.
 fn report_e2e_results(reports: &[AdapterReport], elapsed: Duration, color: bool) -> Result<()> {
     eprintln!("{}", "-".repeat(12));
     let failed: Vec<&AdapterReport> = reports.iter().filter(|report| report.failed).collect();
@@ -475,17 +488,19 @@ struct AdapterReport {
     failed: bool,
     /// Test failures are reported but excused (see [`REPORT_ONLY`]).
     report_only: bool,
-    /// The adapter never ran to completion: its image did not build, docker would not start, or
-    /// it timed out. Nothing excuses that.
+    /// The adapter never ran to completion: its image did not build, docker
+    /// would not start, or it timed out. Nothing excuses that.
     fatal: bool,
-    /// Why the run itself went wrong: the adapter could not be run (image build failed, docker
-    /// missing), its container exited non-zero, or its report could not be read.
+    /// Why the run itself went wrong: the adapter could not be run (image build
+    /// failed, docker missing), its container exited non-zero, or its
+    /// report could not be read.
     error: Option<String>,
     elapsed: Duration,
     summary: Option<JunitSummary>,
     results: PathBuf,
-    /// Adapter arguments that select one test, with `{test}` for its name; for the reproduce
-    /// hint in the dashboard. Read from `select-args.txt`, defaulting to pytest's `-k`.
+    /// Adapter arguments that select one test, with `{test}` for its name; for
+    /// the reproduce hint in the dashboard. Read from `select-args.txt`,
+    /// defaulting to pytest's `-k`.
     select_args: String,
 }
 
@@ -497,9 +512,10 @@ impl AdapterReport {
         outcome: Result<Option<String>>,
         summary: Result<JunitSummary>,
     ) -> Self {
-        // A build that failed, or a docker that would not start, means the adapter never ran, so
-        // nothing in its JUnit can excuse it. Only a container that did run gets that benefit,
-        // since every adapter exits non-zero when a test expected to fail does.
+        // A build that failed, or a docker that would not start, means the
+        // adapter never ran, so nothing in its JUnit can excuse it.
+        // Only a container that did run gets that benefit, since every
+        // adapter exits non-zero when a test expected to fail does.
         let (mut error, fatal) = match outcome {
             Ok(exit_error) => (exit_error, false),
             Err(error) => (Some(format!("{error:#}")), true),
@@ -516,8 +532,8 @@ impl AdapterReport {
                 None
             }
         };
-        // A missing or invalid report cannot establish a passing run either, even when the
-        // container exits successfully.
+        // A missing or invalid report cannot establish a passing run either,
+        // even when the container exits successfully.
         let failed = match &summary {
             Some(summary) => {
                 fatal || summary.is_failure() || error.is_some() && !summary.has_expectations()
@@ -537,8 +553,9 @@ impl AdapterReport {
         }
     }
 
-    /// Applies the [`REPORT_ONLY`] policy: failing tests, and the non-zero exit they cause, no
-    /// longer fail the adapter. A run that left no results still does.
+    /// Applies the [`REPORT_ONLY`] policy: failing tests, and the non-zero exit
+    /// they cause, no longer fail the adapter. A run that left no results
+    /// still does.
     const fn make_report_only(&mut self) {
         self.report_only = true;
         self.failed = self.fatal || self.summary.is_none();
@@ -551,7 +568,8 @@ impl AdapterReport {
 
     /// The command that runs one of this adapter's tests on its own.
     fn reproduce(&self, test: &str) -> String {
-        // A name kept qualified is ambiguous alone; pytest's `-k` takes the class alongside it.
+        // A name kept qualified is ambiguous alone; pytest's `-k` takes the
+        // class alongside it.
         let test = match test.rsplit_once("::") {
             Some((class, name)) => {
                 let class = class.rsplit_once('.').map_or(class, |(_, class)| class);
@@ -593,9 +611,10 @@ impl AdapterReport {
         )
     }
 
-    /// What is worth reading about this adapter: the offending test names grouped by what went
-    /// wrong, the tests that did not run, or the run error when there are no results at all.
-    /// Empty when a clean pass leaves nothing to say.
+    /// What is worth reading about this adapter: the offending test names
+    /// grouped by what went wrong, the tests that did not run, or the run
+    /// error when there are no results at all. Empty when a clean pass
+    /// leaves nothing to say.
     fn detail(&self) -> Vec<String> {
         let Some(summary) = &self.summary else {
             return vec![
@@ -646,10 +665,12 @@ fn summarize_names(names: &[String]) -> String {
     text
 }
 
-/// Seconds for short runs, minutes and seconds once a suite runs long (blesh takes ~9 minutes).
+/// Seconds for short runs, minutes and seconds once a suite runs long (blesh
+/// takes ~9 minutes).
 fn format_duration(elapsed: Duration) -> String {
-    // Round to tenths first, in integers: rounding the seconds and the remainder separately
-    // would print 119.97s as `1m60.0s`, and integers need no lossy cast.
+    // Round to tenths first, in integers: rounding the seconds and the
+    // remainder separately would print 119.97s as `1m60.0s`, and integers
+    // need no lossy cast.
     let tenths = (elapsed.as_millis() + 50) / 100;
     let (secs, tenth) = (tenths / 10, tenths % 10);
     if secs >= 60 {
@@ -661,34 +682,42 @@ fn format_duration(elapsed: Duration) -> String {
 
 /// Totals read back from the `JUnit` an adapter's runner wrote.
 ///
-/// Every adapter emits `JUnit` -- bats, pytest, minitest-ci and the two hand-rolled reporters all
-/// do -- so this is the one shape that summarizes all of them.
+/// Every adapter emits `JUnit` -- bats, pytest, minitest-ci and the two
+/// hand-rolled reporters all do -- so this is the one shape that summarizes all
+/// of them.
 #[derive(Default)]
 struct JunitSummary {
     tests: usize,
-    /// Names of the cases the runner did not run. Most come from `skip-list.txt`, but a suite can
-    /// also skip a test itself, which nothing else would report.
+    /// Names of the cases the runner did not run. Most come from
+    /// `skip-list.txt`, but a suite can also skip a test itself, which
+    /// nothing else would report.
     skips: Vec<String>,
-    /// Known gaps that still run, so an unexpected fix is reported. pytest writes these as
-    /// `<skipped type="pytest.xfail">`; counting them apart from plain skips keeps a suite that
-    /// is entirely expected-failure (blesh, today) from reading as if it passed outright.
+    /// Known gaps that still run, so an unexpected fix is reported. pytest
+    /// writes these as `<skipped type="pytest.xfail">`; counting them apart
+    /// from plain skips keeps a suite that is entirely expected-failure
+    /// (blesh, today) from reading as if it passed outright.
     xfailed: usize,
-    /// The subset of `xfailed` that `xfail-list.txt` predicted. Only these make the suite exit
-    /// non-zero: a runner that decides an expected failure itself still reports the run as green.
+    /// The subset of `xfailed` that `xfail-list.txt` predicted. Only these make
+    /// the suite exit non-zero: a runner that decides an expected failure
+    /// itself still reports the run as green.
     listed_failures: usize,
     /// Names of the failing cases that were not expected to fail.
     failures: Vec<String>,
-    /// What the runner said about each of those, by name: the `message` attribute, or the body
-    /// when there is none. Kept apart from the names so the terminal report can stay one line.
+    /// What the runner said about each of those, by name: the `message`
+    /// attribute, or the body when there is none. Kept apart from the names
+    /// so the terminal report can stay one line.
     failure_messages: BTreeMap<String, String>,
-    /// Cases listed in `xfail-list.txt` that passed anyway: the gap they track is closed, and the
-    /// entry has to go. Reported as a failure so a fix cannot land unnoticed.
+    /// Cases listed in `xfail-list.txt` that passed anyway: the gap they track
+    /// is closed, and the entry has to go. Reported as a failure so a fix
+    /// cannot land unnoticed.
     unexpected_passes: Vec<String>,
-    /// How many cases carry each bare name. Suites that reuse names across classes
-    /// (bash-completion's `test_1` in every file) need the class to tell failures apart.
+    /// How many cases carry each bare name. Suites that reuse names across
+    /// classes (bash-completion's `test_1` in every file) need the class to
+    /// tell failures apart.
     name_counts: BTreeMap<String, usize>,
-    /// Entries in `xfail-list.txt` matching no test that actually ran, so the list has gone
-    /// stale: the test was renamed, removed, or moved to `skip-list.txt`.
+    /// Entries in `xfail-list.txt` matching no test that actually ran, so the
+    /// list has gone stale: the test was renamed, removed, or moved to
+    /// `skip-list.txt`.
     stale_expectations: Vec<String>,
 }
 
@@ -717,17 +746,19 @@ impl JunitSummary {
         parts.join(", ")
     }
 
-    /// Folds in one test case, consulting `expected` (the adapter's `xfail-list.txt`).
+    /// Folds in one test case, consulting `expected` (the adapter's
+    /// `xfail-list.txt`).
     ///
-    /// An entry matches either the bare test name or the `classname::name` form, since what a
-    /// runner puts in each field differs.
+    /// An entry matches either the bare test name or the `classname::name`
+    /// form, since what a runner puts in each field differs.
     fn record(&mut self, case: junit_parser::TestCase, expected: &BTreeSet<String>) {
         self.tests += 1;
         *self
             .name_counts
             .entry(case.original_name.clone())
             .or_default() += 1;
-        // Qualified for now; `shorten_names` drops the class where the bare name is unambiguous.
+        // Qualified for now; `shorten_names` drops the class where the bare
+        // name is unambiguous.
         let qualified = if case.classname.as_deref().is_some_and(|c| !c.is_empty()) {
             case.name.clone()
         } else {
@@ -766,13 +797,15 @@ impl JunitSummary {
         }
     }
 
-    /// Cases that ran and passed, including any that `xfail-list.txt` said would not.
+    /// Cases that ran and passed, including any that `xfail-list.txt` said
+    /// would not.
     const fn passed(&self) -> usize {
         self.tests - self.failures.len() - self.xfailed - self.skips.len()
     }
 
-    /// Names each failure and skip by its bare name where that is unique in the suite, keeping
-    /// the `classname::name` form only where it is needed to tell cases apart.
+    /// Names each failure and skip by its bare name where that is unique in the
+    /// suite, keeping the `classname::name` form only where it is needed to
+    /// tell cases apart.
     fn shorten_names(&mut self) {
         for name in self.failures.iter_mut().chain(&mut self.skips) {
             let Some((_, bare)) = name.rsplit_once("::") else {
@@ -788,7 +821,8 @@ impl JunitSummary {
         }
     }
 
-    /// Share of the tests that ran which passed, to one decimal place; blank when none ran.
+    /// Share of the tests that ran which passed, to one decimal place; blank
+    /// when none ran.
     fn pass_rate(&self) -> String {
         let ran = self.tests - self.skips.len();
         if ran == 0 {
@@ -799,8 +833,9 @@ impl JunitSummary {
         format!("{}.{}%", rate / 10, rate % 10)
     }
 
-    /// Whether a test this adapter's `xfail-list.txt` predicted did fail, which is why the suite
-    /// may have exited non-zero without that being a problem.
+    /// Whether a test this adapter's `xfail-list.txt` predicted did fail, which
+    /// is why the suite may have exited non-zero without that being a
+    /// problem.
     const fn has_expectations(&self) -> bool {
         self.listed_failures > 0
     }
@@ -813,15 +848,16 @@ impl JunitSummary {
     }
 }
 
-/// A `<skipped>` a runner wrote to report an expected failure of its own; pytest's is
-/// `<skipped type="pytest.xfail">`. Unlike a plain skip, the test did run.
+/// A `<skipped>` a runner wrote to report an expected failure of its own;
+/// pytest's is `<skipped type="pytest.xfail">`. Unlike a plain skip, the test
+/// did run.
 fn is_declared_xfail(status: &junit_parser::TestStatus) -> bool {
     matches!(status, junit_parser::TestStatus::Skipped(skipped)
         if skipped.skipped_type.starts_with("pytest.xfail"))
 }
 
-/// Folds one suite and any suites nested inside it into `summary`, noting in `seen` every test
-/// that actually ran.
+/// Folds one suite and any suites nested inside it into `summary`, noting in
+/// `seen` every test that actually ran.
 fn record_suite(
     suite: junit_parser::TestSuite,
     expected: &BTreeSet<String>,
@@ -829,8 +865,9 @@ fn record_suite(
     seen: &mut BTreeSet<String>,
 ) {
     for case in suite.cases {
-        // A plain skip did not run, so it cannot satisfy an expectation: leaving it out of
-        // `seen` is what reports an `xfail-list.txt` entry that has moved to `skip-list.txt`.
+        // A plain skip did not run, so it cannot satisfy an expectation:
+        // leaving it out of `seen` is what reports an `xfail-list.txt`
+        // entry that has moved to `skip-list.txt`.
         if !matches!(case.status, junit_parser::TestStatus::Skipped(_))
             || is_declared_xfail(&case.status)
         {
@@ -844,7 +881,8 @@ fn record_suite(
     }
 }
 
-/// Reads one of the adapter's `*-list.txt` files: one entry per line, `#` starts a comment.
+/// Reads one of the adapter's `*-list.txt` files: one entry per line, `#`
+/// starts a comment.
 fn read_test_list(path: &Path) -> Result<BTreeSet<String>> {
     match fs::read_to_string(path) {
         Ok(text) => Ok(text
@@ -861,11 +899,12 @@ fn read_test_list(path: &Path) -> Result<BTreeSet<String>> {
 /// Stands for the test name in `select-args.txt`.
 const TEST_PLACEHOLDER: &str = "{test}";
 
-/// Every adapter's own tests are pytest (see `e2e/README.md`), so this is the default selection.
+/// Every adapter's own tests are pytest (see `e2e/README.md`), so this is the
+/// default selection.
 const PYTEST_SELECT_ARGS: &str = "-k {test}";
 
-/// Reads the adapter's `select-args.txt`, if it has one: adapter arguments that select a single
-/// test, with `{test}` standing for the name.
+/// Reads the adapter's `select-args.txt`, if it has one: adapter arguments that
+/// select a single test, with `{test}` standing for the name.
 fn read_select_args(adapter_dir: &Path) -> Result<String> {
     let path = adapter_dir.join("select-args.txt");
     match fs::read_to_string(&path) {
@@ -900,7 +939,8 @@ fn shell_quote(word: &str) -> String {
 
 /// Reads and totals every `JUnit` file the adapter left under `junit/`.
 ///
-/// Missing, unreadable, or empty reports are errors: they cannot establish a passing run.
+/// Missing, unreadable, or empty reports are errors: they cannot establish a
+/// passing run.
 fn read_junit_summary(
     results: &Path,
     expected: &BTreeSet<String>,
@@ -933,18 +973,20 @@ fn read_junit_summary(
         for suite in report.suites {
             record_suite(suite, expected, &mut summary, &mut seen);
         }
-        // Adapters write one report per phase, so an empty one means that phase collapsed before
-        // it ran anything -- which the other phases' expected failures must not paper over. A
-        // subset run is exempt: there, selecting nothing for a phase is the point.
+        // Adapters write one report per phase, so an empty one means that phase
+        // collapsed before it ran anything -- which the other phases'
+        // expected failures must not paper over. A subset run is
+        // exempt: there, selecting nothing for a phase is the point.
         anyhow::ensure!(
             !whole_suite || summary.tests > before,
             "JUnit report has no test cases: {}",
             file.display()
         );
     }
-    // An entry naming nothing that ran means the test was renamed, removed, or is being skipped
-    // elsewhere -- either way the list no longer describes reality. Only a run of the whole suite
-    // can conclude that, though: when the caller selected a subset, most entries name a test that
+    // An entry naming nothing that ran means the test was renamed, removed, or
+    // is being skipped elsewhere -- either way the list no longer describes
+    // reality. Only a run of the whole suite can conclude that, though:
+    // when the caller selected a subset, most entries name a test that
     // was simply not part of this run.
     if whole_suite {
         summary.stale_expectations = expected.difference(&seen).cloned().collect();
@@ -954,14 +996,15 @@ fn read_junit_summary(
     Ok(summary)
 }
 
-/// Adapters that run only when named: ble.sh spends minutes on compatibility failures and
-/// timeouts, and bash-tests stays opt-in until it has shown itself reliable.
-/// bash-completion's ~2000 tests take several minutes; CI adds it with `--with`.
+/// Adapters that run only when named: ble.sh spends minutes on compatibility
+/// failures and timeouts, and bash-tests stays opt-in until it has shown itself
+/// reliable. bash-completion's ~2000 tests take several minutes; CI adds it
+/// with `--with`.
 const OPT_IN_ADAPTERS: &[&str] = &["blesh", "bash-tests", "bash-completion"];
 
-/// Marks an adapter whose test failures are reported (with a pass rate) but do not fail the run;
-/// only a run that could not produce results does. For suites tracked by pass rate rather than
-/// an `xfail-list.txt`.
+/// Marks an adapter whose test failures are reported (with a pass rate) but do
+/// not fail the run; only a run that could not produce results does. For suites
+/// tracked by pass rate rather than an `xfail-list.txt`.
 const REPORT_ONLY: &str = "report-only";
 
 fn discover_e2e_apps(e2e_dir: &Path, include_opt_in: bool) -> Result<Vec<String>> {
@@ -1006,7 +1049,7 @@ fn run_e2e_adapter(run: &E2eRun<'_>, app: &str) -> Result<Option<String>> {
         timeout,
         verbose,
     } = *run;
-    let image = format!("brush-e2e-{app}");
+    let image = format!("shrub-e2e-{app}");
     let dockerfile = e2e_dir.join(app).join("Dockerfile");
     let results = results_root.join(app);
     fs::create_dir(&results)
@@ -1017,8 +1060,8 @@ fn run_e2e_adapter(run: &E2eRun<'_>, app: &str) -> Result<Option<String>> {
 
     let mut build = ProcessCommand::new(docker);
     build.arg("build");
-    // A cold build takes minutes; `-q` keeps that noise out of the report, and `--verbose`
-    // opts back into the progress output.
+    // A cold build takes minutes; `-q` keeps that noise out of the report, and
+    // `--verbose` opts back into the progress output.
     if !verbose {
         build.arg("-q");
     }
@@ -1072,9 +1115,9 @@ fn run_e2e_adapter(run: &E2eRun<'_>, app: &str) -> Result<Option<String>> {
             .status();
         anyhow::bail!("container timed out after {}", format_duration(timeout));
     }
-    // A suite whose only failures are expected still exits non-zero, so this is reported rather
-    // than fatal: the caller weighs it against the JUnit, and shows the tail only when no test
-    // failure explains it.
+    // A suite whose only failures are expected still exits non-zero, so this is
+    // reported rather than fatal: the caller weighs it against the JUnit,
+    // and shows the tail only when no test failure explains it.
     Ok(if test.ok {
         None
     } else {
@@ -1082,7 +1125,8 @@ fn run_e2e_adapter(run: &E2eRun<'_>, app: &str) -> Result<Option<String>> {
     })
 }
 
-/// The tail of captured output, indented, for the errors that leave no `JUnit` to report from.
+/// The tail of captured output, indented, for the errors that leave no `JUnit`
+/// to report from.
 fn tail(output: &str) -> String {
     let mut lines: Vec<&str> = output.lines().collect();
     while lines.last().is_some_and(|line| line.trim().is_empty()) {
@@ -1097,21 +1141,24 @@ fn tail(output: &str) -> String {
     text
 }
 
-/// Outcome of a docker invocation, with its output when it was captured rather than streamed.
+/// Outcome of a docker invocation, with its output when it was captured rather
+/// than streamed.
 struct ProcessRun {
     ok: bool,
     timed_out: bool,
     output: String,
 }
 
-/// Streams the command's output under `--verbose`, and captures it otherwise, giving up on it
-/// after `timeout`.
+/// Streams the command's output under `--verbose`, and captures it otherwise,
+/// giving up on it after `timeout`.
 ///
 /// Quiet is the default because every adapter already tees its full output to
-/// `<results>/log.txt`; streaming it as well buries the run report in thousands of lines.
+/// `<results>/log.txt`; streaming it as well buries the run report in thousands
+/// of lines.
 ///
-/// Output is captured to a temporary file rather than to a pipe: a pipe would have to be drained
-/// while waiting, and there is nothing to read it with while this thread watches the clock.
+/// Output is captured to a temporary file rather than to a pipe: a pipe would
+/// have to be drained while waiting, and there is nothing to read it with while
+/// this thread watches the clock.
 fn run_process(
     command: &mut ProcessCommand,
     timeout: Duration,
@@ -1137,7 +1184,8 @@ fn run_process(
             break Some(status);
         }
         if Instant::now() >= deadline {
-            // The child here is the docker client; stopping what it started is the caller's job.
+            // The child here is the docker client; stopping what it started is
+            // the caller's job.
             let _ = child.kill();
             let _ = child.wait();
             break None;
@@ -1150,7 +1198,8 @@ fn run_process(
         Some(mut file) => {
             use std::io::{Read as _, Seek as _};
             file.rewind().context("failed to read captured output")?;
-            // Lossy: a suite's output is whatever bytes its tests happened to print.
+            // Lossy: a suite's output is whatever bytes its tests happened to
+            // print.
             let mut bytes = Vec::new();
             file.read_to_end(&mut bytes)
                 .context("failed to read captured output")?;
@@ -1184,7 +1233,8 @@ mod tests {
         Ok(())
     }
 
-    /// A report-only adapter passes despite failing tests, but not when it never ran.
+    /// A report-only adapter passes despite failing tests, but not when it
+    /// never ran.
     #[test]
     fn a_report_only_adapter_excuses_test_failures_only() -> Result<()> {
         let temp = tempfile::tempdir()?;
@@ -1207,8 +1257,9 @@ mod tests {
         Ok(())
     }
 
-    /// A row per adapter, blank cells for zero, and a collapsible per thing to act on: failures
-    /// open, plain skips closed, and a run error only when no test failure explains the failure.
+    /// A row per adapter, blank cells for zero, and a collapsible per thing to
+    /// act on: failures open, plain skips closed, and a run error only when
+    /// no test failure explains the failure.
     #[test]
     fn renders_markdown_dashboard() -> Result<()> {
         let report = |app: &str, secs: u64, outcome: Result<Option<String>>, summary| {
@@ -1319,9 +1370,10 @@ container build failed
         Ok(())
     }
 
-    /// One case of each shape the adapters' runners actually emit: a self-closing pass
-    /// (minitest-ci), a pass with an end tag, a failure, a bats skip, and a pytest xfail --
-    /// which is a `<skipped>` and must not be counted as an ordinary skip.
+    /// One case of each shape the adapters' runners actually emit: a
+    /// self-closing pass (minitest-ci), a pass with an end tag, a failure,
+    /// a bats skip, and a pytest xfail -- which is a `<skipped>` and must
+    /// not be counted as an ordinary skip.
     #[test]
     fn summarizes_junit_from_every_runner_shape() -> Result<()> {
         let temp = tempfile::tempdir()?;
@@ -1340,7 +1392,8 @@ container build failed
               </testcase>
             </testsuite></testsuites>"#,
         )?;
-        // A second file must add to the totals, the way nvm writes upstream and interactive JUnit.
+        // A second file must add to the totals, the way nvm writes upstream and
+        // interactive JUnit.
         fs::write(
             junit.join("b.xml"),
             r#"<testsuite name="s2"><testcase name="also broken"><error/></testcase></testsuite>"#,
@@ -1361,7 +1414,8 @@ container build failed
         Ok(())
     }
 
-    /// A name repeated across classes keeps its class, and reproduces through it.
+    /// A name repeated across classes keeps its class, and reproduces through
+    /// it.
     #[test]
     fn repeated_failure_names_stay_qualified() -> Result<()> {
         let temp = tempfile::tempdir()?;
@@ -1391,7 +1445,8 @@ container build failed
         Ok(())
     }
 
-    /// Neither missing results nor malformed or empty XML can establish a passing run.
+    /// Neither missing results nor malformed or empty XML can establish a
+    /// passing run.
     #[test]
     fn rejects_missing_malformed_and_empty_reports() -> Result<()> {
         let temp = tempfile::tempdir()?;
@@ -1418,7 +1473,8 @@ container build failed
         Ok(())
     }
 
-    /// Writes a one-suite report with a failing and a passing case, for the expectation tests.
+    /// Writes a one-suite report with a failing and a passing case, for the
+    /// expectation tests.
     fn write_report(dir: &Path) -> Result<()> {
         fs::create_dir_all(dir.join("junit"))?;
         fs::write(
@@ -1431,7 +1487,8 @@ container build failed
         Ok(())
     }
 
-    /// A listed failure is expected, so the run is green and the failure is not reported.
+    /// A listed failure is expected, so the run is green and the failure is not
+    /// reported.
     #[test]
     fn expected_failures_do_not_fail_the_run() -> Result<()> {
         let temp = tempfile::tempdir()?;
@@ -1445,7 +1502,8 @@ container build failed
         Ok(())
     }
 
-    /// The point of tracking them: a gap that closes has to be noticed, not silently absorbed.
+    /// The point of tracking them: a gap that closes has to be noticed, not
+    /// silently absorbed.
     #[test]
     fn an_expected_failure_that_passes_fails_the_run() -> Result<()> {
         let temp = tempfile::tempdir()?;
@@ -1471,8 +1529,8 @@ container build failed
         Ok(())
     }
 
-    /// ...but not when the caller ran a subset, where an unmatched entry just names a test that
-    /// was not selected.
+    /// ...but not when the caller ran a subset, where an unmatched entry just
+    /// names a test that was not selected.
     #[test]
     fn a_subset_run_does_not_report_stale_expectations() -> Result<()> {
         let temp = tempfile::tempdir()?;
@@ -1485,7 +1543,8 @@ container build failed
         Ok(())
     }
 
-    /// An entry may name the bare test or the `classname::name` form a runner reports.
+    /// An entry may name the bare test or the `classname::name` form a runner
+    /// reports.
     #[test]
     fn expectations_match_either_name_form() -> Result<()> {
         let temp = tempfile::tempdir()?;
@@ -1560,7 +1619,8 @@ container build failed
         assert_eq!(format_duration(Duration::from_secs_f64(59.97)), "1m00.0s");
     }
 
-    /// Cases in a nested `<testsuite>` count like any other; dropping them would hide failures.
+    /// Cases in a nested `<testsuite>` count like any other; dropping them
+    /// would hide failures.
     #[test]
     fn nested_suites_are_counted() -> Result<()> {
         let temp = tempfile::tempdir()?;
@@ -1581,8 +1641,9 @@ container build failed
         Ok(())
     }
 
-    /// A test that only skips never runs, so an expectation naming it has gone stale -- otherwise
-    /// moving a test to `skip-list.txt` would silence its `xfail-list.txt` entry forever.
+    /// A test that only skips never runs, so an expectation naming it has gone
+    /// stale -- otherwise moving a test to `skip-list.txt` would silence
+    /// its `xfail-list.txt` entry forever.
     #[test]
     fn an_expectation_for_a_skipped_test_is_stale() -> Result<()> {
         let temp = tempfile::tempdir()?;
@@ -1608,8 +1669,9 @@ container build failed
         Ok(())
     }
 
-    /// A runner that declares its own expected failure still exits zero, so such a case cannot
-    /// explain a non-zero exit the way a listed expectation does.
+    /// A runner that declares its own expected failure still exits zero, so
+    /// such a case cannot explain a non-zero exit the way a listed
+    /// expectation does.
     #[test]
     fn a_runner_declared_xfail_does_not_excuse_a_non_zero_exit() -> Result<()> {
         let temp = tempfile::tempdir()?;
@@ -1636,7 +1698,8 @@ container build failed
         Ok(())
     }
 
-    /// A report file with no cases in it means that phase of the suite never ran.
+    /// A report file with no cases in it means that phase of the suite never
+    /// ran.
     #[test]
     fn an_empty_report_file_fails_a_whole_suite_run() -> Result<()> {
         let temp = tempfile::tempdir()?;
@@ -1652,7 +1715,8 @@ container build failed
         Ok(())
     }
 
-    /// Expected failures explain a non-zero exit, but not a failure to run the adapter at all.
+    /// Expected failures explain a non-zero exit, but not a failure to run the
+    /// adapter at all.
     #[test]
     fn only_a_container_that_ran_has_its_exit_excused() -> Result<()> {
         let temp = tempfile::tempdir()?;

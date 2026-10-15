@@ -1,10 +1,10 @@
 # `bash` Compatibility Reference
 
-This document details `brush`'s compatibility with `bash`, including supported features, known limitations, and how to report issues.
+This document details `shrub`'s compatibility with `bash`, including supported features, known limitations, and how to report issues.
 
 ## Overview
 
-`brush` aims for high compatibility with `bash`. We validate this through **2,500+ compatibility test cases** that compare behavior against `bash` as an oracle, plus [end-to-end suites](../../e2e/README.md) that test popular shell tools (e.g., fzf, atuin, starship, etc.) with `brush`.
+`shrub` aims for high compatibility with `bash`. We validate this through **2,500+ compatibility test cases** that compare behavior against `bash` as an oracle, plus [end-to-end suites](../../e2e/README.md) that test popular shell tools (e.g., fzf, atuin, starship, etc.) with `shrub`.
 
 **Compatibility snapshot:** Production-ready for most use cases. Your `.bashrc`, aliases, functions, and completions should "just work."
 
@@ -142,7 +142,7 @@ wait -n  # Wait for whichever finishes first
 ### `$!` for Background Commands
 
 Bash expands `$!` to the process ID of the most recent asynchronous command.
-Brush currently does not reliably provide this value for background commands,
+Shrub currently does not reliably provide this value for background commands,
 so scripts that start a job with `cmd &` and immediately use `$!` may see an
 empty value.
 
@@ -183,11 +183,11 @@ Some advanced `printf` format specifiers behave differently (~8 known cases), pa
 
 ### Aliases
 
-Some complex alias expansion scenarios differ from `bash` (see GitHub issues [#57](https://github.com/reubeno/brush/issues/57), [#286](https://github.com/reubeno/brush/issues/286)).
+Some complex alias expansion scenarios differ from `bash` (see GitHub issues [#57](https://github.com/victor-software-house/shrub/issues/57), [#286](https://github.com/victor-software-house/shrub/issues/286)).
 
 ## Test Suite Statistics
 
-- **Total test cases:** 2,500+ (plus a small set of `brush`-specific cases)
+- **Total test cases:** 2,500+ (plus a small set of `shrub`-specific cases)
 - **Known failures:** ~470, marked `known_failure` in the case files so a fix that makes one pass is reported rather than absorbed
 - **Largest groups of known failures:** nameref behavior, `declare` edge cases, `BASH_COMMAND` inside traps, signal handling, `wait` with job specs, and alias expansion
 
@@ -195,18 +195,18 @@ The test suite runs on every PR and compares behavior against `bash` as an oracl
 
 ## Version Compatibility
 
-`brush` targets compatibility with **`bash` 5.3+**. Behavior may differ from older `bash` versions (3.x, 4.x) in some areas.
+`shrub` targets compatibility with **`bash` 5.3+**. Behavior may differ from older `bash` versions (3.x, 4.x) in some areas.
 
 ## Reporting Compatibility Issues
 
-Found a script that works in `bash` but not in `brush`?
+Found a script that works in `bash` but not in `shrub`?
 
-1. **Check existing issues:** [GitHub Issues](https://github.com/reubeno/brush/issues)
+1. **Check existing issues:** [GitHub Issues](https://github.com/victor-software-house/shrub/issues)
 2. **Create a minimal reproducer:** Reduce to the smallest failing script
 3. **File an issue** with:
    - The script or command that fails
    - Expected behavior (what `bash` does)
-   - Actual behavior (what `brush` does)
+   - Actual behavior (what `shrub` does)
    - Your platform (Linux/macOS/etc.)
 
 ## Tracking Progress
@@ -219,4 +219,4 @@ Found a script that works in `bash` but not in `brush`?
 
 - [`bash` Reference Manual](https://www.gnu.org/software/bash/manual/)
 - [POSIX Shell Specification](https://pubs.opengroup.org/onlinepubs/9699919799/)
-- [`brush` Test Cases](https://github.com/reubeno/brush/tree/main/brush-shell/tests/cases)
+- [`shrub` Test Cases](https://github.com/victor-software-house/shrub/tree/main/shrub-shell/tests/cases)

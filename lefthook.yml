@@ -1,0 +1,60 @@
+# Hooks call mise tasks, so a hook runs the same command as CI. mise.dev.toml
+# installs them through its postinstall hook; CI never loads that file, so no
+# runner has them and no hook needs a CI skip.
+#
+# Every command runs with MISE_ENV=dev,hooks, from the hookenv anchor on the
+# first command. MISE_ENV replaces the .miserc.toml default, so dev is named
+# again; a mise.hooks.toml, where a repository has one, disables auto deps
+# providers inside hooks.
+pre-commit:
+  commands:
+    format:
+      # *.rs matches every depth; **/*.rs misses files at the root.
+      glob: "*.rs"
+      env: &hookenv { MISE_ENV: "dev,hooks" }
+      run: mise run format
+    staged-secrets:
+      env: *hookenv
+      run: mise run hooks:secrets:staged
+
+commit-msg:
+  commands:
+    committed:
+      env: *hookenv
+      run: mise run commit-msg {1}
+
+pre-push:
+  commands:
+    lockfile:
+      env: *hookenv
+      run: mise install --locked
+    # Lints each pushed commit the remote does not have yet. git passes one
+    # `<local ref> <local sha> <remote ref> <remote sha>` line per ref on
+    # stdin. A delete (all-zero local sha) pushes nothing. Excluding every
+    # commit any remote-tracking ref already holds skips main's history,
+    # GitHub squash merges included, and commits pushed before, also on a
+    # push to a URL or to a remote with no tracking refs yet; the remote sha
+    # covers a remote tip that no tracking ref names.
+    commits:
+      env: *hookenv
+      use_stdin: true
+      run: |
+        zero=0000000000000000000000000000000000000000
+        while read -r _ lsha _ rsha; do
+          [ "$lsha" = "$zero" ] && continue
+          known=""
+          if [ "$rsha" != "$zero" ] && git cat-file -e "$rsha^{commit}" 2>/dev/null; then
+            known=$rsha
+          fi
+          commits=$(git rev-list "$lsha" --not --remotes $known)
+          [ -n "$commits" ] || continue
+          for commit in $commits; do
+            mise run commits "$commit" </dev/null || exit 1
+          done
+        done
+    verify:
+      env: *hookenv
+      run: mise run verify
+    full-history-secrets:
+      env: *hookenv
+      run: mise run hooks:secrets:history

@@ -51,8 +51,9 @@ pub fn run(cmd: &AnalyzeCommand, verbose: bool) -> Result<()> {
 
 /// Run benchmarks using `cargo bench`.
 ///
-/// When an output file is specified, benchmarks are run with `--output-format bencher`
-/// to produce machine-readable output suitable for CI comparison tools.
+/// When an output file is specified, benchmarks are run with `--output-format
+/// bencher` to produce machine-readable output suitable for CI comparison
+/// tools.
 fn run_bench(sh: &Shell, args: &BenchArgs, verbose: bool) -> Result<()> {
     eprintln!("Running benchmarks...");
 
@@ -140,9 +141,10 @@ fn run_public_api(sh: &Shell, args: &PublicApiArgs, verbose: bool) -> Result<()>
 
         // Run public-api diff.
         // The -sss flags are shorthand for three levels of --simplified output,
-        // which suppresses less relevant API details (blanket impls, auto traits, etc.)
-        // to focus on the most important public API changes.
-        // We use ignore_status() because diff returns non-zero if there are differences.
+        // which suppresses less relevant API details (blanket impls, auto
+        // traits, etc.) to focus on the most important public API
+        // changes. We use ignore_status() because diff returns non-zero
+        // if there are differences.
         if verbose {
             eprintln!("Running: cargo +nightly public-api diff -sss -p {crate_name} {base}..HEAD");
         }

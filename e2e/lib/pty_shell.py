@@ -6,7 +6,7 @@ import pexpect
 
 
 CURSOR_POSITION_QUERY = "\x1b[6n"
-COMMAND_DONE = "__BRUSH_E2E_COMMAND_DONE__"
+COMMAND_DONE = "__SHRUB_E2E_COMMAND_DONE__"
 # Seconds to wait for any one expected string. The overall wait is bounded separately, since a
 # shell that keeps asking where the cursor is would otherwise refresh this on every reply.
 TIMEOUT = int(os.environ.get("E2E_TEST_TIMEOUT", "10"))
@@ -19,7 +19,7 @@ def spawn(command, args, env, prompt):
         args,
         dimensions=(30, 100),
         encoding="utf-8",
-        env=env | {"BRUSH_E2E_COMMAND_DONE": COMMAND_DONE},
+        env=env | {"SHRUB_E2E_COMMAND_DONE": COMMAND_DONE},
         timeout=TIMEOUT,
     )
     LOG.info("shell startup:\n%s", expect_output(child, prompt))
@@ -51,9 +51,9 @@ def expect_output(shell, expected):
 
 def run(shell, prompt, command):
     shell.sendline(
-        f"{command}; __brush_e2e_status=$?; "
-        'printf "\\n%s\\n" "$BRUSH_E2E_COMMAND_DONE"; '
-        '(exit "$__brush_e2e_status")'
+        f"{command}; __shrub_e2e_status=$?; "
+        'printf "\\n%s\\n" "$SHRUB_E2E_COMMAND_DONE"; '
+        '(exit "$__shrub_e2e_status")'
     )
     output = expect_output(shell, COMMAND_DONE)
     output += expect_output(shell, prompt)
