@@ -36,6 +36,9 @@ actionlint = "1.7.12"
 # The repository's own checks (mise-tasks/local.toml).
 ast-grep = "0.50.0"
 zizmor = "1.30.1"
+# The test runner; .config/nextest.toml retries a failed test, which the
+# compatibility suite's terminal cases need on slow runners.
+"aqua:nextest-rs/nextest/cargo-nextest" = "0.9.148"
 
 # mise-tasks/ holds this repository's task fragments and file tasks. An
 # includes list replaces the default task dirs, so mise-tasks comes first; add
@@ -48,15 +51,23 @@ includes = [
   "git::https://github.com/victor-software-house/ctl-core.git//tasks/rust.toml?ref=v0.6.19",
 ]
 
-# Replaces ctl-core's test, which runs everything with --all-features; a task
-# here takes precedence over the included one, while one in mise-tasks/ does
-# not. shrub tests its default features, as upstream does: `experimental`
-# bundles the uutils coreutils as builtins, which turns the compatibility
-# suite's `command -v cat` and `wc` away from bash, and shrub-parser's
-# `winnow-parser` is a stub whose tests fail by design. `schema` adds only the
-# derive that the committed-schema test needs. shrub-fuzz is excluded: --bins
-# overrides its targets' test = false and would run libFuzzer.
+# Replaces ctl-core's test, which runs cargo test with --all-features; a
+# task here takes precedence over the included one, while one in mise-tasks/
+# does not. shrub tests its default features, as upstream does:
+# `experimental` bundles the uutils coreutils as builtins, which turns the
+# compatibility suite's `command -v cat` and `wc` away from bash, and
+# shrub-parser's `winnow-parser` is a stub whose tests fail by design.
+# `schema` adds only the derive that the committed-schema test needs. nextest
+# runs each compatibility case as its own test, so .config/nextest.toml
+# retries only the terminal cases that time out on a loaded runner.
 [tasks.test]
 description = "Unit, integration and compatibility tests with the default features"
-run = "cargo test --locked --workspace --exclude shrub-fuzz --features shrub-shell/schema --lib --bins --tests"
+run = "cargo nextest run --locked --workspace --features shrub-shell/schema"
 timeout = "30m"
+
+# Temporary: cargo semver-checks compares each library with its release on
+# crates.io, and no shrub-* crate has one before shrub 0.0.2. Delete this
+# override, restoring ctl-core's semver, once 0.0.2 is published.
+[tasks.semver]
+description = "No-op until the first release gives semver-checks a baseline"
+run = "echo 'semver: no crates.io baseline before shrub 0.0.2'"
