@@ -11,10 +11,15 @@ permissions:
 env:
   MISE_ENV: ci,release
 
-# One group for every trigger, so a manual run and a merged Version PR never
-# publish at the same time.
+# A manual run from main and a merged Version PR share one group, so they
+# never publish at the same time. Every other closed pull request also starts
+# this workflow; it gets a group of its own, since a group keeps one pending
+# run and a no-op run would replace a waiting release.
 concurrency:
-  group: publish
+  group: >-
+    ${{ ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+         (github.event.pull_request.merged && github.event.pull_request.head.ref == 'version-packages'))
+        && 'publish' || format('publish-noop-{0}', github.run_id) }}
   cancel-in-progress: false
 
 jobs:
