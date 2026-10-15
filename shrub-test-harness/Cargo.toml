@@ -54,3 +54,7 @@ cfg_aliases = "0.2.1"
 # with the `pty` cfg in build.rs (which gates the code using this dependency).
 [target.'cfg(any(target_os = "linux", target_os = "android", target_os = "macos", target_os = "freebsd"))'.dependencies]
 expectrl = { workspace = true }
+
+# Used only by build.rs, which machete does not scan.
+[package.metadata.cargo-machete]
+ignored = ["cfg_aliases"]

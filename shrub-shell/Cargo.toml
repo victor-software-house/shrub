@@ -136,33 +136,20 @@ shrub-parser = { workspace = true }
 shrub-test-harness = { workspace = true, features = ["insta"] }
 assert_cmd = { workspace = true }
 assert_fs = { workspace = true }
-colored = { workspace = true }
 criterion = { workspace = true, features = ["async_tokio", "html_reports"] }
-descape = { workspace = true }
-diff = { workspace = true }
-glob = { workspace = true }
-indent = { workspace = true }
-indexmap = { workspace = true }
-junit-report = { workspace = true }
-os-release = { workspace = true }
-predicates = "3.1.4"
 pretty_assertions = { workspace = true, features = ["unstable"] }
-regex = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-yaml_serde = { workspace = true }
-strip-ansi-escapes = { workspace = true }
 test-with = { version = "0.17.0", default-features = false, features = [
   "executable",
 ] }
 tokio = { workspace = true, features = ["time"] }
-version-compare = { workspace = true }
-walkdir = { workspace = true }
 which = "8.0.2"
-
-[target.'cfg(unix)'.dev-dependencies]
-nix = { workspace = true }
 
 # expectrl's pty support (via ptyprocess) is limited to these platforms;
 # the interactive tests that rely on it are gated accordingly.
 [target.'cfg(any(target_os = "linux", target_os = "android", target_os = "macos", target_os = "freebsd"))'.dev-dependencies]
 expectrl = { workspace = true }
+
+# Used only on wasm32, to enable the JavaScript backends; no code names them.
+[package.metadata.cargo-machete]
+ignored = ["getrandom", "uuid"]
