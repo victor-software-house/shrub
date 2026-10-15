@@ -1,17 +1,17 @@
 [workspace]
 resolver = "3"
 members = [
-    "shrub",
-    "shrub-shell",
-    "shrub-parser",
-    "shrub-core",
-    "shrub-builtins",
-    "shrub-coreutils-builtins",
-    "shrub-experimental-builtins",
-    "shrub-interactive",
-    "shrub-test-harness",
-    "fuzz",
-    "xtask",
+  "shrub",
+  "shrub-shell",
+  "shrub-parser",
+  "shrub-core",
+  "shrub-builtins",
+  "shrub-coreutils-builtins",
+  "shrub-experimental-builtins",
+  "shrub-interactive",
+  "shrub-test-harness",
+  "fuzz",
+  "xtask",
 ]
 default-members = ["shrub-shell"]
 
@@ -94,39 +94,6 @@ redundant_pub_crate = "allow"
 result_large_err = "allow"
 similar_names = "allow"
 struct_excessive_bools = "allow"
-
-[workspace.metadata.typos]
-files.ignore-hidden = false
-files.extend-exclude = [
-    # Exclude the changelog because it's dynamically generated.
-    "/CHANGELOG.md",
-    # Exclude .git dir
-    "/.git",
-]
-
-[workspace.metadata.typos.default]
-extend-ignore-re = [
-    # -ot is a valid binary operator
-    "-ot",
-    # Ignore 2-letter string literals, which show up in testing a fair bit.
-    '"[a-zA-Z]{2}"',
-]
-
-[workspace.metadata.typos.default.extend-words]
-# These show up in tests.
-"abd" = "abd"
-"hel" = "hel"
-"ba" = "ba"
-
-# These are specific component names.
-"iterm" = "iterm"
-"jod" = "jod"
-
-# Partial words completed in completion tests, allowed only in the files with those tests.
-# (A type's globs match just file names, not paths.)
-[workspace.metadata.typos.type.completion-tests]
-extend-glob = ["compgen.yaml", "words.rs"]
-extend-words = { "fo" = "fo", "whil" = "whil" }
 
 [profile.release]
 strip = true

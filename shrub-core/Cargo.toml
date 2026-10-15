@@ -50,14 +50,14 @@ tokio = { version = "1.52.3", features = ["io-util", "macros", "rt", "sync"] }
 [target.'cfg(any(unix, windows))'.dependencies]
 hostname = "0.4.2"
 tokio = { version = "1.52.3", features = [
-    "io-util",
-    "macros",
-    "net",
-    "process",
-    "rt",
-    "rt-multi-thread",
-    "signal",
-    "sync",
+  "io-util",
+  "macros",
+  "net",
+  "process",
+  "rt",
+  "rt-multi-thread",
+  "signal",
+  "sync",
 ] }
 
 [target.'cfg(windows)'.dependencies]
@@ -68,13 +68,13 @@ whoami = "2.1.1"
 command-fds = "0.3.2"
 libc = "0.2.183"
 nix = { version = "0.31.2", features = [
-    "fs",
-    "poll",
-    "process",
-    "resource",
-    "signal",
-    "term",
-    "user",
+  "fs",
+  "poll",
+  "process",
+  "resource",
+  "signal",
+  "term",
+  "user",
 ] }
 terminal_size = "0.4.4"
 terminfo = "0.9.0"

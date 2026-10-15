@@ -1,3 +1,27 @@
 # Spelling, checked by `mise run lint:typos`.
 [files]
-extend-exclude = ["*.lock"]
+extend-exclude = ["*.lock", "/CHANGELOG.md"]
+ignore-hidden = false
+
+[default]
+extend-ignore-re = [
+  # -ot is a valid binary operator
+  "-ot",
+  # Ignore 2-letter string literals, which show up in testing a fair bit.
+  '"[a-zA-Z]{2}"',
+]
+
+[default.extend-words]
+# These show up in tests.
+"abd" = "abd"
+"hel" = "hel"
+"ba" = "ba"
+# These are specific component names.
+"iterm" = "iterm"
+"jod" = "jod"
+
+# Partial words completed in completion tests, allowed only in the files with
+# those tests. (A type's globs match just file names, not paths.)
+[type.completion-tests]
+extend-glob = ["compgen.yaml", "words.rs"]
+extend-words = { "fo" = "fo", "whil" = "whil" }

@@ -71,20 +71,20 @@ minimal = ["shrub-interactive/minimal"]
 reedline = ["shrub-interactive/reedline"]
 vt = ["shrub-interactive/vt"]
 experimental = [
-    "experimental-builtins",
-    "experimental-bundled-coreutils",
-    "experimental-load",
-    "experimental-parser",
+  "experimental-builtins",
+  "experimental-bundled-coreutils",
+  "experimental-load",
+  "experimental-parser",
 ]
 experimental-builtins = ["dep:shrub-experimental-builtins"]
 experimental-bundled-coreutils = [
-    "dep:shrub-coreutils-builtins",
-    "shrub-coreutils-builtins/coreutils.all",
+  "dep:shrub-coreutils-builtins",
+  "shrub-coreutils-builtins/coreutils.all",
 ]
 experimental-load = ["dep:serde_json", "shrub-core/serde"]
 experimental-parser = [
-    "shrub-core/experimental-parser",
-    "shrub-parser/winnow-parser",
+  "shrub-core/experimental-parser",
+  "shrub-parser/winnow-parser",
 ]
 schema = ["dep:schemars"]
 
@@ -152,7 +152,7 @@ serde = { version = "1.0.228", features = ["derive"] }
 yaml_serde = "0.10.7"
 strip-ansi-escapes = "0.2.1"
 test-with = { version = "0.17.0", default-features = false, features = [
-    "executable",
+  "executable",
 ] }
 tokio = { version = "1.52.3", features = ["time"] }
 version-compare = "0.2.1"

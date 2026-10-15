@@ -8,3 +8,5 @@ disable = ["MD013"]
 [per-file-ignores]
 # A one-line import of AGENTS.md.
 "CLAUDE.md" = ["MD041"]
+# A changeset is one release-note paragraph under YAML frontmatter.
+".changeset/*.md" = ["MD013", "MD041"]

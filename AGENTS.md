@@ -1,337 +1,61 @@
-# Agent Development Guide for `shrub`
+# shrub development guide
 
-This guide helps AI agents work efficiently on the `shrub` codebase by providing essential context about architecture, patterns, and development workflows.
+shrub is a Bash-compatible shell in Rust, built as crates that other programs embed.
+It is a hard fork of brush; the README holds the attribution.
 
-## 1. Architecture Overview & Navigation
+## Architecture
 
-### Architecture
-
-[docs/explanation/architecture.md](docs/explanation/architecture.md) is the definition of
-shrub's architecture: its crates, how they depend on each other, how `shrub-core` is
-structured, and the layering principles that decide which crate code belongs in (e.g.
-what `shrub-core` owns vs. the interactive front end). Read it before adding a crate,
-moving code between crates, or changing a public API's shape, and keep it up to date when
-the architecture changes.
-
-### Key Files & Entry Points
-
-**Critical files to understand first:**
-
-- `shrub-core/src/shell.rs` - Main `Shell` struct and creation logic
-- `shrub-core/src/lib.rs` - Public API exports
-- `shrub-shell/src/main.rs` - CLI application entry point
-
-**Architecture patterns:**
-
-- Shell instances are created via `Shell::builder()`
-- The project uses builder patterns for type-safe configuration
-- Platform-specific code in `shrub-core` MUST live under the `sys` module
-- Follows Rust 2024 edition standards
-
-### Module Dependencies
+[docs/explanation/architecture.md](docs/explanation/architecture.md) defines the crates, how they depend on each other, and which crate owns which code.
+Read it before adding a crate, moving code between crates, or changing the shape of a public API, and keep it current.
 
 ```text
 shrub-shell → shrub-interactive → shrub-core → shrub-parser
             ↘ shrub-builtins ↗
 ```
 
-## 2. Testing Strategy
+- `shrub-core/src/shell.rs` holds the `Shell` struct; shells are created with `Shell::builder()`.
+- `shrub-core/src/lib.rs` holds the public exports.
+- `shrub-shell/src/main.rs` is the CLI entry point.
+- Platform-specific code in `shrub-core` lives under its `sys` module.
 
-### Test Execution Priority
+## Tasks
 
-**Recommended development workflow:**
+mise pins every tool, and the tasks are the only supported commands.
 
-#### Using xtask (Recommended)
+| Task | What it runs |
+|:--|:--|
+| `mise run verify` | Toolchain pins, format, clippy, feature checks, tests, doc-tests, cargo-deny, unused crates, repository checks |
+| `mise run format` | rustfmt check on the pinned nightly |
+| `mise run test` | Unit, integration and compatibility tests |
+| `mise run check:repo` | TOML format, Markdown, spelling and workflow lint |
 
-The project provides a `cargo xtask` command that centralizes common development tasks:
+`verify` comes from ctl-core's shared Rust tasks; `check:features` and `check:local` are in `mise-tasks/`.
+lefthook runs `format` before a commit and `verify` before a push.
+`cargo xtask` stays for the test runner and generated docs; see [docs/how-to/run-tests.md](docs/how-to/run-tests.md).
 
-```bash
-# Run quick inner-loop checks (~7s warm): fmt, build, lint, unit tests
-cargo xtask ci quick
+## Tests
 
-# Run the full workflow (~60s warm): quick + pre-commit hooks, schemas, integration tests
-cargo xtask ci full
+- Unit tests live in `src/` under `#[cfg(test)]`; integration tests in `tests/`.
+- Compatibility cases are YAML files under `shrub-shell/tests/cases/`, run against Bash.
+  A compatibility fix adds a case there.
+- Examples in `examples/` must run with `cargo run --package <crate> --example <name>`.
 
-# Run with --continue-on-error to see all failures at once
-cargo xtask ci full -k
+## Public API
 
-# Add -v for verbose output showing exact commands being run
-cargo xtask -v ci full
-```
+Every crate is published, so everything a crate exports is public API.
+A breaking change is allowed but called out in its changeset.
+A new field on a public struct is fine when the struct implements `Default` with a sensible value.
+When `shrub-core`'s API changes, check the construction sites in `shrub-shell` and `shrub-interactive`.
 
-`cargo xtask ci quick` needs only the Rust toolchain. `cargo xtask ci full` also
-needs `prek` on `PATH` (`cargo binstall prek` or `brew install prek`). If `prek` is
-unavailable in your environment, run `cargo xtask ci full --no-hooks`; CI
-still runs the hooks.
+Exported items carry rustdoc; internal docs are best effort.
 
-#### Individual Test Commands
+## Code conventions
 
-```bash
-# Run unit tests (fast tests excluding integration binaries)
-cargo xtask test unit
+- Errors use `thiserror`; `anyhow` only in tests.
+- Debug logging uses `tracing` with the targets in each crate's `trace_categories.rs`, for example `tracing::debug!(target: trace_categories::JOBS, "...")`.
+- Avoid clones unless async ownership needs a separate copy.
 
-# Run integration tests (all workspace tests including compat tests)
-cargo xtask test integration
+## Releases
 
-# Run tests with coverage
-cargo xtask test integration --coverage --coverage-output codecov.xml
-```
-
-#### Manual Approach (Alternate)
-
-For finer-grained control:
-
-##### Inner Loop (Fast Iteration)
-
-1. **Quick validation**: `cargo check --package <changed-package>` - Fast syntax/type checking
-2. **Correctness validation**: `cargo test --package <changed-package>` - Target specific crates for faster feedback
-
-##### Outer Loop (Comprehensive Testing)  
-
-1. **Compatibility tests**: `cargo test --test shrub-compat-tests` - Bash compatibility validation
-2. **Full workspace tests**: `cargo test --workspace` - Complete test suite
-
-#### Pre-Finish Quality Validation
-
-**Recommended:** Run the xtask full workflow:
-
-```bash
-cargo xtask ci full
-```
-
-**Manual approach:** Before considering work complete, run these validation steps:
-
-- **Compatibility tests**: `cargo test --test shrub-compat-tests`
-- **Linting**: `cargo clippy`
-- **Formatting**: `cargo fmt --check`
-- **Pre-commit hooks** (spelling, links, workflows, dependency audit, structural lints): `cargo xtask check hooks` (needs `prek`)
-- **Full test suite**: `cargo test --workspace`
-
-**When tests fail:**
-
-- Focus on failures in the area you changed first
-- Compatibility test failures often indicate shell behavior changes
-- Check if new functionality needs corresponding test cases
-- Format/clippy failures should be fixed before proceeding
-
-**Common pitfalls:**
-
-- **Test scope mistakes**: Running full test suite too early instead of targeting specific areas first
-- **Skipping test-driven development**: Add tests that specify desired behavior before implementing
-
-**Test-driven development approach:**
-
-- When possible, write tests first that specify the desired behavior
-- Use unit tests for logic changes, compatibility tests for shell behavior changes
-- Use these tests as validation that your implementation is working correctly
-
-**Pro tip**: For specific compatibility test cases, use:
-
-```bash
-cargo test --test shrub-compat-tests -- '<name of test case>'
-```
-
-**Fast iteration strategies:**
-
-- Target specific crates: `cargo test --package <changed-package>`
-- Target specific test cases: `cargo test <test-name>` or `cargo test --test <test-file>`
-- Requires knowledge of which tests best exercise the code being changed
-
-**Testing approach:**
-
-- Follow good software engineering practice: start by validating the specific area being changed, then iteratively move to incrementally broader sets of tests
-
-### Test Organization
-
-**Testing expectations for new public APIs:**
-
-- Unit tests are expected if feasible
-- Examples are nice to have and worthwhile for sufficiently critical APIs
-
-**Test patterns and conventions:**
-
-- **Compatibility tests**: For any compatibility-related fixes, it's critical to add new test cases to the compat tests (see docs/how-to/run-tests.md and section 3 for when breaking changes apply)
-
-**Test categories:**
-
-- Unit tests: In `src/` files with `#[cfg(test)]`
-- Integration tests: In `tests/` directories
-- Examples: In `examples/` directories (must be runnable)
-- Shell script tests: YAML-based test cases in `shrub-shell/tests/cases/`
-
-### Performance Testing
-
-**Performance regression testing:**
-
-- Not a chief concern for most changes
-- For performance-specific work, benchmarks are available (see docs/how-to/run-benchmarks.md)
-- Performance sensitivity will be identified in the initial brief if relevant
-
-## 3. Breaking Changes & Compatibility
-
-### API Stability Guidelines
-
-**Breaking change policy:**
-
-- Non-backwards compatible changes to public APIs are considered breaking
-- Breaking changes are still in consideration, but need to be highlighted and carefully reviewed
-- Any APIs exported from crates are considered public because all of the crates are published to crates.io
-
-**Adding new fields to public structs:**
-
-- New optional fields are fine to add as long as the struct implements the Default trait and as long as the defaulted value is a sensible one
-
-### Dependency Impact
-
-When changing public APIs in `shrub-core` (see section 3 for breaking change policy):
-
-1. Check `shrub-shell/src/main.rs` for struct initialization sites
-2. Check `shrub-interactive/` for any usage
-
-## 4. Documentation & Examples Standards
-
-### Documentation Requirements
-
-**Rustdoc documentation standards:**
-
-- At minimum we must have good rustdoc documentation for exported types, functions, traits, etc. as well as on all exported modules and crates
-- Documentation for internal components should be a best-effort, nice to have thing
-
-**Examples for new features:**
-
-- Unless explicitly requested, only major feature additions warrant an example.
-
-**Documentation style:**
-
-- Follow general best practices for Rust
-
-### Example Standards
-
-Examples should:
-
-- Be self-contained and runnable with `cargo run --package shrub-core --example <name>`
-- Include comprehensive error handling
-- Demonstrate both basic and advanced usage patterns
-- Include output examples in comments when helpful
-
-## 5. Build & Release Process
-
-### Development Tools
-
-The project uses several tools for code quality:
-
-**Using xtask (Recommended):**
-
-The project provides a `cargo xtask` command that centralizes common development tasks:
-
-```bash
-# Run all checks (comprehensive)
-cargo xtask ci full
-
-# Individual checks
-cargo xtask check fmt      # Format check
-cargo xtask check lint     # Clippy
-cargo xtask check build    # Compilation check
-cargo xtask check schemas  # Schema drift check
-cargo xtask check hooks  # prek hooks: file hygiene, typos, zizmor, lychee, cargo-deny, ast-grep
-cargo xtask check hooks deps  # One hook, by id or alias
-
-# Tests
-cargo xtask test unit        # Fast unit tests (excludes integration binaries)
-cargo xtask test integration # All workspace tests (unit + compat)
-
-# Analysis
-cargo xtask analyze bench  # Run benchmarks
-```
-
-**Manual approach (Alternate):**
-
-- Standard cargo commands (e.g., check, test, build, run, clippy)
-- You may need to reverse engineer some of the args looking at CI checks in .github/*.yml
-
-**Command frequency guidelines:**
-
-- **Frequent (inner loop)**: `cargo xtask ci quick`, `cargo check`, `cargo test --package <pkg>`
-- **Regular (before commits)**: `cargo xtask ci quick` or `cargo fmt` + `cargo clippy`
-- **Occasional (outer loop)**: `cargo xtask test integration` or `cargo test --workspace`
-- **Rare (before opening a PR)**: `cargo xtask ci full`, which adds the pre-commit hooks, schemas, and integration tests
-
-**Pre-commit validation:**
-
-- Recommended: `cargo xtask ci quick`
-- Before opening a PR: `cargo xtask ci full`
-- Manual: Run `cargo fmt` and `cargo clippy` before committing
-
-**Outer loop validation:**
-
-- `cargo xtask check hooks` should pass (file hygiene, typos, zizmor, lychee, cargo-deny, ast-grep) - not for frequent use during development; `cargo xtask ci full --no-hooks` skips it when `prek` is unavailable
-
-## 6. Performance & Error Handling Patterns
-
-### Error Handling
-
-**Error handling patterns:**
-
-- `thiserror` is used for implementing crate-specific errors
-- Use `anyhow` only in tests
-
-**Logging and tracing patterns:**
-
-- Use `tracing` for debug logging with predefined categories
-- Categories are defined in `trace_categories.rs` modules (e.g., `COMMANDS`, `COMPLETION`, `EXPANSION`, `FUNCTIONS`, `INPUT`, `JOBS`, `PARSE`, `PATTERN`, `UNIMPLEMENTED`)
-- Usage pattern: `tracing::debug!(target: trace_categories::CATEGORY_NAME, "message")`
-- Example: `tracing::debug!(target: trace_categories::JOBS, "Polling job {} for completion...", job_id)`
-
-### Performance Considerations
-
-**Clone vs references:**
-
-- Avoid cloning by default, no reason to make extra copies
-- Only use cloning when you really must capture a separate copy for async safety or similarly important reasons
-
----
-
-## 7. Commit Message Conventions
-
-Following the Linux kernel convention, when AI assistants or advanced coding tools have been used in the development of a change, include an `Assisted-by:` tag in the commit message. This provides transparency about the use of such tools in the development process.
-
-The format for the Assisted-by tag is:
-```
-Assisted-by: AGENT_NAME:MODEL_VERSION [TOOL1] [TOOL2]
-```
-
-Example:
-```
-Assisted-by: Mistral Vibe:mistral-medium-3.5
-```
-
-## Quick Reference Checklist
-
-When making changes to shrub:
-
-### Before Starting
-
-- [ ] Understand which crate(s) are affected
-- [ ] Check if changes might break dependent crates
-- [ ] Identify relevant test files and examples
-
-### During Development  
-
-- [ ] Run `cargo check` frequently during development
-- [ ] Test changes with package-specific tests first (see section 2 for testing workflow)
-- [ ] Update dependent crate usage if needed (see section 3 for compatibility considerations)
-- [ ] Add/update examples for major feature additions only (see section 4)
-
-### Before Committing
-
-- [ ] Run full test suite: `cargo test` (see section 2 for complete testing workflow)
-- [ ] Format code: `cargo fmt` (see section 5 for tool details)
-- [ ] Check linting: `cargo clippy`
-- [ ] Use conventional commit format
-- [ ] If using AI assistants or advanced coding tools, include an `Assisted-by:` tag in the format `AGENT_NAME:MODEL_VERSION` (following Linux kernel convention)
-
-### Documentation
-
-- [ ] Add rustdoc to exported APIs (see section 4 for documentation standards)
-- [ ] Include working examples for major features only
-- [ ] Update this guide if new patterns emerge
+A change to a published crate adds a `.changeset/<slug>.md` fragment naming `shrub`; [docs/how-to/release.md](docs/how-to/release.md) describes the verctl flow.
+Commits follow Conventional Commits, checked by `committed`.

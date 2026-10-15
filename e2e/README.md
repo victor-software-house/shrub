@@ -23,7 +23,7 @@ cargo xtask test e2e --summary-output e2e.md # also write the run as a Markdown 
 A run reports one line per adapter and a summary, read back from the JUnit
 each runner writes:
 
-```
+```text
     Starting 7 e2e adapter(s) against shrub
      Results target/e2e/run-ABC123
         PASS [    1.2s] starship  3 tests
@@ -49,11 +49,7 @@ On a terminal, statuses are green for clean passes, yellow for passes with expec
 failures, and red for failures. Redirected output, `TERM=dumb`, and a nonempty
 `NO_COLOR` disable color.
 
-They need Docker and a built shell binary. CI runs the default selection on every
-PR (the `e2e-tests` job in `ci.yaml`, against the release binary the build job
-produced) and posts the `--summary-output` dashboard to the PR comment, alongside
-the coverage and benchmark reports, with each failing adapter's `log.txt` in the
-job log and every run directory in the `e2e-logs` artifact. Because the `xfail-list.txt`
+They need Docker and a built shell binary, and CI does not run them yet. Because the `xfail-list.txt`
 files are the committed baseline, a PR that fixes or breaks a test shows it in its own
 diff; no run against `main` is needed. `blesh` is excluded from the default selection
 because compatibility failures and timeouts make it take several minutes against
