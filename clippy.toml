@@ -1,15 +1,13 @@
-avoid-breaking-exported-api = false
+# clippy keeps its default avoid-breaking-exported-api = true: the template
+# turns it off, but every shrub crate is a published library whose API came
+# from upstream, and a lint is no reason to break it.
 allow-unwrap-in-tests = true
 allow-expect-in-tests = true
-disallowed-macros = [
-    { path = "core::concat", reason = "use formatdoc/indoc for multiline strings" },
-    { path = "std::concat", reason = "use formatdoc/indoc for multiline strings" },
-]
-await-holding-invalid-types = [
-    "tokio::sync::MutexGuard",
-    "tokio::sync::RwLockReadGuard",
-    "tokio::sync::RwLockWriteGuard",
-]
+# The template disallows concat!, but tracing expands its target: form through
+# concat!, shrub logs with explicit targets everywhere, and its builtins build
+# static strings with concat!.
+# No await-holding-invalid-types: shrub-interactive holds the shell's tokio
+# Mutex across awaits by design, which tokio's async Mutex exists to allow.
 disallowed-methods = [
     { path = "tokio::sync::mpsc::unbounded_channel", reason = "no backpressure; use a bounded channel" },
 ]
