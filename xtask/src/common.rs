@@ -3,7 +3,7 @@
 //! This module provides shared functionality for:
 //! - Build profile selection (debug vs release)
 //! - Workspace root discovery
-//! - Brush binary location for test commands
+//! - Shrub binary location for test commands
 
 use std::path::PathBuf;
 
@@ -48,13 +48,13 @@ pub fn find_workspace_root() -> Result<PathBuf> {
     Ok(workspace_root.to_path_buf())
 }
 
-/// Find the brush binary path for the given build profile.
+/// Find the shrub binary path for the given build profile.
 ///
 /// If `override_path` is provided, it is used directly (after validation).
 /// Otherwise, the binary is located in the workspace's target directory
 /// based on the specified profile.
 #[cfg(unix)]
-pub fn find_brush_binary(
+pub fn find_shrub_binary(
     override_path: Option<&PathBuf>,
     profile: BuildProfile,
 ) -> Result<PathBuf> {
@@ -62,7 +62,7 @@ pub fn find_brush_binary(
         path.clone()
     } else {
         let workspace_root = find_workspace_root()?;
-        let binary_name = if cfg!(windows) { "brush.exe" } else { "brush" };
+        let binary_name = if cfg!(windows) { "shrub.exe" } else { "shrub" };
         workspace_root
             .join("target")
             .join(profile.target_dir_name())
@@ -72,7 +72,7 @@ pub fn find_brush_binary(
     // Canonicalize to get absolute path and verify existence
     let canonical_path = binary_path.canonicalize().with_context(|| {
         format!(
-            "Brush binary not found at: {} (profile: {:?}). Did you run `cargo build{}`?",
+            "Shrub binary not found at: {} (profile: {:?}). Did you run `cargo build{}`?",
             binary_path.display(),
             profile,
             if profile == BuildProfile::Release {

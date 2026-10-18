@@ -9,13 +9,13 @@ Set Width 1600
 Set Height 600
 Set CursorBlink false
 
-# Setup environment to launch brush in
+# Setup environment to launch shrub in
 Env HISTFILE ""
 Env PS1 '$0$ '
 
-# Launch brush and set up bash-completion
+# Launch shrub and set up bash-completion
 Hide
-Type `brush --enable-highlighting --norc --noprofile --no-config`
+Type `shrub --enable-highlighting --norc --noprofile --no-config`
 Enter
 Type `source /usr/share/bash-completion/bash_completion && clear`
 Enter
@@ -40,7 +40,7 @@ Type `--l`
 Sleep 0.4s
 Tab
 Sleep 0.8s
-Type `brush-she`
+Type `shrub-she`
 Sleep 0.5s
 Tab
 Sleep 0.2s
@@ -113,7 +113,7 @@ Sleep 0.4s
 # Declare function
 Type `function greet() {`
 Enter
-Type `  echo "Hello from brush ${ver}!"`
+Type `  echo "Hello from shrub ${ver}!"`
 Enter
 Type `}`
 Sleep 1s

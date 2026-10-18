@@ -15,17 +15,9 @@ cargo xtask test integration
 cargo xtask test integration --coverage --coverage-output codecov.xml
 ```
 
-## CI Workflows
+## Repository gate
 
-For comprehensive validation, use the CI workflows:
-
-```bash
-# Quick inner-loop checks (~7s warm): fmt, build, lint, unit tests
-cargo xtask ci quick
-
-# Full workflow (~60s warm): quick + pre-commit hooks, schemas, integration tests
-cargo xtask ci full
-```
+`mise run verify` runs every check CI runs, the tests included.
 
 ## Manual Approach (Alternate)
 
@@ -38,11 +30,11 @@ cargo test --workspace
 To run just bash compatibility tests:
 
 ```bash
-cargo test --test brush-compat-tests
+cargo test --test shrub-compat-tests
 ```
 
 To run a specific compatibility test case
 
 ```bash
-cargo test --test brush-compat-tests -- '<name of test case>'
+cargo test --test shrub-compat-tests -- '<name of test case>'
 ```

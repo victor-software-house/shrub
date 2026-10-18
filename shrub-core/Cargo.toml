@@ -1,0 +1,95 @@
+[package]
+name = "shrub-core"
+description = "Reusable core of a POSIX/bash shell (used by shrub-shell)"
+version.workspace = true
+categories.workspace = true
+edition.workspace = true
+keywords.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[features]
+default = []
+serde = ["dep:serde", "shrub-parser/serde", "rpds/serde", "chrono/serde"]
+experimental-parser = ["shrub-parser/winnow-parser"]
+
+[dependencies]
+async-recursion = "1.1.1"
+async-trait = "0.1.89"
+shrub-parser = { workspace = true }
+bon = { workspace = true }
+cached = { workspace = true }
+cfg-if = { workspace = true }
+chrono = { workspace = true }
+clap = { workspace = true, features = ["derive", "wrap_help"] }
+color-print = { workspace = true }
+fancy-regex = { workspace = true }
+futures = "0.3.32"
+inherent = "1.0.13"
+itertools = { workspace = true }
+normalize-path = "0.2.1"
+rand = "0.10.0"
+rpds = "1.2.0"
+serde = { workspace = true, features = ["derive"], optional = true }
+strum = { workspace = true }
+strum_macros = "0.28.0"
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[target.'cfg(target_family = "wasm")'.dependencies]
+tokio = { workspace = true, features = ["io-util", "macros", "rt", "sync"] }
+
+[target.'cfg(any(unix, windows))'.dependencies]
+hostname = "0.4.2"
+tokio = { workspace = true, features = [
+  "io-util",
+  "macros",
+  "net",
+  "process",
+  "rt",
+  "rt-multi-thread",
+  "signal",
+  "sync",
+] }
+
+[target.'cfg(windows)'.dependencies]
+check_elevation = "0.3.0"
+whoami = "2.1.1"
+
+[target.'cfg(unix)'.dependencies]
+command-fds = "0.3.2"
+libc = { workspace = true }
+nix = { workspace = true, features = [
+  "fs",
+  "poll",
+  "process",
+  "resource",
+  "signal",
+  "term",
+  "user",
+] }
+terminal_size = "0.4.4"
+terminfo = "0.9.0"
+uzers = "0.12.2"
+
+[target.wasm32-unknown-unknown.dependencies]
+getrandom = { workspace = true, features = ["wasm_js"] }
+uuid = { workspace = true, features = ["js"] }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+pretty_assertions = { workspace = true, features = ["unstable"] }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["time"] }
+
+# Used only on wasm32, to enable the JavaScript backends; no code names them.
+[package.metadata.cargo-machete]
+ignored = ["getrandom", "uuid"]

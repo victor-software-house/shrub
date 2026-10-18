@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  # The CI profile; local work loads dev from .miserc.toml, which CI never does.
+  MISE_ENV: ci
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}-${{ github.event.pull_request.base.sha || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install locked toolchain
+        uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2
+        with:
+          version: 2026.10.10
+          cache: true
+      - name: Cache builds with mbx
+        uses: jdx/mr-boxington-action@47ce49b32025d93a7a2f4570815afaa2b7092240 # v1.7.2
+      - name: Verify
+        run: mise run verify
+      - name: Advisories
+        run: mise run deny:advisories
+      # Compares the public API with the last release on crates.io.
+      - name: Semver
+        run: mise run semver
+      - name: Package
+        run: mise x -- cargo package --locked --all-features --workspace
+
+  template:
+    name: Template
+    # A pull request from a fork gets no secrets and cannot read the private
+    # template, so the check is skipped there instead of failing.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Mints a token from the vsh-templates-reader App, installs only uv and
+      # python from mise.template.toml, and fails when the newest template tag
+      # would change the repository.
+      - name: Check the template version
+        uses: victor-software-house/ctl-core/.github/actions/copier-check@1fc4bc9acf3e8ec64eb8433837da5f720c295e93 # main, 2026-10-15
+        with:
+          client-id: ${{ secrets.TEMPLATES_APP_CLIENT_ID }}
+          private-key: ${{ secrets.TEMPLATES_APP_PRIVATE_KEY }}

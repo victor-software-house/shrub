@@ -2,35 +2,37 @@
 #![allow(missing_docs)]
 #![allow(clippy::unwrap_used)]
 
+use std::sync::LazyLock;
+
 use anyhow::Result;
 use libfuzzer_sys::fuzz_target;
-use std::sync::LazyLock;
 
 static TOKIO_RT: LazyLock<tokio::runtime::Runtime> =
     LazyLock::new(|| tokio::runtime::Runtime::new().unwrap());
 
-static SHELL_TEMPLATE: LazyLock<brush_core::Shell> = LazyLock::new(|| {
+static SHELL_TEMPLATE: LazyLock<shrub_core::Shell> = LazyLock::new(|| {
     TOKIO_RT
         .block_on(
-            brush_core::Shell::builder()
-                .profile(brush_core::ProfileLoadBehavior::Skip)
-                .rc(brush_core::RcLoadBehavior::Skip)
+            shrub_core::Shell::builder()
+                .profile(shrub_core::ProfileLoadBehavior::Skip)
+                .rc(shrub_core::RcLoadBehavior::Skip)
                 .build(),
         )
         .unwrap()
 });
 
 #[expect(clippy::unused_async)]
-async fn parse_async(shell: brush_core::Shell, input: String) -> Result<()> {
+async fn parse_async(shell: shrub_core::Shell, input: String) -> Result<()> {
     const DEFAULT_TIMEOUT_IN_SECONDS: u64 = 15;
 
     //
-    // Instantiate a brush shell with defaults, then try to parse the input.
+    // Instantiate a shrub shell with defaults, then try to parse the input.
     //
     let our_parse_result = shell.parse_string(input.clone());
 
     //
-    // Now run it under 'bash -n -t' as a crude way to see if it's at least valid syntax.
+    // Now run it under 'bash -n -t' as a crude way to see if it's at least
+    // valid syntax.
     //
     let mut oracle_cmd = std::process::Command::new("bash");
     oracle_cmd

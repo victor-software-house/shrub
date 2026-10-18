@@ -1,7 +1,7 @@
 # How to record "tapes"
 
 Under the `docs/demos` directory of this repo, we have some `.tape` files checked in.
-These are interactive scripts for recording screencast-style demos of `brush` using
+These are interactive scripts for recording screencast-style demos of `shrub` using
 the [`VHS` tool](https://github.com/charmbracelet/vhs).
 
 ## Install `vhs`

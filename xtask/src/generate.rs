@@ -4,10 +4,11 @@
 //! - **Documentation**: Man pages and markdown help text from clap definitions
 //! - **Completions**: Shell completion scripts for bash, zsh, fish, etc.
 //! - **Schemas**: JSON schemas for configuration files
-//! - **Distribution archives**: Reproducible documentation bundles with checksums
+//! - **Distribution archives**: Reproducible documentation bundles with
+//!   checksums
 //!
-//! Everything derived from brush's command-line interface is produced by the
-//! `gen` example in `brush-shell`, which this module shells out to. That keeps
+//! Everything derived from shrub's command-line interface is produced by the
+//! `gen` example in `shrub-shell`, which this module shells out to. That keeps
 //! xtask free of any dependency on the shell it's used to build.
 
 use std::ffi::OsStr;
@@ -17,18 +18,18 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use xshell::{Shell, cmd};
 
-/// Run the `gen` example in `brush-shell` with the given arguments.
+/// Run the `gen` example in `shrub-shell` with the given arguments.
 ///
-/// The example is built with brush-shell's default features plus `schema`; the
+/// The example is built with shrub-shell's default features plus `schema`; the
 /// artifacts it generates describe the command-line interface as it appears
 /// with that feature set.
 fn run_gen_example(sh: &Shell, args: &[&OsStr]) -> Result<()> {
     cmd!(
         sh,
-        "cargo run --package brush-shell --features schema --example gen -- {args...}"
+        "cargo run --package shrub-shell --features schema --example gen -- {args...}"
     )
     .run()
-    .context("Failed to run the gen example in brush-shell")?;
+    .context("Failed to run the gen example in shrub-shell")?;
     Ok(())
 }
 
@@ -53,7 +54,8 @@ pub enum DocsCommand {
     Man(GenerateManArgs),
     /// Generate help content in markdown format.
     Markdown(GenerateMarkdownArgs),
-    /// Generate a reproducible documentation distribution archive with checksums.
+    /// Generate a reproducible documentation distribution archive with
+    /// checksums.
     Dist(GenerateDistArgs),
 }
 
@@ -91,8 +93,9 @@ pub struct GenerateMarkdownArgs {
 /// Arguments for documentation distribution generation.
 #[derive(Parser)]
 pub struct GenerateDistArgs {
-    /// Output file path for the distribution archive (defaults to brush-docs.tar.gz).
-    #[clap(long = "out", short = 'o', default_value = "brush-docs.tar.gz")]
+    /// Output file path for the distribution archive (defaults to
+    /// shrub-docs.tar.gz).
+    #[clap(long = "out", short = 'o', default_value = "shrub-docs.tar.gz")]
     output_path: PathBuf,
 
     /// Generate SHA-256 checksum file alongside the distribution archive.
@@ -202,7 +205,7 @@ fn gen_docs_dist(sh: &Shell, args: &GenerateDistArgs, verbose: bool) -> Result<(
 
     // Generate markdown documentation
     let md_args = GenerateMarkdownArgs {
-        output_path: md_dir.join("brush.md"),
+        output_path: md_dir.join("shrub.md"),
     };
     gen_markdown_docs(sh, &md_args, verbose)?;
 
@@ -226,7 +229,8 @@ fn gen_docs_dist(sh: &Shell, args: &GenerateDistArgs, verbose: bool) -> Result<(
         );
     }
 
-    // Create reproducible distribution archive using tar with options for reproducibility:
+    // Create reproducible distribution archive using tar with options for
+    // reproducibility:
     // - --sort=name: Sort files by name for consistent ordering
     // - --mtime: Set modification time to epoch for reproducibility
     // - --owner=0 --group=0: Remove user/group ownership info

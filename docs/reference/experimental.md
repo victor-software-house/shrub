@@ -1,6 +1,6 @@
 # Experimental Features
 
-`brush` ships several features that are intentionally marked as
+`shrub` ships several features that are intentionally marked as
 **experimental**. They are usable today, but their interface or behavior
 may evolve based on feedback before being stabilized. This page is the
 canonical index of what's currently experimental and how to opt in.
@@ -8,7 +8,7 @@ canonical index of what's currently experimental and how to opt in.
 Experimental features fall into two categories:
 
 1. **Build-time experiments** — additional functionality gated behind
-   Cargo feature flags. To get them, you build `brush-shell` with the
+   Cargo feature flags. To get them, you build `shrub-shell` with the
    relevant feature(s) enabled.
 2. **Run-time experiments** — features that ship in standard builds but
    are off by default and enabled through configuration.
@@ -20,32 +20,32 @@ Experimental features fall into two categories:
 
 ## Build-time experiments (Cargo features)
 
-These are flags on the `brush-shell` crate. You can enable them
+These are flags on the `shrub-shell` crate. You can enable them
 individually, or pull in the whole set with the umbrella `experimental`
 feature.
 
 ```bash
 # Enable everything experimental
-cargo install --locked brush-shell --features experimental
+cargo install --locked shrub-shell --features experimental
 
 # Or pick and choose
-cargo install --locked brush-shell --features experimental-bundled-coreutils
+cargo install --locked shrub-shell --features experimental-bundled-coreutils
 ```
 
 ### `experimental-bundled-coreutils`
 
 Bundles a configurable subset of [`uutils/coreutils`](https://github.com/uutils/coreutils)
-implementations directly into `brush-shell` as builtins. Useful when:
+implementations directly into `shrub-shell` as builtins. Useful when:
 
-- shipping `brush` into containers, embedded systems, or other
+- shipping `shrub` into containers, embedded systems, or other
   environments where a standalone coreutils package is inconvenient or
   unavailable,
-- distributing a single self-contained `brush` binary that doesn't
+- distributing a single self-contained `shrub` binary that doesn't
   rely on host utilities being present.
 
 When enabled (via the umbrella `experimental` feature, or directly), the
 full set of supported utilities is bundled. When building the
-`brush-coreutils-builtins` crate directly, individual utilities can be
+`shrub-coreutils-builtins` crate directly, individual utilities can be
 selected via `coreutils.<name>` features (e.g., `coreutils.cat`,
 `coreutils.ls`); the `coreutils.all` feature enables all of them.
 
@@ -56,7 +56,7 @@ any builtin, you can bypass the in-process implementation with
 
 ### `experimental-builtins`
 
-Pulls in the [`brush-experimental-builtins`](../../brush-experimental-builtins)
+Pulls in the [`shrub-experimental-builtins`](../../shrub-experimental-builtins)
 crate, which provides additional builtins that are too new or too
 narrow-purpose to ship in the default builtin set. Currently this
 includes:
@@ -68,18 +68,18 @@ includes:
 
 ### `experimental-load`
 
-Enables `serde`-based serialization support in `brush-core`, and adds a
+Enables `serde`-based serialization support in `shrub-core`, and adds a
 `--load <FILE>` command-line flag that restores shell state from a JSON
 file previously produced by the experimental [`save`](#experimental-builtins)
 builtin (or by other tooling that emits the same format). State loaded
 this way overrides non-UI command-line options. Useful for tooling
-built on top of `brush-core` that wants to snapshot or transfer shell
+built on top of `shrub-core` that wants to snapshot or transfer shell
 state.
 
 ### `experimental-parser`
 
 Switches on the in-development [`winnow`](https://crates.io/crates/winnow)-based
-parser scaffolding in `brush-parser`, and adds an `--experimental-parser`
+parser scaffolding in `shrub-parser`, and adds an `--experimental-parser`
 command-line flag that selects it at runtime. This parser is not yet the
 production parser; the existing PEG parser remains the default. Enable
 this only if you're contributing to or experimenting with the parser
@@ -115,18 +115,18 @@ the `precmd_functions` and `preexec_functions` arrays. This is what prompt
 frameworks, command timers, and history tools expect; in stock bash the
 same effect requires `DEBUG`/`PROMPT_COMMAND` plumbing.
 
-brush implements the hooks natively, with bash semantics, taking
+shrub implements the hooks natively, with bash semantics, taking
 [bash-preexec](https://github.com/rcaloras/bash-preexec) as the reference for
 what the hooks mean in a bash shell. It also claims bash-preexec's inclusion
 guards, so an integration that sources bash-preexec (or inlines a copy of it,
-as atuin does) finds it already loaded and leaves the hooks to brush rather
+as atuin does) finds it already loaded and leaves the hooks to shrub rather
 than dispatching them a second time.
 
 Enable persistently with `zsh-hooks = true` under `[experimental]` in
-`config.toml`, or per-invocation with `brush --enable-zsh-hooks`.
+`config.toml`, or per-invocation with `shrub --enable-zsh-hooks`.
 
 See [zsh-style hooks](zsh-hooks.md) for the full contract: what each hook
-sees, which entries are dispatched, and where brush differs from zsh and
+sees, which entries are dispatched, and where shrub differs from zsh and
 from bash-preexec.
 
 ### `terminal-shell-integration`
@@ -140,7 +140,7 @@ terminals that don't recognize them.
 
 Enable persistently with `terminal-shell-integration = true` under
 `[experimental]` in `config.toml`, or per-invocation with
-`brush --enable-terminal-integration`.
+`shrub --enable-terminal-integration`.
 
 ---
 
@@ -150,4 +150,4 @@ Experimental features are the place where your feedback is most valuable
 — they exist precisely because we want to iterate on them before
 stabilizing. If you try one and find a rough edge, missing capability,
 or behavior that surprises you, please [file an
-issue](https://github.com/reubeno/brush/issues).
+issue](https://github.com/victor-software-house/shrub/issues).

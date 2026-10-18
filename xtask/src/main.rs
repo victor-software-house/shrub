@@ -1,8 +1,6 @@
 //! xtask-style command-line tool for building this project.
 
 mod analyze;
-mod check;
-mod ci;
 mod common;
 #[cfg(unix)]
 mod e2e;
@@ -21,7 +19,7 @@ pub struct GlobalArgs {
 }
 
 #[derive(Parser)]
-#[clap(name = "xtask", about = "Build automation tasks for brush")]
+#[clap(name = "xtask", about = "Build automation tasks for shrub")]
 struct CommandLineArgs {
     #[clap(flatten)]
     global: GlobalArgs,
@@ -35,12 +33,6 @@ enum Command {
     /// Run analysis tasks (benchmarks, public API diffing).
     #[clap(subcommand)]
     Analyze(analyze::AnalyzeCommand),
-    /// Run code quality checks.
-    #[clap(subcommand)]
-    Check(check::CheckCommand),
-    /// Run CI workflows.
-    #[clap(subcommand)]
-    Ci(ci::CiCommand),
     /// Generate documentation, completions, and schemas.
     #[clap(subcommand)]
     Gen(generate::GenCommand),
@@ -55,8 +47,6 @@ fn main() -> Result<()> {
     match &args.command {
         Command::Analyze(cmd) => analyze::run(cmd, verbose),
         Command::Gen(cmd) => generate::run(cmd, verbose),
-        Command::Check(cmd) => check::run(cmd, verbose),
         Command::Test(cmd) => test::run(cmd, verbose),
-        Command::Ci(cmd) => ci::run(cmd, verbose),
     }
 }

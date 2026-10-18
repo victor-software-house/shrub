@@ -1,17 +1,15 @@
 [package]
-name = "brush-fuzz"
-description = "Fuzz tests for brush"
+name = "shrub-fuzz"
+description = "Fuzz tests for shrub"
 publish = false
 version = "0.2.2"
-authors.workspace = true
 categories.workspace = true
 edition.workspace = true
 keywords.workspace = true
 license.workspace = true
 readme.workspace = true
 repository.workspace = true
-# Application tier; see docs/reference/msrv-policy.md.
-rust-version = "1.95.0"
+rust-version.workspace = true
 
 [package.metadata]
 cargo-fuzz = true
@@ -20,20 +18,20 @@ cargo-fuzz = true
 workspace = true
 
 [dependencies]
-anyhow = "1.0.102"
-assert_cmd = "2.2.0"
+anyhow = { workspace = true }
+assert_cmd = { workspace = true }
 libfuzzer-sys = "0.4"
-tokio = { version = "1.52.3", features = ["rt"] }
+tokio = { workspace = true, features = ["rt"] }
 
-[dependencies.brush-core]
-path = "../brush-core"
+[dependencies.shrub-core]
+workspace = true
 
-[dependencies.brush-parser]
-path = "../brush-parser"
+[dependencies.shrub-parser]
+workspace = true
 features = ["arbitrary"]
 
-[dependencies.brush-interactive]
-path = "../brush-interactive"
+[dependencies.shrub-interactive]
+workspace = true
 features = ["highlighting"]
 
 [[bin]]

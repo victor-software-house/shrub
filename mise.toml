@@ -1,0 +1,73 @@
+# The latest stable mise is the floor; CI pins the same version.
+min_version = "2026.10.10"
+
+[settings]
+# mise loads git:: task includes only in experimental mode.
+experimental = true
+lockfile = true
+# The platforms CI and contributors use; linux-arm64 serves the arm64 test
+# leg. Without it, mise install fills every tool up to the platforms any tool
+# already records, and rewrites the locks.
+lockfile_platforms = ["linux-x64", "linux-arm64", "macos-arm64"]
+
+# Every tool this root declares must match mise.lock or mise.<env>.lock.
+[tool_config]
+locked = true
+
+# The toolchain lives here, not in mise.dev.toml, because CI loads only
+# MISE_ENV=ci. The stable pin equals rust-toolchain.toml and rust-version.
+[tools]
+rust = [
+  # Pinned stable: build, lint, test.
+  { version = "1.99.0", components = "clippy", mr_boxington = true },
+  # Formatting only, for rustfmt's unstable options.
+  { version = "nightly-2026-09-29", profile = "minimal", components = "rustfmt" },
+]
+mr-boxington = "1.24.0"
+"github:EmbarkStudios/cargo-deny" = "0.20.2"
+"github:bnjbvr/cargo-machete" = "0.9.2"
+"github:obi1kenobi/cargo-semver-checks" = "0.51.0"
+jq = "1.8.2"
+# The repository checks (mise-tasks/repo.toml).
+taplo = "0.10.0"
+rumdl = "0.2.79"
+typos = "1.51.1"
+actionlint = "1.7.12"
+# The repository's own checks (mise-tasks/local.toml).
+ast-grep = "0.50.0"
+zizmor = "1.30.1"
+# The test runner; .config/nextest.toml retries a failed test, which the
+# compatibility suite's terminal cases need on slow runners.
+"aqua:nextest-rs/nextest/cargo-nextest" = "0.9.148"
+
+# mise-tasks/ holds this repository's task fragments and file tasks. An
+# includes list replaces the default task dirs, so mise-tasks comes first; add
+# pinned git:: catalogs after it.
+[task_config]
+includes = [
+  "mise-tasks",
+  # The standard Rust tasks, verify included, shared from ctl-core. Bump the
+  # ref together with the rust pins above.
+  "git::https://github.com/victor-software-house/ctl-core.git//tasks/rust.toml?ref=v0.6.19",
+]
+
+# Replaces ctl-core's test, which runs cargo test with --all-features; a
+# task here takes precedence over the included one, while one in mise-tasks/
+# does not. shrub tests its default features, as upstream does:
+# `experimental` bundles the uutils coreutils as builtins, which turns the
+# compatibility suite's `command -v cat` and `wc` away from bash, and
+# shrub-parser's `winnow-parser` is a stub whose tests fail by design.
+# `schema` adds only the derive that the committed-schema test needs. nextest
+# runs each compatibility case as its own test, so .config/nextest.toml
+# retries only the terminal cases that time out on a loaded runner.
+[tasks.test]
+description = "Unit, integration and compatibility tests with the default features"
+run = "cargo nextest run --locked --workspace --features shrub-shell/schema"
+timeout = "30m"
+
+# Temporary: cargo semver-checks compares each library with its release on
+# crates.io, and no shrub-* crate has one before shrub 0.0.2. Delete this
+# override, restoring ctl-core's semver, once 0.0.2 is published.
+[tasks.semver]
+description = "No-op until the first release gives semver-checks a baseline"
+run = "echo 'semver: no crates.io baseline before shrub 0.0.2'"

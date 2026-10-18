@@ -1,0 +1,60 @@
+[package]
+name = "shrub-test-harness"
+description = "Test harness library for shrub shell integration tests"
+version.workspace = true
+categories.workspace = true
+edition.workspace = true
+keywords.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[features]
+default = []
+# Enable insta snapshot support
+insta = ["dep:insta"]
+
+[dependencies]
+anyhow = { workspace = true }
+assert_cmd = { workspace = true }
+assert_fs = { workspace = true }
+clap = { workspace = true, features = ["derive", "env"] }
+colored = { workspace = true }
+descape = { workspace = true }
+diff = { workspace = true }
+glob = { workspace = true }
+indent = { workspace = true }
+insta = { workspace = true, features = ["yaml"], optional = true }
+junit-report = { workspace = true }
+os-release = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+yaml_serde = { workspace = true }
+strip-ansi-escapes = { workspace = true }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "sync"] }
+version-compare = { workspace = true }
+walkdir = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+nix = { workspace = true, features = ["process"] }
+
+[build-dependencies]
+# Defines the `pty` cfg (see build.rs) used to gate pty-based test code.
+cfg_aliases = "0.2.1"
+
+# expectrl's pty support (via ptyprocess) is limited to these platforms;
+# pty-based tests are reported as unsupported elsewhere. Keep this list in sync
+# with the `pty` cfg in build.rs (which gates the code using this dependency).
+[target.'cfg(any(target_os = "linux", target_os = "android", target_os = "macos", target_os = "freebsd"))'.dependencies]
+expectrl = { workspace = true }
+
+# Used only by build.rs, which machete does not scan.
+[package.metadata.cargo-machete]
+ignored = ["cfg_aliases"]

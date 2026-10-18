@@ -1,4 +1,4 @@
-# Platform-specific code lives in brush_core::sys, so the rest of brush-core
+# Platform-specific code lives in shrub_core::sys, so the rest of shrub-core
 # stays platform-neutral. Outside sys, platform code can only exist behind a
 # target cfg -- otherwise some cross-compiled CI target fails to build -- so
 # flagging those cfgs is enough to keep it out.
@@ -10,10 +10,10 @@
 id: platform-cfg-outside-sys
 language: rust
 severity: error
-message: Platform-specific code belongs in brush_core::sys.
-note: Move it behind an API in brush_core::sys.
-files: ["brush-core/src/**/*.rs"]
-ignores: ["brush-core/src/sys.rs", "brush-core/src/sys/**"]
+message: Platform-specific code belongs in shrub_core::sys.
+note: Move it behind an API in shrub_core::sys.
+files: ["shrub-core/src/**/*.rs"]
+ignores: ["shrub-core/src/sys.rs", "shrub-core/src/sys/**"]
 utils:
   platform-predicate:
     kind: token_tree
