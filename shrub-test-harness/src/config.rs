@@ -306,6 +306,11 @@ impl TestOptions {
     /// Resolves the launcher binary to an absolute path (if one is
     /// configured) because the test harness clears env vars — including
     /// `PATH` — before spawning child processes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a launcher is configured and its binary cannot be
+    /// found in `PATH`.
     pub fn create_test_shell_config(&self) -> anyhow::Result<ShellConfig> {
         let mut default_args: Vec<String> = vec![
             "--norc".into(),

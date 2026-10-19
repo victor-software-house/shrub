@@ -11,6 +11,12 @@ use crate::{ExecutionParameters, Shell, error, extendedtests, extensions};
 /// * `expr` - The test expression to evaluate.
 /// * `shell` - The shell context in which to evaluate the expression.
 /// * `params` - The execution parameters to use during evaluation.
+///
+/// # Errors
+///
+/// Returns [`error::ErrorKind::Unimplemented`] for unsupported predicates, an
+/// [`error::ErrorKind::IoError`] if a file predicate cannot read metadata, or
+/// any other error from evaluating a sub-expression.
 pub fn eval_expr(
     expr: &shrub_parser::ast::TestExpr,
     shell: &mut Shell<impl extensions::ShellExtensions>,

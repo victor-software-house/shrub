@@ -28,11 +28,19 @@ pub struct TestCaseResult {
 
 impl TestCaseResult {
     /// Reports this result in pretty format.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when writing to standard error fails.
     pub fn report_pretty(&self, options: &TestOptions) -> Result<()> {
         self.write_details(std::io::stderr(), options)
     }
 
     /// Writes the details of this result to a writer.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when writing to `writer` fails.
     pub fn write_details<W: Write>(&self, mut writer: W, options: &TestOptions) -> Result<()> {
         if self.skip {
             return Ok(());
@@ -399,6 +407,10 @@ pub struct TestCaseSetResults {
 
 impl TestCaseSetResults {
     /// Reports these results in pretty format.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when writing to standard error fails.
     pub fn report_pretty(&self, options: &TestOptions) -> Result<()> {
         self.write_details(std::io::stderr(), options)
     }
@@ -434,6 +446,11 @@ impl TestCaseSetResults {
 }
 
 /// Reports test results based on the configured output format.
+///
+/// # Errors
+///
+/// Returns an error when writing the report fails, or, for `JUnit` output, when
+/// a duration or the captured details cannot be converted.
 pub fn report_results(results: Vec<TestCaseSetResults>, options: &TestOptions) -> Result<()> {
     match options.format {
         OutputFormat::Pretty => report_results_pretty(results, options),

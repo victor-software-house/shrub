@@ -46,6 +46,12 @@ impl ChildProcess {
     }
 
     /// Waits for the process to exit.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`error::ErrorKind::PlatformError`] or
+    /// [`error::ErrorKind::IoError`] if registering the signal listeners,
+    /// checking for a stopped child, or waiting on the child fails.
     pub async fn wait(&mut self) -> Result<ProcessWaitResult, error::Error> {
         #[allow(unused_mut, reason = "only mutated on some platforms")]
         let mut sigtstp = sys::signal::tstp_signal_listener()?;

@@ -13,6 +13,13 @@ pub trait CommandFdInjectionExt {
     /// # Arguments
     ///
     /// * `open_files` - A mapping of child file descriptors to open files.
+    ///
+    /// # Errors
+    ///
+    /// - An error if a file's descriptor cannot be duplicated.
+    /// - [`crate::error::ErrorKind::ChildCreationFailure`] if the descriptor
+    ///   mappings cannot be applied to the command, for example because two
+    ///   files map to the same child descriptor.
     fn inject_fds(
         &mut self,
         open_files: impl Iterator<Item = (ShellFd, openfiles::OpenFile)>,

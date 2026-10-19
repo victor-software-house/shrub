@@ -108,6 +108,12 @@ impl ShellEnvironment {
     ///
     /// * `expected_scope_type` - The type of scope that is expected to be atop
     ///   the stack.
+    ///
+    /// # Errors
+    ///
+    /// * [`error::ErrorKind::MissingScope`] if there are no scopes to pop.
+    /// * [`error::ErrorKind::UnexpectedScopeType`] if the innermost scope is
+    ///   not of `expected_scope_type`; the scope is left in place.
     pub fn pop_scope(&mut self, expected_scope_type: EnvironmentScope) -> Result<(), error::Error> {
         // TODO(env): Should we panic instead on failure? It's effectively a
         // broken invariant. Either way, don't pop a scope that isn't
@@ -258,6 +264,11 @@ impl ShellEnvironment {
     /// # Arguments
     ///
     /// * `name` - The name of the variable to unset.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`error::ErrorKind::ReadonlyVariable`] if a matching variable is
+    /// read-only.
     pub fn unset(&mut self, name: &str) -> Result<Option<ShellVariable>, error::Error> {
         let mut local_count = 0;
         for (scope_type, map) in self.scopes.iter_mut().rev() {
@@ -296,6 +307,11 @@ impl ShellEnvironment {
     ///
     /// * `name` - The name of the array variable to unset an element from.
     /// * `index` - The index of the element to unset.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of [`ShellVariable::unset_index`], such as
+    /// [`error::ErrorKind::NotArray`] when the variable is not an array.
     pub fn unset_index(&mut self, name: &str, index: &str) -> Result<bool, error::Error> {
         if let Some((_, var)) = self.get_mut(name) {
             var.unset_index(index)
@@ -367,6 +383,12 @@ impl ShellEnvironment {
     /// * `lookup_policy` - The policy to use when looking up the variable.
     /// * `scope_if_creating` - The scope to create the variable in if it
     ///   doesn't already exist.
+    ///
+    /// # Errors
+    ///
+    /// Returns any error from [`ShellVariable::assign`], such as
+    /// [`error::ErrorKind::ReadonlyVariable`], or any error returned by
+    /// `updater`.
     pub fn update_or_add<N: Into<String>>(
         &mut self,
         name: N,
@@ -409,6 +431,13 @@ impl ShellEnvironment {
     /// * `lookup_policy` - The policy to use when looking up the variable.
     /// * `scope_if_creating` - The scope to create the variable in if it
     ///   doesn't already exist.
+    ///
+    /// # Errors
+    ///
+    /// Returns any error from [`ShellVariable::assign_at_index`] or
+    /// [`ShellVariable::assign`], such as
+    /// [`error::ErrorKind::ReadonlyVariable`], or any error returned by
+    /// `updater`.
     pub fn update_or_add_array_element<N: Into<String>>(
         &mut self,
         name: N,
@@ -445,6 +474,11 @@ impl ShellEnvironment {
     /// * `name` - The name of the variable to add.
     /// * `var` - The variable to add.
     /// * `target_scope` - The scope to add the variable to.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`error::ErrorKind::MissingScopeForNewVariable`] if no scope of
+    /// type `target_scope` exists.
     pub fn add<N: Into<String>>(
         &mut self,
         name: N,
@@ -475,6 +509,11 @@ impl ShellEnvironment {
     ///
     /// * `name` - The name of the variable to set.
     /// * `var` - The variable to set.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`error::ErrorKind::MissingScopeForNewVariable`] if there is no
+    /// global scope.
     pub fn set_global<N: Into<String>>(
         &mut self,
         name: N,

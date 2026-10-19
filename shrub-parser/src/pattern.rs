@@ -26,6 +26,11 @@ pub enum ExtendedGlobKind {
 /// * `pattern` - The shell pattern to convert.
 /// * `enable_extended_globbing` - Whether to enable extended globbing
 ///   (extglob).
+///
+/// # Errors
+///
+/// Returns [`crate::WordParseError::Pattern`] if `pattern` is not valid shell
+/// pattern syntax.
 pub fn pattern_to_regex_str(
     pattern: &str,
     enable_extended_globbing: bool,

@@ -524,6 +524,15 @@ impl TokenParseState {
         self.token_so_far = s;
     }
 
+    /// Ends the current token, queueing here-document state as needed.
+    ///
+    /// # Errors
+    ///
+    /// - [`TokenizerError::MissingHereTag`] if an operator appears where a
+    ///   here-document tag is required.
+    /// - [`TokenizerError::MissingHereTagForDocumentBody`] if a here-document
+    ///   body ends with no recorded tag, which indicates inconsistent tokenizer
+    ///   state.
     #[allow(clippy::too_many_lines)]
     pub fn delimit_current_token(
         &mut self,
@@ -695,6 +704,27 @@ impl TokenParseState {
 /// # Arguments
 ///
 /// * `input` - The shell script to tokenize.
+///
+/// # Errors
+///
+/// - [`crate::TokenizerError::UnterminatedEscapeSequence`],
+///   [`crate::TokenizerError::UnterminatedSingleQuote`],
+///   [`crate::TokenizerError::UnterminatedAnsiCQuote`],
+///   [`crate::TokenizerError::UnterminatedDoubleQuote`],
+///   [`crate::TokenizerError::UnterminatedBackquote`] or
+///   [`crate::TokenizerError::UnterminatedExtendedGlob`] if the input ends
+///   inside the matching quoting construct.
+/// - [`crate::TokenizerError::UnterminatedVariable`],
+///   [`crate::TokenizerError::UnterminatedCommandSubstitution`] or
+///   [`crate::TokenizerError::UnterminatedExpansion`] if the input ends inside
+///   a `${...}`, `$(...)`, `$((...))` or `$[...]` expansion.
+/// - [`crate::TokenizerError::UnterminatedHereDocuments`] if the input ends
+///   before the body of a declared here-document.
+/// - [`crate::TokenizerError::MissingHereTag`] or
+///   [`crate::TokenizerError::MissingHereTagAtEndOfInput`] if a `<<` or `<<-`
+///   operator has no tag.
+/// - [`crate::TokenizerError::ExpansionNestingTooDeep`] if expansions nest more
+///   than 32 levels deep.
 pub fn tokenize_str(input: &str) -> Result<Vec<Token>, TokenizerError> {
     tokenize_str_with_options(input, &TokenizerOptions::default())
 }
@@ -705,6 +735,27 @@ pub fn tokenize_str(input: &str) -> Result<Vec<Token>, TokenizerError> {
 ///
 /// * `input` - The shell script to tokenize.
 /// * `options` - Options controlling how the tokenizer operates.
+///
+/// # Errors
+///
+/// - [`crate::TokenizerError::UnterminatedEscapeSequence`],
+///   [`crate::TokenizerError::UnterminatedSingleQuote`],
+///   [`crate::TokenizerError::UnterminatedAnsiCQuote`],
+///   [`crate::TokenizerError::UnterminatedDoubleQuote`],
+///   [`crate::TokenizerError::UnterminatedBackquote`] or
+///   [`crate::TokenizerError::UnterminatedExtendedGlob`] if the input ends
+///   inside the matching quoting construct.
+/// - [`crate::TokenizerError::UnterminatedVariable`],
+///   [`crate::TokenizerError::UnterminatedCommandSubstitution`] or
+///   [`crate::TokenizerError::UnterminatedExpansion`] if the input ends inside
+///   a `${...}`, `$(...)`, `$((...))` or `$[...]` expansion.
+/// - [`crate::TokenizerError::UnterminatedHereDocuments`] if the input ends
+///   before the body of a declared here-document.
+/// - [`crate::TokenizerError::MissingHereTag`] or
+///   [`crate::TokenizerError::MissingHereTagAtEndOfInput`] if a `<<` or `<<-`
+///   operator has no tag.
+/// - [`crate::TokenizerError::ExpansionNestingTooDeep`] if expansions nest more
+///   than 32 levels deep.
 pub fn tokenize_str_with_options(
     input: &str,
     options: &TokenizerOptions,
@@ -731,6 +782,27 @@ fn uncached_tokenize_string(
 /// # Arguments
 ///
 /// * `input` - The shell script to tokenize.
+///
+/// # Errors
+///
+/// - [`crate::TokenizerError::UnterminatedEscapeSequence`],
+///   [`crate::TokenizerError::UnterminatedSingleQuote`],
+///   [`crate::TokenizerError::UnterminatedAnsiCQuote`],
+///   [`crate::TokenizerError::UnterminatedDoubleQuote`],
+///   [`crate::TokenizerError::UnterminatedBackquote`] or
+///   [`crate::TokenizerError::UnterminatedExtendedGlob`] if the input ends
+///   inside the matching quoting construct.
+/// - [`crate::TokenizerError::UnterminatedVariable`],
+///   [`crate::TokenizerError::UnterminatedCommandSubstitution`] or
+///   [`crate::TokenizerError::UnterminatedExpansion`] if the input ends inside
+///   a `${...}`, `$(...)`, `$((...))` or `$[...]` expansion.
+/// - [`crate::TokenizerError::UnterminatedHereDocuments`] if the input ends
+///   before the body of a declared here-document.
+/// - [`crate::TokenizerError::MissingHereTag`] or
+///   [`crate::TokenizerError::MissingHereTagAtEndOfInput`] if a `<<` or `<<-`
+///   operator has no tag.
+/// - [`crate::TokenizerError::ExpansionNestingTooDeep`] if expansions nest more
+///   than 32 levels deep.
 pub fn uncached_tokenize_str(
     input: &str,
     options: &TokenizerOptions,
@@ -1214,6 +1286,17 @@ impl<'a, R: ?Sized + std::io::BufRead> Tokenizer<'a, R> {
     /// expansion ends the token in progress and is then reported on its own
     /// (see [`TokenEndReason::ExpansionClosingChar`]), and blanks are kept
     /// in tokens so that the expansion's original text can be reproduced.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`TokenizerError`] if the input is malformed or cannot be
+    /// read. The variants are the same as for [`tokenize_str`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if the tokenizer's internal invariants are violated, for example
+    /// if an operator is being completed with no token in progress. That
+    /// indicates a bug, not bad input.
     #[expect(clippy::cognitive_complexity)]
     #[expect(clippy::if_same_then_else)]
     #[expect(clippy::panic_in_result_fn)]

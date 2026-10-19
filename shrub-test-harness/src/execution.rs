@@ -31,6 +31,12 @@ pub struct RunResult {
 
 impl TestCase {
     /// Runs this test case with the given shell configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the shell cannot be spawned, when driving it
+    /// through a pseudo-terminal fails or its output is not valid UTF-8, or
+    /// when an expectation the test case waits for is never met.
     pub fn run_shell(
         &self,
         shell_config: &ShellConfig,
@@ -48,6 +54,12 @@ impl TestCase {
     }
 
     /// Creates the test files in the given temporary directory.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a test file sets both `contents` and
+    /// `source_path`, when its `source_path` is absolute or cannot be read, or
+    /// when writing the file or setting its permissions fails.
     pub fn create_test_files_in(
         &self,
         temp_dir: &assert_fs::TempDir,

@@ -27,12 +27,21 @@ pub fn get_default_standard_utils_paths() -> Vec<std::path::PathBuf> {
 /// Opens a null file that will discard all I/O.
 ///
 /// This is a stub implementation that returns an error.
+///
+/// # Errors
+///
+/// Always returns [`crate::error::ErrorKind::NotSupportedOnThisPlatform`] on
+/// this platform (opening null file).
 pub fn open_null_file() -> Result<std::fs::File, error::Error> {
     Err(error::ErrorKind::NotSupportedOnThisPlatform("opening null file").into())
 }
 
 /// Gives the platform an opportunity to handle a special file path (e.g.
 /// `/dev/null`).
+///
+/// # Errors
+///
+/// This implementation never returns `Some`, so it reports no error.
 //
 // This is a stub implementation that returns no result.
 pub fn try_open_special_file(

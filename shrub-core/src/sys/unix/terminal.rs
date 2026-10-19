@@ -19,6 +19,12 @@ impl Config {
     /// # Arguments
     ///
     /// * `file` - A reference to the open terminal.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file's descriptor cannot be borrowed, or
+    /// [`crate::error::ErrorKind::PlatformError`] wrapping the OS error if
+    /// `tcgetattr` fails, for example because the file is not a terminal.
     pub fn from_term(file: &openfiles::OpenFile) -> Result<Self, error::Error> {
         let fd = file.try_borrow_as_fd()?;
         let termios = nix::sys::termios::tcgetattr(fd)?;
@@ -31,6 +37,12 @@ impl Config {
     /// # Arguments
     ///
     /// * `file` - A reference to the open terminal.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file's descriptor cannot be borrowed, or
+    /// [`crate::error::ErrorKind::PlatformError`] wrapping the OS error if
+    /// `tcsetattr` fails.
     pub fn apply_to_term(&self, file: &openfiles::OpenFile) -> Result<(), error::Error> {
         let fd = file.try_borrow_as_fd()?;
         nix::sys::termios::tcsetattr(fd, nix::sys::termios::SetArg::TCSANOW, &self.termios)?;
@@ -102,12 +114,22 @@ pub fn get_foreground_pid() -> Option<sys::process::ProcessId> {
 }
 
 /// Move the specified process to the foreground of the attached terminal.
+///
+/// # Errors
+///
+/// Returns [`crate::error::ErrorKind::PlatformError`] wrapping the OS error if
+/// `tcsetpgrp` fails, for example when standard input is not a terminal.
 pub fn move_to_foreground(pid: sys::process::ProcessId) -> Result<(), error::Error> {
     nix::unistd::tcsetpgrp(std::io::stdin(), nix::unistd::Pid::from_raw(pid))?;
     Ok(())
 }
 
 /// Moves the current process to the foreground of the attached terminal.
+///
+/// # Errors
+///
+/// Returns the OS error if the current process group cannot be determined. A
+/// failure to move the group to the foreground is ignored.
 // This function needs to return `std::io::Error` so that the OS error code can
 // be recovered.
 pub fn move_self_to_foreground() -> Result<(), std::io::Error> {

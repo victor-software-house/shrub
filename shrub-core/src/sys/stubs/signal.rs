@@ -19,6 +19,11 @@ impl Signal {
     }
 
     /// Creates a `Signal` from a string representation.
+    ///
+    /// # Errors
+    ///
+    /// Always returns [`crate::error::ErrorKind::InvalidSignal`], because this
+    /// platform has no signals.
     pub fn from_str(s: &str) -> Result<Self, error::Error> {
         Err(error::ErrorKind::InvalidSignal(s.into()).into())
     }
@@ -43,6 +48,11 @@ pub(crate) fn continue_process_group(_pgid: sys::process::ProcessId) -> Result<(
 /// Checks whether a specific process exists and can be signaled.
 ///
 /// This is a stub implementation that returns an error.
+///
+/// # Errors
+///
+/// Always returns [`crate::error::ErrorKind::NotSupportedOnThisPlatform`] on
+/// this platform (checking process).
 pub fn check_signalable(_pid: sys::process::ProcessId) -> Result<(), error::Error> {
     Err(error::ErrorKind::NotSupportedOnThisPlatform("checking process").into())
 }
@@ -50,6 +60,11 @@ pub fn check_signalable(_pid: sys::process::ProcessId) -> Result<(), error::Erro
 /// Sends a signal to a specific process.
 ///
 /// This is a stub implementation that returns an error.
+///
+/// # Errors
+///
+/// Always returns [`crate::error::ErrorKind::NotSupportedOnThisPlatform`] on
+/// this platform (killing process).
 pub fn kill_process(
     _pid: sys::process::ProcessId,
     _signal: traps::TrapSignal,
@@ -99,6 +114,10 @@ pub(crate) fn chld_signal_listener() -> Result<FakeSignal, error::Error> {
 }
 
 /// Waits for Ctrl-C; on this platform, it never arrives.
+///
+/// # Errors
+///
+/// This stub implementation never returns an error.
 pub async fn await_ctrl_c() -> std::io::Result<()> {
     FakeSignal::new().recv().await;
     Ok(())

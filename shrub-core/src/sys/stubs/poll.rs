@@ -7,6 +7,10 @@ use crate::openfiles::OpenFile;
 /// Stub implementation that always returns an unsupported error.
 ///
 /// Timeout-based reading is not supported on this platform.
+///
+/// # Errors
+///
+/// Always returns an I/O error of kind `Unsupported`.
 pub fn poll_for_input(_file: &OpenFile, _timeout: Duration) -> std::io::Result<bool> {
     Err(std::io::Error::new(
         std::io::ErrorKind::Unsupported,

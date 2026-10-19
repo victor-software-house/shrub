@@ -396,6 +396,11 @@ pub trait KeyBindings: Send {
     ///
     /// * `seq` - The key sequence to bind.
     /// * `action` - The action to bind to the sequence.
+    ///
+    /// # Errors
+    ///
+    /// Returns an I/O error if the implementation cannot record or apply the
+    /// binding, such as when the underlying input backend rejects it.
     fn bind(&mut self, seq: KeySequence, action: KeyAction) -> Result<(), std::io::Error>;
 
     /// Unbinds a key sequence. Returns true if a binding was removed.
@@ -411,6 +416,11 @@ pub trait KeyBindings: Send {
     ///
     /// * `seq` - The key sequence to bind the macro to.
     /// * `target` - The sequence that makes up the macro.
+    ///
+    /// # Errors
+    ///
+    /// Returns an I/O error if the implementation cannot record or apply the
+    /// macro.
     fn define_macro(&mut self, seq: KeySequence, target: KeySequence)
     -> Result<(), std::io::Error>;
 

@@ -5,6 +5,11 @@ use crate::error;
 /// Trait for integer types that support parsing from strings with a radix.
 pub trait ParseIntRadix: Sized {
     /// Parse a string as this integer type using the specified radix.
+    ///
+    /// # Errors
+    ///
+    /// Returns the underlying [`std::num::ParseIntError`] if `s` is empty,
+    /// contains invalid digits for `radix`, or overflows this type.
     fn from_str_radix(s: &str, radix: u32) -> Result<Self, std::num::ParseIntError>;
 
     /// Returns the name of the integer type as a static string.
@@ -41,6 +46,11 @@ impl_parse_int_radix!(usize);
 /// # Type Parameters
 ///
 /// * `T` - The integer type to parse. Must implement `ParseIntRadix`.
+///
+/// # Errors
+///
+/// Returns [`crate::error::ErrorKind::IntParseError`] if `s` is not a valid
+/// number in `radix` for the target type, including when it overflows.
 ///
 /// # Examples
 ///

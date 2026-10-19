@@ -15,6 +15,15 @@ use crate::{
 impl<SE: extensions::ShellExtensions, S: shell_builder::IsComplete> ShellBuilder<SE, S> {
     /// Returns a new shell instance created with the options provided. Runs any
     /// configuration loading as well.
+    ///
+    /// # Errors
+    ///
+    /// - An I/O error if the working directory is not given and the current
+    ///   directory cannot be determined.
+    /// - An error from initializing the shell's environment, such as inheriting
+    ///   variables or setting the built-in ones.
+    /// - Any error from [`Shell::load_config`], unless both profile and rc
+    ///   loading are skipped.
     pub async fn build(self) -> Result<Shell<SE>, error::Error> {
         let mut options = self.build_settings();
 

@@ -639,6 +639,14 @@ pub(crate) async fn basic_expand_assignment_word(
 ///   or a more complex, assignable parameter expression (e.g., an array
 ///   element).
 /// * `value` - The value to assign to the parameter.
+///
+/// # Errors
+///
+/// * A word parse error if `name` is not a valid parameter expression.
+/// * [`error::ErrorKind::CannotAssignToSpecialParameter`] if `name` is a
+///   special parameter such as `$?`.
+/// * [`error::ErrorKind::ReadonlyVariable`] if the target variable is
+///   read-only.
 pub async fn assign_to_named_parameter(
     shell: &mut Shell<impl extensions::ShellExtensions>,
     params: &ExecutionParameters,
@@ -717,6 +725,14 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
 
     /// Apply tilde-expansion, parameter expansion, command substitution, and
     /// arithmetic expansion.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the word cannot be parsed or an expansion fails, for
+    /// example [`error::ErrorKind::BadSubstitution`],
+    /// [`error::ErrorKind::TildeWithoutValidHome`],
+    /// [`error::ErrorKind::ExpandingUnsetVariable`] under `set -u`, or an
+    /// arithmetic or command substitution failure.
     pub async fn basic_expand_to_str(&mut self, word: &str) -> Result<String, error::Error> {
         let expansion = self.basic_expand(word).await?;
         Ok(self.fields_to_string(expansion))
@@ -975,6 +991,12 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
     /// Apply tilde-expansion, parameter expansion, command substitution, and
     /// arithmetic expansion; then perform field splitting and pathname
     /// expansion.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of basic expansion, plus
+    /// [`error::ErrorKind::NoMatch`] when a pathname pattern matches no
+    /// files and `failglob` is enabled.
     pub async fn full_expand_with_splitting(
         &mut self,
         word: &str,

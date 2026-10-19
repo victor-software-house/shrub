@@ -25,6 +25,12 @@ pub(crate) fn continue_process_group(pgid: sys::process::ProcessId) -> Result<()
 /// # Arguments
 /// * `pid` - The process ID to send the signal to
 /// * `signal` - The signal to send (must be a real signal, not a trap signal)
+///
+/// # Errors
+///
+/// - [`crate::error::ErrorKind::InvalidSignal`] if `signal` is not a real
+///   signal (for example `DEBUG` or `EXIT`).
+/// - [`crate::error::ErrorKind::FailedToSendSignal`] if `kill` fails.
 pub fn kill_process(
     pid: sys::process::ProcessId,
     signal: traps::TrapSignal,
@@ -76,6 +82,13 @@ fn real_signal(signal: traps::TrapSignal) -> Result<Signal, error::Error> {
 ///
 /// # Arguments
 /// * `pid` - The process ID to signal-zero check.
+///
+/// # Errors
+///
+/// - [`crate::error::ErrorKind::NoSuchProcess`] if no process has the given ID.
+/// - [`crate::error::ErrorKind::PermissionDenied`] if the process exists but
+///   the caller may not signal it.
+/// - [`crate::error::ErrorKind::FailedToSendSignal`] for any other failure.
 pub fn check_signalable(pid: sys::process::ProcessId) -> Result<(), error::Error> {
     nix::sys::signal::kill(nix::unistd::Pid::from_raw(pid), None).map_err(signal_error)?;
     Ok(())

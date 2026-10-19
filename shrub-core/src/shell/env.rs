@@ -30,6 +30,11 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
     ///
     /// * `name` - The name of the variable to add.
     /// * `var` - The variable contents to add.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::error::ErrorKind::MissingScopeForNewVariable`] if the
+    /// environment has no global scope.
     pub fn set_env_global(&mut self, name: &str, var: ShellVariable) -> Result<(), error::Error> {
         self.env.set_global(name, var)
     }

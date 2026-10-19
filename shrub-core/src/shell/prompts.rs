@@ -16,23 +16,47 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
 
     /// Composes the shell's post-input, pre-command prompt, applying all
     /// appropriate expansions.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::error::ErrorKind::WordParseError`] if the value of
+    /// `PS0` is not a valid prompt string, or the error from any expansion in
+    /// it, such as a failing command substitution.
     pub async fn compose_precmd_prompt(&mut self) -> Result<String, error::Error> {
         self.expand_prompt_var("PS0", "").await
     }
 
     /// Composes the shell's prompt, applying all appropriate expansions.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::error::ErrorKind::WordParseError`] if the value of
+    /// `PS1` is not a valid prompt string, or the error from any expansion in
+    /// it, such as a failing command substitution.
     pub async fn compose_prompt(&mut self) -> Result<String, error::Error> {
         self.expand_prompt_var("PS1", self.default_prompt()).await
     }
 
     /// Composes the shell's alternate-side prompt, applying all appropriate
     /// expansions.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::error::ErrorKind::WordParseError`] if the value of
+    /// `SHRUB_PS_ALT` is not a valid prompt string, or the error from any
+    /// expansion in it, such as a failing command substitution.
     pub async fn compose_alt_side_prompt(&mut self) -> Result<String, error::Error> {
         // This is a shrub extension.
         self.expand_prompt_var("SHRUB_PS_ALT", "").await
     }
 
     /// Composes the shell's continuation prompt.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::error::ErrorKind::WordParseError`] if the value of
+    /// `PS2` is not a valid prompt string, or the error from any expansion in
+    /// it, such as a failing command substitution.
     pub async fn compose_continuation_prompt(&mut self) -> Result<String, error::Error> {
         self.expand_prompt_var("PS2", "> ").await
     }

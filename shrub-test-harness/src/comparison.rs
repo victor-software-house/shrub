@@ -272,6 +272,11 @@ pub fn output_matches(oracle: &str, test: &str, ignore_whitespace: bool) -> bool
 }
 
 /// Compares directory contents between oracle and test.
+///
+/// # Errors
+///
+/// Returns an error when a directory cannot be read or walked, or when a file
+/// present in both directories cannot be read.
 pub fn diff_dirs(
     oracle_path: &std::path::Path,
     test_path: &std::path::Path,

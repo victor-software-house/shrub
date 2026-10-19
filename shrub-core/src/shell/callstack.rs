@@ -17,6 +17,10 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
 
     /// Updates the shell's internal tracking state to reflect that a new
     /// interactive session is being started.
+    ///
+    /// # Errors
+    ///
+    /// This currently always succeeds.
     pub fn start_interactive_session(&mut self) -> Result<(), error::Error> {
         self.call_stack.push_interactive_session();
         Ok(())
@@ -24,6 +28,11 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
 
     /// Updates the shell's internal tracking state to reflect that the current
     /// interactive session is ending.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::error::ErrorKind::NotInInteractiveSession`] if the
+    /// current call stack frame is not an interactive session.
     pub fn end_interactive_session(&mut self) -> Result<(), error::Error> {
         if self
             .call_stack
@@ -46,6 +55,11 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
 
     /// Updates the shell's internal tracking state to reflect that command
     /// string mode is ending.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::error::ErrorKind::NotExecutingCommandString`] if the
+    /// current call stack frame is not a command string.
     pub fn end_command_string_mode(&mut self) -> Result<(), error::Error> {
         if self
             .call_stack

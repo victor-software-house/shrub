@@ -14,6 +14,15 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
     /// # Arguments
     ///
     /// * `target_dir` - The path to set as the working directory.
+    ///
+    /// # Errors
+    ///
+    /// - [`crate::error::ErrorKind::NotADirectory`] if the path exists but is
+    ///   not a directory.
+    /// - [`crate::error::ErrorKind::IoError`] if the path's metadata cannot be
+    ///   read, for example because it does not exist.
+    /// - The error from updating `PWD` or `OLDPWD`, such as
+    ///   [`crate::error::ErrorKind::ReadonlyVariable`] when either is readonly.
     pub fn set_working_dir(&mut self, target_dir: impl AsRef<Path>) -> Result<(), error::Error> {
         let abs_path = self.absolute_path(target_dir.as_ref());
 

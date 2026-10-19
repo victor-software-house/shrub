@@ -30,6 +30,13 @@ pub(crate) struct Stopwatch {
 }
 
 impl Stopwatch {
+    /// Stops timing and returns the elapsed wall, user, and system time.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the current time or resource usage cannot be read,
+    /// or if the system clock moved backwards since the stopwatch started
+    /// ([`error::ErrorKind::TimeError`]).
     pub fn stop(&self) -> Result<StopwatchTiming, error::Error> {
         let end = get_current_stopwatch_time()?;
         end.minus(&self.start)

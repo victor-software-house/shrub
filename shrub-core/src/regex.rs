@@ -85,6 +85,13 @@ impl Regex {
     /// # Arguments
     ///
     /// * `value` - The string to check for a match.
+    ///
+    /// # Errors
+    ///
+    /// * [`error::ErrorKind::InvalidRegexError`] if the assembled pattern does
+    ///   not compile.
+    /// * [`error::ErrorKind::RegexError`] if matching fails at runtime, for
+    ///   example when a backtracking limit is exceeded.
     pub fn matches(&self, value: &str) -> Result<Option<Vec<Option<String>>>, error::Error> {
         let regex_pattern: String = self
             .pieces

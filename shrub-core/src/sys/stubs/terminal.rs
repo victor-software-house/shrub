@@ -14,6 +14,10 @@ impl Config {
     /// # Arguments
     ///
     /// * `_file` - A reference to the open terminal.
+    ///
+    /// # Errors
+    ///
+    /// This stub implementation always succeeds.
     pub fn from_term(_file: &openfiles::OpenFile) -> Result<Self, error::Error> {
         Ok(Self)
     }
@@ -24,6 +28,10 @@ impl Config {
     /// # Arguments
     ///
     /// * `_file` - A reference to the open terminal.
+    ///
+    /// # Errors
+    ///
+    /// This stub implementation always succeeds.
     pub fn apply_to_term(&self, _file: &openfiles::OpenFile) -> Result<(), error::Error> {
         Ok(())
     }
@@ -62,6 +70,10 @@ pub fn get_foreground_pid() -> Option<sys::process::ProcessId> {
 /// Move the specified process to the foreground of the attached terminal.
 ///
 /// This is a stub implementation that takes no action.
+///
+/// # Errors
+///
+/// This stub implementation always succeeds.
 pub fn move_to_foreground(_pid: sys::process::ProcessId) -> Result<(), error::Error> {
     Ok(())
 }
@@ -69,6 +81,10 @@ pub fn move_to_foreground(_pid: sys::process::ProcessId) -> Result<(), error::Er
 /// Moves the current process to the foreground of the attached terminal.
 ///
 /// This is a stub implementation that returns `None`.
+///
+/// # Errors
+///
+/// This stub implementation always succeeds.
 pub fn move_self_to_foreground() -> Result<(), std::io::Error> {
     Ok(())
 }
