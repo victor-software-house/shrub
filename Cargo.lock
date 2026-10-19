@@ -3561,7 +3561,16 @@ checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
 name = "shrub"
 version = "0.0.1"
 dependencies = [
+ "anyhow",
+ "assert_cmd",
+ "clap",
+ "expectrl",
  "shrub-shell",
+ "shrub-test-harness",
+ "tempfile",
+ "test-with",
+ "tokio",
+ "which",
 ]
 
 [[package]]
@@ -3790,7 +3799,6 @@ name = "shrub-shell"
 version = "0.0.1"
 dependencies = [
  "anyhow",
- "assert_cmd",
  "assert_fs",
  "clap",
  "clap-markdown",
@@ -3801,7 +3809,6 @@ dependencies = [
  "criterion",
  "crossterm",
  "etcetera",
- "expectrl",
  "getrandom 0.4.3",
  "git-version",
  "human-panic",
@@ -3815,8 +3822,6 @@ dependencies = [
  "shrub-experimental-builtins",
  "shrub-interactive",
  "shrub-parser",
- "shrub-test-harness",
- "tempfile",
  "test-with",
  "thiserror 2.0.21",
  "tokio",
@@ -3824,7 +3829,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
- "which",
 ]
 
 [[package]]

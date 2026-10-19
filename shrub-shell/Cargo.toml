@@ -10,44 +10,14 @@ readme.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
-[package.metadata.binstall]
-pkg-url = "{ repo }/releases/download/{ name }-v{ version }/shrub-{ target }{ archive-suffix }"
-
 [lib]
 bench = false
 
-[[bin]]
-name = "shrub"
-path = "src/main.rs"
-bench = false
-
-[[test]]
-name = "shrub-compat-tests"
-path = "tests/compat_tests.rs"
-harness = false
-
-[[test]]
-name = "shrub-integration-tests"
-path = "tests/integration_tests.rs"
-harness = false
-
-[[test]]
-name = "shrub-version-tests"
-path = "tests/version_tests.rs"
-
-[[test]]
-name = "shrub-interactive-tests"
-path = "tests/interactive_tests.rs"
-
+# The `shrub` binary and its end-to-end tests live in the `shrub` crate. The
+# completion tests here run the completion engine in process.
 [[test]]
 name = "shrub-completion-tests"
 path = "tests/completion_tests.rs"
-
-# N.B. tests/pty_startup_tests.rs and tests/reedline_interactive_tests.rs are
-# deliberately left auto-discovered (no `shrub-*-tests` name): the CI
-# `shrub_*_tests-*` artifact glob would otherwise ship them to the os-tests
-# jobs, which run prebuilt test binaries outside a cargo target dir and so
-# can't run pty-based tests (see the interactive/version test skips there).
 
 # Generates man pages, markdown help, completion scripts, and the config
 # schema. Lives here so that xtask doesn't have to depend on shrub-shell;
@@ -132,7 +102,6 @@ uuid = { workspace = true, features = ["js"] }
 
 [dev-dependencies]
 anyhow = { workspace = true }
-tempfile = { workspace = true }
 # Used by the `gen` example.
 clap-markdown = "0.1.5"
 clap_complete = "4.6.4"
@@ -141,22 +110,12 @@ clap_mangen = "0.3.0"
 # example needs it without that feature, so it's listed here too.
 serde_json = { workspace = true }
 shrub-parser = { workspace = true }
-shrub-test-harness = { workspace = true, features = ["insta"] }
-assert_cmd = { workspace = true }
 assert_fs = { workspace = true }
 criterion = { workspace = true, features = ["async_tokio", "html_reports"] }
 pretty_assertions = { workspace = true, features = ["unstable"] }
 serde = { workspace = true, features = ["derive"] }
-test-with = { version = "0.17.0", default-features = false, features = [
-  "executable",
-] }
+test-with = { workspace = true, features = ["executable"] }
 tokio = { workspace = true, features = ["time"] }
-which = "8.0.2"
-
-# expectrl's pty support (via ptyprocess) is limited to these platforms;
-# the interactive tests that rely on it are gated accordingly.
-[target.'cfg(any(target_os = "linux", target_os = "android", target_os = "macos", target_os = "freebsd"))'.dev-dependencies]
-expectrl = { workspace = true }
 
 # Used only on wasm32, to enable the JavaScript backends; no code names them.
 [package.metadata.cargo-machete]

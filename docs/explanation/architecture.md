@@ -14,8 +14,8 @@ the answer should follow from here. If it doesn't, this document needs updating.
 | `shrub-experimental-builtins` | yes | Builtins not ready to be standard. |
 | `shrub-coreutils-builtins` | yes | Optional builtins wrapping [uutils/coreutils](https://github.com/uutils/coreutils); doesn't depend on the other crates. |
 | `shrub-interactive` | yes | The interactive front end: reads input, edits the line (with reedline or a basic line reader), and presents prompts, completions, suggestions, and highlighting. |
-| `shrub-shell` | yes | The `shrub` binary: its command line, and the wiring of the crates above into a shell. |
-| `shrub` | yes | A thin wrapper binary around `shrub-shell`. |
+| `shrub-shell` | yes | The library behind the `shrub` binary: its command line, and the wiring of the crates above into a shell. |
+| `shrub` | yes | The `shrub` binary, a thin wrapper around `shrub-shell`, and its end-to-end tests. |
 | `shrub-test-harness` | no | Runs the YAML test cases that compare shrub with bash. |
 | `xtask`, `fuzz` | no | Development tooling. |
 
