@@ -81,9 +81,11 @@ peg::parser! {
             "!" _ x:(@) { ast::ArithmeticExpr::UnaryOp(ast::UnaryOperator::LogicalNot, Box::new(x)) }
             "~" _ x:(@) { ast::ArithmeticExpr::UnaryOp(ast::UnaryOperator::BitwiseNot, Box::new(x)) }
             --
-            // NOTE: We add negative lookahead to avoid ambiguity with the pre-increment/pre-decrement operators.
-            "+" !['+'] _ x:(@) { ast::ArithmeticExpr::UnaryOp(ast::UnaryOperator::UnaryPlus, Box::new(x)) }
-            "-" !['-'] _ x:(@) { ast::ArithmeticExpr::UnaryOp(ast::UnaryOperator::UnaryMinus, Box::new(x)) }
+            // NOTE: The negative lookahead leaves `++x` and `--x` to the pre-increment/pre-decrement
+            // operators. As in bash, `++` or `--` before anything but a variable, such as `++0`, is
+            // two unary operators.
+            "+" !("+" _ lvalue()) _ x:(@) { ast::ArithmeticExpr::UnaryOp(ast::UnaryOperator::UnaryPlus, Box::new(x)) }
+            "-" !("-" _ lvalue()) _ x:(@) { ast::ArithmeticExpr::UnaryOp(ast::UnaryOperator::UnaryMinus, Box::new(x)) }
             --
             "++" _ x:lvalue() { ast::ArithmeticExpr::UnaryAssignment(ast::UnaryAssignmentOperator::PrefixIncrement, x) }
             "--" _ x:lvalue() { ast::ArithmeticExpr::UnaryAssignment(ast::UnaryAssignmentOperator::PrefixDecrement, x) }
