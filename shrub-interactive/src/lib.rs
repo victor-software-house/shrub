@@ -1,5 +1,82 @@
-//! Library implementing interactive command input and completion for the shrub
-//! shell.
+//! The interactive front end of shrub: reads command lines, edits them, and
+//! drives a [`shrub_core::Shell`] with them.
+//!
+//! `shrub-core` interprets commands but has no user interface. This crate
+//! sits above it and supplies the prompt loop, line editing, completion, and
+//! highlighting, so an embedder or the `shrub` binary can offer an interactive
+//! session. It reads shell state through `shrub-core`'s public API and does
+//! not reimplement shell semantics.
+//!
+//! ## Quick start
+//!
+//! Wrap a shell in a [`ShellRef`], pick an [`InputBackend`], and run an
+//! [`InteractiveShell`] until the user exits or input ends:
+//!
+//! ```no_run
+//! use std::sync::Arc;
+//!
+//! use shrub_core::Shell;
+//! use shrub_interactive::{
+//!     InteractiveOptions, InteractiveShell, MinimalInputBackend, ShellError, ShellRef,
+//! };
+//! use tokio::sync::Mutex;
+//!
+//! # #[tokio::main(flavor = "current_thread")]
+//! # async fn main() -> Result<(), ShellError> {
+//! let shell = Shell::builder().interactive(true).build().await?;
+//! let shell: ShellRef = Arc::new(Mutex::new(shell));
+//!
+//! let mut input = MinimalInputBackend;
+//! InteractiveShell::new(&shell, &mut input, &InteractiveOptions::default())?
+//!     .run_interactively()
+//!     .await?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Input backends
+//!
+//! An [`InputBackend`] turns terminal input into [`ReadResult`] values. The
+//! crate provides three:
+//!
+//! - [`MinimalInputBackend`] reads whole lines from standard input and draws
+//!   only the prompt. It works everywhere, including when standard input is not
+//!   a terminal.
+//! - [`VtInputBackend`] edits the line with completion and history, using
+//!   nothing from the terminal but bytes and escape sequences. A host that
+//!   supplies its own [`Terminal`](vt::Terminal) can use it on any target.
+//! - [`ReedlineInputBackend`] offers the richest editing, built on the [reedline](https://docs.rs/reedline)
+//!   library. It exists on Unix and Windows.
+//!
+//! Implement [`InputBackend`] to add another.
+//!
+//! ## Options
+//!
+//! [`UIOptions`] holds the presentation choices, such as color and syntax
+//! highlighting. [`InteractiveOptions`] holds what the prompt loop itself
+//! needs and is built from a [`UIOptions`] with `From`.
+//!
+//! ## Hooks
+//!
+//! [`init_zsh_style_hooks`] prepares a shell for zsh-style `precmd` and
+//! `preexec` hooks, which the prompt loop then runs. Call it before the shell
+//! loads its profile and rc files, and set
+//! [`InteractiveOptions::zsh_style_hooks`] so the loop dispatches them.
+//!
+//! ## Cargo features
+//!
+//! | Feature | Effect |
+//! |---|---|
+//! | `minimal` | Compiles [`MinimalInputBackend`], which also reads input when standard input is not a terminal. |
+//! | `vt` | Compiles the [`vt`] module and [`VtInputBackend`]; also enables `completion` and `minimal`. |
+//! | `basic` | Enables `vt`. |
+//! | `reedline` | Compiles [`ReedlineInputBackend`] on Unix and Windows; also enables `completion` and `highlighting`. Elsewhere it enables nothing. |
+//! | `completion` | Compiles completion support. |
+//! | `highlighting` | Compiles the [`highlighting`] module. |
+//!
+//! No feature is on by default.
+
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 mod error;
 pub use error::ShellError;

@@ -1,5 +1,91 @@
-//! Standard builtins.
+//! The standard POSIX and bash builtins of shrub, registered on a
+//! [`shrub_core::Shell`].
+//!
+//! A builtin is a command the shell runs in its own process: `cd`, `export`,
+//! `read`, `trap`, and the rest of the set bash and POSIX `sh` define.
+//! `shrub-core` provides the interpreter and the registration API; this crate
+//! supplies the implementations and the ready-made sets to register.
+//!
+//! ## Quick start
+//!
+//! Add the standard builtins to a shell builder with
+//! [`ShellBuilderExt::default_builtins`], then build the shell and run a
+//! command:
+//!
+//! ```
+//! use shrub_builtins::{BuiltinSet, ShellBuilderExt as _};
+//! use shrub_core::{ProfileLoadBehavior, RcLoadBehavior, Shell, SourceInfo};
+//!
+//! # use shrub_core::Error;
+//! # #[tokio::main(flavor = "current_thread")]
+//! # async fn main() -> Result<(), Error> {
+//! let mut shell = Shell::builder()
+//!     .default_builtins(BuiltinSet::BashMode)
+//!     .profile(ProfileLoadBehavior::Skip)
+//!     .rc(RcLoadBehavior::Skip)
+//!     .build()
+//!     .await?;
+//!
+//! let params = shell.default_exec_params();
+//! let result = shell
+//!     .run_string("true", &SourceInfo::from("quick start"), &params)
+//!     .await?;
+//! assert!(result.is_success());
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Builtin sets
+//!
+//! [`BuiltinSet`] names the two sets [`default_builtins`] can return:
+//!
+//! - [`BuiltinSet::ShMode`] holds the smaller set suited to POSIX `sh`
+//!   compatibility.
+//! - [`BuiltinSet::BashMode`] adds what bash has beyond POSIX, such as
+//!   `declare`, `mapfile`, `shopt`, `pushd`, the completion builtins, and
+//!   `bind`. It also registers `disown` and `logout` as placeholders that
+//!   report the exit code for unimplemented functionality.
+//!
+//! ## Customizing the set
+//!
+//! [`default_builtins`] returns the registrations as a map from command name
+//! to [`shrub_core::builtins::Registration`], so a caller can add, replace, or
+//! remove entries before handing the map to
+//! [`ShellBuilder::builtins`](shrub_core::ShellBuilder::builtins):
+//!
+//! ```
+//! use shrub_builtins::{BuiltinSet, default_builtins};
+//! use shrub_core::extensions::DefaultShellExtensions;
+//!
+//! let mut builtins = default_builtins::<DefaultShellExtensions>(BuiltinSet::BashMode);
+//! builtins.remove("ulimit");
+//! assert!(!builtins.contains_key("ulimit"));
+//! ```
+//!
+//! ## Platform support
+//!
+//! A builtin that depends on Unix process control is compiled only on Unix:
+//! `exec`, `kill`, `suspend`, `ulimit`, and `umask`. `printf` needs Unix or
+//! Windows. On any other target, such as wasm, the other builtins are still
+//! available.
+//!
+//! ## Cargo features
+//!
+//! Each builtin has a `builtin.<name>` feature that compiles it in. All of
+//! them are on by default; disable default features to pick a subset.
+//!
+//! | Feature | Effect |
+//! |---|---|
+//! | `default` | Enables every `builtin.<name>` feature. |
+//! | `builtin.<name>` | Compiles in the builtin `<name>`, such as `builtin.cd` or `builtin.trap`. |
+//! | `builtin.exec` | Compiles in `exec` and also enables `builtin.command`. |
+//!
+//! `builtin.declare` covers `declare`, `local`, `readonly`, and `typeset`.
+//! `builtin.complete`, `builtin.compgen`, and `builtin.compopt` share one
+//! implementation module. `builtin.dot` covers `.` and `source`, and
+//! `builtin.test` covers `test` and `[`.
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
 // `shrub_core::builtins::Command::execute` is async by contract: the trait declares a desugared
 // `-> impl Future<...> + Send` so that `shrub_core::builtins::exec_builtin` can box and dispatch
 // every builtin uniformly. Most builtins in this crate do purely synchronous work, so their
