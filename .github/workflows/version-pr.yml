@@ -44,6 +44,6 @@ jobs:
           repositories: ${{ github.event.repository.name }}
           permission-contents: write
           permission-pull-requests: write
-      - uses: victor-software-house/verctl/actions/version-pr@2a7b33d023488fa62417e3061bd523ab2ba098de # v0.4.8
+      - uses: victor-software-house/verctl/actions/version-pr@fef4cc7e044ed9c3d6c72f2152a57dc83ddf8dc9 # v0.4.9
         with:
           token: ${{ steps.app-token.outputs.token }}

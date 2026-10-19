@@ -49,6 +49,6 @@ jobs:
       # Publishes each workspace member with `cargo publish --package`, skipping
       # those crates.io already lists, then tags the release and opens the
       # GitHub Release.
-      - uses: victor-software-house/verctl/actions/publish@2a7b33d023488fa62417e3061bd523ab2ba098de # v0.4.8
+      - uses: victor-software-house/verctl/actions/publish@fef4cc7e044ed9c3d6c72f2152a57dc83ddf8dc9 # v0.4.9
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
