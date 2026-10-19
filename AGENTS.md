@@ -15,7 +15,7 @@ shrub-shell → shrub-interactive → shrub-core → shrub-parser
 
 - `shrub-core/src/shell.rs` holds the `Shell` struct; shells are created with `Shell::builder()`.
 - `shrub-core/src/lib.rs` holds the public exports.
-- `shrub-shell/src/main.rs` is the CLI entry point.
+- `shrub/src/main.rs` is the only binary; it calls the CLI entry point, `shrub_shell::entry::run`.
 - Platform-specific code in `shrub-core` lives under its `sys` module; `check:sys-boundary` flags target cfgs elsewhere, and a deliberate exception carries `// ast-grep-ignore: platform-cfg-outside-sys`.
 
 ## Tasks
@@ -39,7 +39,7 @@ lefthook runs `format` before a commit and `verify` before a push.
 ## Tests
 
 - Unit tests live in `src/` under `#[cfg(test)]`; integration tests in `tests/`.
-- Compatibility cases are YAML files under `shrub-shell/tests/cases/`, run against Bash.
+- Compatibility cases are YAML files under `shrub/tests/cases/`, run against Bash.
   A compatibility fix adds a case there.
 - Examples in `examples/` must run with `cargo run --package <crate> --example <name>`.
 - `schemas/config.schema.json` is generated from `shrub-shell`'s `Config`; a unit test under the `schema` feature fails when it is stale, and `cargo xtask gen schema config --out schemas/config.schema.json` regenerates it.

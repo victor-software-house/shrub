@@ -13,7 +13,7 @@ members = [
   "fuzz",
   "xtask",
 ]
-default-members = ["shrub-shell"]
+default-members = ["shrub"]
 
 [workspace.package]
 version = "0.0.1"

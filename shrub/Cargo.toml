@@ -13,20 +13,65 @@ rust-version.workspace = true
 [package.metadata.binstall]
 pkg-url = "{ repo }/releases/download/shrub-shell-v{ version }/shrub-{ target }{ archive-suffix }"
 
+# The one `shrub` binary in the workspace, so `cargo install shrub` installs
+# it. shrub-shell is its library: the command line and the entry point.
 [[bin]]
 name = "shrub"
 path = "src/main.rs"
 bench = false
 
+# The tests below run the built binary.
+[[test]]
+name = "shrub-compat-tests"
+path = "tests/compat_tests.rs"
+harness = false
+
+[[test]]
+name = "shrub-integration-tests"
+path = "tests/integration_tests.rs"
+harness = false
+
+[[test]]
+name = "shrub-version-tests"
+path = "tests/version_tests.rs"
+
+[[test]]
+name = "shrub-interactive-tests"
+path = "tests/interactive_tests.rs"
+
+# shrub-shell's features, passed through so `cargo install shrub --features
+# <feature>` builds the binary with them.
 [features]
 default = ["shrub-shell/default"]
 basic = ["shrub-shell/basic"]
 minimal = ["shrub-shell/minimal"]
 reedline = ["shrub-shell/reedline"]
+vt = ["shrub-shell/vt"]
 experimental = ["shrub-shell/experimental"]
+experimental-builtins = ["shrub-shell/experimental-builtins"]
+experimental-bundled-coreutils = ["shrub-shell/experimental-bundled-coreutils"]
+experimental-load = ["shrub-shell/experimental-load"]
+experimental-parser = ["shrub-shell/experimental-parser"]
 
 [lints]
 workspace = true
 
 [dependencies]
 shrub-shell = { workspace = true, default-features = false }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+assert_cmd = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+shrub-test-harness = { workspace = true, features = ["insta"] }
+tempfile = { workspace = true }
+test-with = { version = "0.17.0", default-features = false, features = [
+  "executable",
+] }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread"] }
+which = "8.0.2"
+
+# expectrl's pty support (via ptyprocess) is limited to these platforms;
+# the interactive tests that rely on it are gated accordingly.
+[target.'cfg(any(target_os = "linux", target_os = "android", target_os = "macos", target_os = "freebsd"))'.dev-dependencies]
+expectrl = { workspace = true }
