@@ -1,5 +1,10 @@
 # Changelog
 
+## shrub 0.0.3
+
+- A brace sequence with an increment too large for a 64-bit integer, such as `echo {1..3..99999999999999999999}`, no longer panics and stays literal text, as in bash, and a very large increment that does fit no longer overflows or loops forever while the sequence is expanded ([#23](https://github.com/victor-software-house/shrub/pull/23)).
+- Every fallible or panicking public function now documents when it errors or panics ([#14](https://github.com/victor-software-house/shrub/pull/14)).
+
 ## shrub 0.0.2
 
 - Arithmetic takes `++` or `--` before anything but a variable as two signs, as bash does, so `$((++0))` is 0 instead of a parse error ([#9](https://github.com/victor-software-house/shrub/pull/9)).
