@@ -1,0 +1,46 @@
+name: Publish 0.0.2
+
+# One-off, removed once 0.0.2 is on crates.io. The 0.0.2 version commit
+# predates the move to verctl's reusable release workflow, so its tree has no
+# `ver` task and the release workflow cannot publish it. This publishes that
+# commit through verctl's publish action instead; from 0.0.3 on, release.yml
+# releases every version commit.
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: publish-0.0.2
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # the v0.0.2 tag and its GitHub Release
+    env:
+      MISE_ENV: ci,release
+    steps:
+      # verctl publishes only when HEAD is the version commit, and finds that
+      # commit by walking history, so check it out with full history.
+      - name: Check out the 0.0.2 version commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ff3df5a11ca40fa20102318fccb12283598e2983
+          fetch-depth: 0
+      - name: Set up mise
+        uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2
+        with:
+          version: 2026.10.10
+          cache: true
+      - run: mise install --locked
+      # Publishes each workspace member with `cargo publish --package`, skipping
+      # those crates.io already lists, then tags the release and opens the
+      # GitHub Release. A run stopped by the crates.io rate limit resumes on
+      # the next dispatch.
+      - uses: victor-software-house/verctl/actions/publish@fef4cc7e044ed9c3d6c72f2152a57dc83ddf8dc9 # v0.4.9
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
