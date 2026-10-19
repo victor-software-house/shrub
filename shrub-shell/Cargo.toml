@@ -106,9 +106,7 @@ assert_fs = { workspace = true }
 criterion = { workspace = true, features = ["async_tokio", "html_reports"] }
 pretty_assertions = { workspace = true, features = ["unstable"] }
 serde = { workspace = true, features = ["derive"] }
-test-with = { version = "0.17.0", default-features = false, features = [
-  "executable",
-] }
+test-with = { workspace = true, features = ["executable"] }
 tokio = { workspace = true, features = ["time"] }
 
 # Used only on wasm32, to enable the JavaScript backends; no code names them.

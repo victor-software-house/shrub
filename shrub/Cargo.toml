@@ -65,9 +65,7 @@ assert_cmd = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 shrub-test-harness = { workspace = true, features = ["insta"] }
 tempfile = { workspace = true }
-test-with = { version = "0.17.0", default-features = false, features = [
-  "executable",
-] }
+test-with = { workspace = true, features = ["executable"] }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread"] }
 which = "8.0.2"
 
