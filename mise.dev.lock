@@ -23,19 +23,19 @@ url = "https://github.com/crate-ci/committed/releases/download/v1.1.11/committed
 url_api = "https://api.github.com/repos/crate-ci/committed/releases/assets/362199688"
 
 [[tools."github:victor-software-house/verctl"]]
-version = "0.5.2"
+version = "0.5.3"
 backend = "github:victor-software-house/verctl"
-specifiers = ["0.5.2"]
+specifiers = ["0.5.3"]
 
 [tools."github:victor-software-house/verctl"."platforms.linux-x64"]
-checksum = "sha256:259f01bca20d0e0a1acd3ddc9ec1d8285dea8c8b8f18f55e5cc42fc8611cae78"
-url = "https://github.com/victor-software-house/verctl/releases/download/v0.5.2/verctl_0.5.2_linux_x64.tar.gz"
-url_api = "https://api.github.com/repos/victor-software-house/verctl/releases/assets/657293484"
+checksum = "sha256:f2012e8ef2d6f775d9b03da77c840677ebb9e316dfc3a18bcce3a11533154d3e"
+url = "https://github.com/victor-software-house/verctl/releases/download/v0.5.3/verctl_0.5.3_linux_x64.tar.gz"
+url_api = "https://api.github.com/repos/victor-software-house/verctl/releases/assets/657357895"
 
 [tools."github:victor-software-house/verctl"."platforms.macos-arm64"]
-checksum = "sha256:4c372c7d53ac426a77823875532f70c30fed0b50bab9e7aac4a6f09c630bf6b9"
-url = "https://github.com/victor-software-house/verctl/releases/download/v0.5.2/verctl_0.5.2_macos_arm64.tar.gz"
-url_api = "https://api.github.com/repos/victor-software-house/verctl/releases/assets/657294812"
+checksum = "sha256:48bb59727e1566eb80bc7f631770ac0016b027bcd407f446e9f9eeca7a0dcb5c"
+url = "https://github.com/victor-software-house/verctl/releases/download/v0.5.3/verctl_0.5.3_macos_arm64.tar.gz"
+url_api = "https://api.github.com/repos/victor-software-house/verctl/releases/assets/657364089"
 
 [[tools.gitleaks]]
 version = "8.30.1"
