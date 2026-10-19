@@ -449,7 +449,7 @@ impl TestCaseSetResults {
 ///
 /// # Errors
 ///
-/// Returns an error when writing the report fails, or, for JUnit output, when
+/// Returns an error when writing the report fails, or, for `JUnit` output, when
 /// a duration or the captured details cannot be converted.
 pub fn report_results(results: Vec<TestCaseSetResults>, options: &TestOptions) -> Result<()> {
     match options.format {
