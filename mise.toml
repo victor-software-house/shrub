@@ -48,10 +48,10 @@ includes = [
   "mise-tasks",
   # The standard Rust tasks, verify included, shared from ctl-core. Bump the
   # ref together with the rust pins above.
-  "git::https://github.com/victor-software-house/ctl-core.git//tasks/rust.toml?ref=v0.6.24",
+  "git::https://github.com/victor-software-house/ctl-core.git//tasks/rust.toml?ref=v0.6.27",
   # `mise run ver`, which the release workflow runs. Bump the ref together
   # with the verctl pin in mise.release.toml and the workflow's pin.
-  "git::https://github.com/victor-software-house/verctl.git//tasks/ver?ref=v0.4.9",
+  "git::https://github.com/victor-software-house/verctl.git//tasks/ver?ref=v0.5.1",
 ]
 
 # Replaces ctl-core's test, which runs cargo test with --all-features; a
