@@ -22,7 +22,7 @@ struct TestCase {
 #[test]
 #[ignore = "not yet ready for default-enablement"]
 fn test_parser_using_yaml_test_cases() {
-    insta::glob!("../../shrub-shell", "tests/cases/**/*.yaml", |path| {
+    insta::glob!("../../shrub", "tests/cases/**/*.yaml", |path| {
         test_parser_using_yaml(path).unwrap();
     });
 }

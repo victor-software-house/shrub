@@ -284,7 +284,7 @@ fn run_integration_tests_wasi(
             "--target",
             "wasm32-wasip3",
             "-p",
-            "shrub-shell",
+            "shrub",
             "--bin",
             "shrub",
         ];

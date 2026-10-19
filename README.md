@@ -41,7 +41,7 @@ Every crate releases at the same version.
 
 ## Tests
 
-More than 2,500 [compatibility cases](shrub-shell/tests/cases) run each script under shrub and Bash and compare stdout, stderr, exit status and file side effects.
+More than 2,500 [compatibility cases](shrub/tests/cases) run each script under shrub and Bash and compare stdout, stderr, exit status and file side effects.
 [docs/how-to/run-tests.md](docs/how-to/run-tests.md) describes how to run them.
 
 Known gaps: `select`, `wait -n`, `disown`, some traps, and the edge cases listed in the [compatibility reference](docs/reference/compatibility.md).
