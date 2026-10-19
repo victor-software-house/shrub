@@ -67,10 +67,3 @@ includes = [
 description = "Unit, integration and compatibility tests with the default features"
 run = "cargo nextest run --locked --workspace --features shrub-shell/schema"
 timeout = "30m"
-
-# Temporary: cargo semver-checks compares each library with its release on
-# crates.io, and no shrub-* crate has one before shrub 0.0.2. Delete this
-# override, restoring ctl-core's semver, once 0.0.2 is published.
-[tasks.semver]
-description = "No-op until the first release gives semver-checks a baseline"
-run = "echo 'semver: no crates.io baseline before shrub 0.0.2'"
