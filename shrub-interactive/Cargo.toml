@@ -25,6 +25,10 @@ vt = ["dep:unicode-width", "completion", "minimal"]
 reedline = ["dep:reedline", "dep:nu-ansi-term", "completion", "highlighting"]
 highlighting = []
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cap-lints", "warn"]
+
 [lints]
 workspace = true
 

@@ -124,6 +124,10 @@ default = [
 'builtin.unset' = []
 'builtin.wait' = []
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cap-lints", "warn"]
+
 [lints]
 workspace = true
 
