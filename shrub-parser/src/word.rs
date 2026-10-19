@@ -816,10 +816,10 @@ peg::parser! {
             parse_sequence_bound(text).map(|n| (n, text)).ok_or("number out of range")
         }
 
-        rule number() -> i64 = sign:number_sign()? n:$(['0'..='9']+) {
-            let sign = sign.unwrap_or(1);
-            let num: i64 = n.parse().unwrap();
-            num * sign
+        // The increment of a sequence. Like a bound, it falls out of the rule, and the
+        // brace expression with it, when it doesn't fit.
+        rule number() -> i64 = text:$(number_sign()? ['0'..='9']+) {?
+            parse_sequence_bound(text).ok_or("number out of range")
         }
 
         rule number_sign() -> i64 =
@@ -1745,6 +1745,46 @@ mod tests {
             Some(i64::MAX)
         );
         assert_eq!(super::parse_sequence_bound("-9223372036854775809"), None);
+    }
+
+    #[test]
+    fn test_brace_sequence_increment_out_of_range() -> Result<()> {
+        let options = ParserOptions::default();
+        let in_range = |input| {
+            super::expansion_parser::brace_expr(input, &options)
+                .map(|_| ())
+                .map_err(anyhow::Error::from)
+        };
+
+        in_range("{1..3..2}")?;
+        in_range("{1..3..-9223372036854775808}")?;
+        in_range("{a..e..9223372036854775807}")?;
+
+        // An increment that doesn't fit leaves no brace expression, so the
+        // word stays literal text, whichever sign or form it has.
+        for input in [
+            "{1..3..99999999999999999999}",
+            "{1..3..-99999999999999999999}",
+            "{1..3..+99999999999999999999}",
+            "{1..3..9223372036854775808}",
+            "{1..3..-9223372036854775809}",
+            "{a..e..99999999999999999999}",
+            "{a..e..-99999999999999999999}",
+        ] {
+            assert!(
+                in_range(input).is_err(),
+                "{input} parsed as a brace expression"
+            );
+            assert_eq!(
+                super::parse_brace_expansions(input, &options)?
+                    .ok_or_else(|| anyhow::anyhow!("Expected {input} to parse as text"))?
+                    .len(),
+                1,
+                "{input} should be a single text piece"
+            );
+        }
+
+        Ok(())
     }
 
     #[test]
