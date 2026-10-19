@@ -494,6 +494,12 @@ impl Spec {
     /// * `shell` - The shell instance to use for completion generation.
     /// * `word` - The word to generate candidates for, as typed (with any
     ///   quoting).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if running the completion generator fails, for example
+    /// when a completion function or command cannot be executed, or when
+    /// globbing or word expansion fails.
     pub async fn generate(
         &self,
         shell: &mut Shell<impl extensions::ShellExtensions>,

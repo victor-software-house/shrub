@@ -7,6 +7,13 @@ use crate::{ast, error};
 /// # Arguments
 ///
 /// * `input` - The arithmetic expression to parse, in string form.
+///
+/// # Errors
+///
+/// Returns [`crate::WordParseError::ArithmeticExpression`] if `input` is not a
+/// valid arithmetic expression. That includes a numeric literal that does not
+/// fit in an `i64`, a radix outside 2 to 64, and a digit that is too large for
+/// its radix.
 pub fn parse(input: &str) -> Result<ast::ArithmeticExpr, error::WordParseError> {
     cacheable_parse(input)
 }

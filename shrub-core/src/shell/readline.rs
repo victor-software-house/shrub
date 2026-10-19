@@ -10,6 +10,12 @@ impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
     ///
     /// * `contents` - The contents of the edit buffer.
     /// * `cursor` - The cursor position in the edit buffer.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::error::ErrorKind::MissingScopeForNewVariable`] if the
+    /// environment has no global scope to hold `READLINE_LINE` and
+    /// `READLINE_POINT`.
     pub fn set_edit_buffer(&mut self, contents: String, cursor: usize) -> Result<(), error::Error> {
         self.env
             .set_global("READLINE_LINE", ShellVariable::new(contents))?;
@@ -22,6 +28,11 @@ impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
 
     /// Returns the contents of the shell's edit buffer, if any. The buffer
     /// state is cleared from the shell.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::error::ErrorKind::ReadonlyVariable`] if `READLINE_LINE`
+    /// or `READLINE_POINT` is readonly and so cannot be unset.
     pub fn pop_edit_buffer(&mut self) -> Result<Option<(String, usize)>, error::Error> {
         let line = self
             .env

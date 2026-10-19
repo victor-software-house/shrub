@@ -7,6 +7,12 @@ use crate::{ast, error};
 /// # Arguments
 ///
 /// * `input` - The test command expression to parse, in string form.
+///
+/// # Errors
+///
+/// Returns [`crate::TestCommandParseError`] if the arguments do not form a
+/// valid `test` expression, such as a missing operand or unbalanced
+/// parentheses.
 pub fn parse<S: AsRef<str>>(input: &[S]) -> Result<ast::TestExpr, error::TestCommandParseError> {
     let expr =
         test_command::full_expression(&input.iter().map(AsRef::as_ref).collect::<Vec<&str>>())?;

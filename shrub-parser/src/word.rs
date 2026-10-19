@@ -533,6 +533,11 @@ pub enum BraceExpressionMember {
 ///
 /// * `word` - The word to parse.
 /// * `options` - The parser options to use.
+///
+/// # Errors
+///
+/// Returns [`crate::WordParseError::Word`] if `word` is not a valid word, such
+/// as one with a malformed expansion.
 pub fn parse(
     word: &str,
     options: &ParserOptions,
@@ -565,6 +570,11 @@ fn cacheable_parse(
 ///
 /// * `word` - The heredoc body to parse.
 /// * `options` - The parser options to use.
+///
+/// # Errors
+///
+/// Returns [`crate::WordParseError::Word`] if `word` is not a valid heredoc
+/// body, such as one with a malformed expansion.
 pub fn parse_heredoc(
     word: &str,
     options: &ParserOptions,
@@ -579,6 +589,11 @@ pub fn parse_heredoc(
 ///
 /// * `word` - The word to parse.
 /// * `options` - The parser options to use.
+///
+/// # Errors
+///
+/// Returns [`crate::WordParseError::Parameter`] if `word` is not a valid
+/// parameter expression.
 pub fn parse_parameter(
     word: &str,
     options: &ParserOptions,
@@ -593,6 +608,17 @@ pub fn parse_parameter(
 ///
 /// * `word` - The word to parse.
 /// * `options` - The parser options to use.
+///
+/// # Errors
+///
+/// Returns [`crate::WordParseError::BraceExpansion`] if `word` cannot be parsed
+/// for brace expansion.
+///
+/// # Panics
+///
+/// Panics if a sequence increment (the `n` in `{a..b..n}`) is a digit string
+/// that does not fit in an `i64`, because the increment is parsed with
+/// `unwrap`.
 pub fn parse_brace_expansions(
     word: &str,
     options: &ParserOptions,
@@ -611,6 +637,11 @@ pub fn parse_brace_expansions(
 ///
 /// * `word` - The word to parse.
 /// * `options` - The parser options to use.
+///
+/// # Errors
+///
+/// Returns [`crate::WordParseError::Word`] if `word` is not a valid
+/// `name=value` assignment.
 pub fn parse_scalar_assignment(
     word: &str,
     options: &ParserOptions,

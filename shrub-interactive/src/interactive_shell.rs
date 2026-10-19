@@ -76,6 +76,13 @@ impl<'a, IB: InputBackend, SE: shrub_core::ShellExtensions> InteractiveShell<'a,
     /// * `shell` - The shell instance to wrap.
     /// * `input` - The input backend to use.
     /// * `options` - The user interface options to use.
+    ///
+    /// # Errors
+    ///
+    /// * Returns [`ShellError::ShellError`] when standard input is a terminal
+    ///   and acquiring control of it fails.
+    /// * Returns [`ShellError::IoError`] when terminal shell integration is
+    ///   enabled and writing its announcement to the terminal fails.
     pub fn new(
         shell: &crate::ShellRef<SE>,
         input: &'a mut IB,
@@ -112,6 +119,13 @@ impl<'a, IB: InputBackend, SE: shrub_core::ShellExtensions> InteractiveShell<'a,
     /// Runs the interactive shell loop, reading commands from standard input
     /// and writing results to standard output and standard error. Continues
     /// until the shell normally exits or until a fatal error occurs.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`ShellError`] when reading input, running a prompt or hook,
+    /// starting or ending the interactive session, writing the exit
+    /// announcement, or running the shell's exit steps fails. The session still
+    /// ends when the loop fails, and the loop's error is the one reported.
     pub async fn run_interactively(&mut self) -> Result<(), ShellError> {
         let mut shell = self.shell.lock().await;
 

@@ -47,6 +47,11 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
     /// * `path` - The path to the file to source.
     /// * `args` - The arguments to pass to the script as positional parameters.
     /// * `params` - Execution parameters.
+    ///
+    /// # Errors
+    ///
+    /// - [`crate::error::ErrorKind::FailedSourcingFile`] if the file cannot be
+    ///   opened or is a directory.
     pub async fn source_script<S: Into<String>, P: AsRef<Path>, I: Iterator<Item = S>>(
         &mut self,
         path: P,
@@ -158,6 +163,11 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
     /// * `command` - The command to execute.
     /// * `source_info` - Information about the source of the command text.
     /// * `params` - Execution parameters.
+    ///
+    /// # Errors
+    ///
+    /// Parse and execution errors are not returned. They are displayed on the
+    /// shell's stderr and folded into the exit status of the returned result.
     pub async fn run_string<S: Into<String>>(
         &mut self,
         command: S,
@@ -179,6 +189,13 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
     /// # Arguments
     ///
     /// * `command` - The command to execute.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::error::ErrorKind::NotExecutingCommandString`] if the
+    /// command string frame is no longer the current call stack frame once the
+    /// command finishes. Errors from the command itself are handled as in
+    /// [`Self::run_string`].
     pub async fn run_dash_c_command<S: Into<String>>(
         &mut self,
         command: S,
@@ -208,6 +225,13 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
     ///
     /// * `script_path` - The path to the script file to execute.
     /// * `args` - The arguments to pass to the script as positional parameters.
+    ///
+    /// # Errors
+    ///
+    /// - [`crate::error::ErrorKind::FailedSourcingFile`] if the file cannot be
+    ///   opened or is a directory.
+    /// - Errors from the script itself are reported on stderr and folded into
+    ///   the returned exit status.
     pub async fn run_script<S: Into<String>, P: AsRef<Path>, I: Iterator<Item = S>>(
         &mut self,
         script_path: P,
@@ -267,6 +291,12 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
     ///
     /// * `program` - The program to execute.
     /// * `params` - Execution parameters.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error that aborts execution, such as a failed expansion or
+    /// redirection. Unlike [`Self::run_string`], the error is neither displayed
+    /// nor converted to an exit status.
     pub async fn run_program(
         &mut self,
         program: shrub_parser::ast::Program,
@@ -276,6 +306,12 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
     }
 
     /// Evaluate the given arithmetic expression, returning the result.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::error::ErrorKind::EvalError`] if evaluation fails, for
+    /// example on division by zero, a negative exponent, or an unset variable
+    /// under `set -u`.
     pub fn eval_arithmetic(
         &mut self,
         expr: &shrub_parser::ast::ArithmeticExpr,

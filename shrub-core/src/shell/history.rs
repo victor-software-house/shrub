@@ -57,6 +57,11 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
     }
 
     /// Saves history back to any backing storage.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::error::ErrorKind::IoError`] if the history file cannot
+    /// be opened or written.
     pub fn save_history(&mut self) -> Result<(), error::Error> {
         if let Some(history_file_path) = self.history_file_path()
             && let Some(history) = &mut self.history
@@ -85,6 +90,11 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
     /// - `ignoredups`: leave it out if it's the same as the last entry.
     /// - `ignoreboth`: both of those.
     /// - `erasedups`: first remove any earlier entries the same as it.
+    ///
+    /// # Errors
+    ///
+    /// This currently always succeeds; the `Result` leaves room for history
+    /// backends that can fail.
     pub fn add_to_history(&mut self, command: &str) -> Result<(), error::Error> {
         let controls = if self.options.interactive {
             self.env_str("HISTCONTROL")

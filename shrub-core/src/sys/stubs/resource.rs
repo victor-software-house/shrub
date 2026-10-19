@@ -5,6 +5,10 @@ use crate::error;
 /// Returns the user and system CPU time used by the current process.
 ///
 /// This is a stub implementation that returns zero durations.
+///
+/// # Errors
+///
+/// This stub implementation always succeeds.
 pub fn get_self_user_and_system_time()
 -> Result<(std::time::Duration, std::time::Duration), error::Error> {
     Ok((std::time::Duration::ZERO, std::time::Duration::ZERO))
@@ -13,6 +17,10 @@ pub fn get_self_user_and_system_time()
 /// Returns the user and system CPU time used by child processes.
 ///
 /// This is a stub implementation that returns zero durations.
+///
+/// # Errors
+///
+/// This stub implementation always succeeds.
 pub fn get_children_user_and_system_time()
 -> Result<(std::time::Duration, std::time::Duration), error::Error> {
     Ok((std::time::Duration::ZERO, std::time::Duration::ZERO))

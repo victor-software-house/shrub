@@ -267,6 +267,11 @@ impl From<ExecutionResult> for ExecutionSpawnResult {
 
 impl ExecutionSpawnResult {
     /// Waits for the command to complete.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if waiting on the child process fails, if the spawned
+    /// task fails to join, or if the task itself returned an error.
     pub async fn wait(self) -> Result<ExecutionWaitResult, error::Error> {
         let result = match self {
             Self::StartedProcess(mut child) => {

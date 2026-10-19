@@ -9,6 +9,12 @@ pub struct TerminalControl {
 
 impl TerminalControl {
     /// Acquire the terminal for the shell.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`error::ErrorKind::PlatformError`] if masking `SIGTTOU` or
+    /// moving the shell's process group to the terminal foreground fails,
+    /// for example when there is no controlling terminal.
     pub fn acquire() -> Result<Self, error::Error> {
         // Mask out SIGTTOU *first*. If `lead_new_process_group` succeeds in
         // moving us into a new process group, the subsequent `tcsetpgrp` call
@@ -81,6 +87,11 @@ impl AutoModeGuard {
     /// # Arguments
     ///
     /// * `file` - The file representing the terminal to control.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the current terminal settings of `file` cannot be
+    /// read, for example when `file` is not a terminal.
     pub fn new(file: openfiles::OpenFile) -> Result<Self, error::Error> {
         let initial = sys::terminal::Config::from_term(&file)?;
         Ok(Self { initial, file })
@@ -91,6 +102,11 @@ impl AutoModeGuard {
     /// # Arguments
     ///
     /// * `settings` - The terminal settings to apply.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the terminal's current settings cannot be read or
+    /// the updated settings cannot be applied.
     pub fn apply_settings(&self, settings: &Settings) -> Result<(), error::Error> {
         let mut config = sys::terminal::Config::from_term(&self.file)?;
         config.update(settings);

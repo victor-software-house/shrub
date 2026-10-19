@@ -7,6 +7,14 @@ use crate::{Shell, extensions, trace_categories};
 impl<SE: extensions::ShellExtensions> Shell<SE> {
     /// Parses the given reader as a shell program, returning the resulting
     /// Abstract Syntax Tree for the program.
+    ///
+    /// # Errors
+    ///
+    /// - [`shrub_parser::ParseError::Tokenizing`] if the input cannot be
+    ///   tokenized.
+    /// - [`shrub_parser::ParseError::ParsingNear`] or
+    ///   [`shrub_parser::ParseError::ParsingAtEndOfInput`] if the input is not
+    ///   a valid program.
     pub fn parse<R: Read>(
         &self,
         reader: R,
@@ -23,6 +31,14 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
     /// # Arguments
     ///
     /// * `s` - The string to parse as a program.
+    ///
+    /// # Errors
+    ///
+    /// - [`shrub_parser::ParseError::Tokenizing`] if the input cannot be
+    ///   tokenized.
+    /// - [`shrub_parser::ParseError::ParsingNear`] or
+    ///   [`shrub_parser::ParseError::ParsingAtEndOfInput`] if the input is not
+    ///   a valid program.
     pub fn parse_string<S: Into<String>>(
         &self,
         s: S,

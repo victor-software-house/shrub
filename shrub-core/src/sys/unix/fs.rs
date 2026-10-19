@@ -217,6 +217,11 @@ fn confstr(name: nix::libc::c_int) -> Result<Option<std::ffi::OsString>, std::io
 }
 
 /// Opens a null file that will discard all I/O.
+///
+/// # Errors
+///
+/// Returns [`crate::error::ErrorKind::IoError`] if `/dev/null` cannot be opened
+/// for reading and writing.
 pub fn open_null_file() -> Result<std::fs::File, error::Error> {
     let f = std::fs::File::options()
         .read(true)
@@ -228,6 +233,10 @@ pub fn open_null_file() -> Result<std::fs::File, error::Error> {
 
 /// Gives the platform an opportunity to handle a special file path (e.g.
 /// `/dev/null`).
+///
+/// # Errors
+///
+/// This implementation never returns `Some`, so it reports no error.
 pub const fn try_open_special_file(_path: &Path) -> Option<Result<std::fs::File, std::io::Error>> {
     None
 }

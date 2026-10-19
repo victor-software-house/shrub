@@ -59,6 +59,15 @@ pub(crate) trait ExpandAndEvaluate {
     ///
     /// * `shell` - The shell to use for evaluation.
     /// * `trace_if_needed` - Whether to trace the evaluation.
+    ///
+    /// # Errors
+    ///
+    /// * [`EvalError::FailedToExpandExpression`] if shell expansion of the
+    ///   expression fails.
+    /// * [`EvalError::ParseError`] if the expanded text is not a valid
+    ///   arithmetic expression.
+    /// * Any error from evaluating the parsed expression; see
+    ///   [`Evaluatable::eval`].
     async fn eval(
         &self,
         shell: &mut Shell<impl extensions::ShellExtensions>,
@@ -124,6 +133,18 @@ pub trait Evaluatable {
     /// # Arguments
     ///
     /// * `shell` - The shell to use for evaluation.
+    ///
+    /// # Errors
+    ///
+    /// * [`EvalError::DivideByZero`] on division or remainder by zero.
+    /// * [`EvalError::NegativeExponent`] on a negative exponent.
+    /// * [`EvalError::RecursionLimitExceeded`] when variable references nest
+    ///   too deeply.
+    /// * [`EvalError::ExpandingUnsetVariable`] when an unset variable is
+    ///   referenced under `set -u`.
+    /// * [`EvalError::FailedToAccessArray`] or
+    ///   [`EvalError::FailedToUpdateEnvironment`] when an array element or
+    ///   variable cannot be read or assigned.
     fn eval(&self, shell: &mut Shell<impl extensions::ShellExtensions>) -> Result<i64, EvalError>;
 }
 

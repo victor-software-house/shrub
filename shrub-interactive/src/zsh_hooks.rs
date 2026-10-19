@@ -52,6 +52,11 @@ const BASH_PREEXEC_GUARDS: [&str; 2] = ["bash_preexec_imported", "__bp_imported"
 ///
 /// * `shell` - The shell to prepare.
 /// * `options` - The options the interactive loop will run with.
+///
+/// # Errors
+///
+/// Returns [`ShellError::ShellError`] when assigning a guard variable or a hook
+/// array fails, for example because the variable is readonly.
 pub fn init<SE: shrub_core::ShellExtensions>(
     shell: &mut shrub_core::Shell<SE>,
     options: &InteractiveOptions,

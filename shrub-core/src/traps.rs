@@ -82,6 +82,10 @@ impl TrapSignal {
 ///
 /// * `f` - Any type that implements [`std::io::Write`].
 /// * `it` - An iterator over the signals that will be formatted into the `f`.
+///
+/// # Errors
+///
+/// Returns [`crate::error::ErrorKind::IoError`] if writing to `f` fails.
 pub fn format_signals(
     mut f: impl std::io::Write,
     it: impl Iterator<Item = TrapSignal>,

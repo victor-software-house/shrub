@@ -29,6 +29,18 @@ impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
     /// # Arguments
     ///
     /// * `s` - The string to expand.
+    ///
+    /// # Errors
+    ///
+    /// - [`crate::error::ErrorKind::WordParseError`] if the text cannot be
+    ///   parsed as a word.
+    /// - [`crate::error::ErrorKind::BadSubstitution`],
+    ///   [`crate::error::ErrorKind::ExpandingUnsetVariable`] or
+    ///   [`crate::error::ErrorKind::CheckedExpansionError`] if an expansion in
+    ///   it fails, as with a bad substitution or an unset variable under `set
+    ///   -u`.
+    /// - Any error raised by a command substitution or arithmetic expansion
+    ///   inside the text.
     pub async fn basic_expand_string<S: AsRef<str>>(
         &mut self,
         params: &ExecutionParameters,
@@ -44,6 +56,18 @@ impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
     /// # Arguments
     ///
     /// * `s` - The string to expand and split.
+    ///
+    /// # Errors
+    ///
+    /// - [`crate::error::ErrorKind::WordParseError`] if the text cannot be
+    ///   parsed as a word.
+    /// - [`crate::error::ErrorKind::BadSubstitution`],
+    ///   [`crate::error::ErrorKind::ExpandingUnsetVariable`] or
+    ///   [`crate::error::ErrorKind::CheckedExpansionError`] if an expansion in
+    ///   it fails, as with a bad substitution or an unset variable under `set
+    ///   -u`.
+    /// - Any error raised by a command substitution or arithmetic expansion
+    ///   inside the text.
     pub async fn full_expand_and_split_string<S: AsRef<str>>(
         &mut self,
         params: &ExecutionParameters,

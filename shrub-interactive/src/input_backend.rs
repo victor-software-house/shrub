@@ -8,6 +8,13 @@ pub trait InputBackend: Send {
     ///
     /// * `shell` - The shell instance for which input is being read.
     /// * `prompt` - The prompt to display to the user.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`ShellError`] when the line cannot be read, for example
+    /// [`ShellError::InputError`] when reading from the terminal or standard
+    /// input fails, or [`ShellError::UnexpectedInputFailure`] when the
+    /// backend's editor stops without a result.
     fn read_line(
         &mut self,
         shell: &crate::ShellRef<impl shrub_core::ShellExtensions>,

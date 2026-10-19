@@ -60,6 +60,11 @@ impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
     ///
     /// * `name` - The name of the function
     /// * `body_text` - The body of the function, expected to start with "()".
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::error::ErrorKind::FunctionParseError`] if `body_text`
+    /// is not a valid function body (`()` followed by a compound command).
     pub fn define_func_from_str(
         &mut self,
         name: impl Into<String>,
@@ -91,6 +96,15 @@ impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
     /// * `name` - The name of the function to invoke.
     /// * `args` - The arguments to pass to the function.
     /// * `params` - Execution parameters to use for the invocation.
+    ///
+    /// # Errors
+    ///
+    /// - [`crate::error::ErrorKind::FunctionNotFound`] if no function has the
+    ///   given name.
+    /// - [`crate::error::ErrorKind::Unimplemented`] if the function's execution
+    ///   is stopped (job control).
+    /// - Any error raised while running the function body, such as
+    ///   [`crate::error::ErrorKind::MaxFunctionCallDepthExceeded`].
     pub async fn invoke_function<N: AsRef<str>, I: IntoIterator<Item = A>, A: AsRef<str>>(
         &mut self,
         name: N,

@@ -16,6 +16,10 @@ cfg_if::cfg_if! {
         const FD_DIR_PATH: &str = "/dev/fd";
     } else {
         /// Returns an iterator over all open file descriptors for the shell.
+        ///
+        /// # Errors
+        ///
+        /// This fallback implementation always succeeds with an empty iterator.
         pub fn iter_fds()
         -> Result<impl Iterator<Item = (ShellFd, openfiles::OpenFile)>, error::Error> {
             Ok(std::iter::empty())

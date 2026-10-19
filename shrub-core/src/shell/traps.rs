@@ -7,6 +7,12 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
     /// Runs any exit steps for the shell.
     ///
     /// This currently includes invoking the `EXIT` trap handler, if any.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the `EXIT` trap handler cannot be invoked. Errors
+    /// raised by the handler's own commands are reported on stderr and
+    /// reflected in the exit status instead.
     pub async fn on_exit(&mut self) -> Result<(), error::Error> {
         if self.traps.handles(TrapSignal::Exit) {
             self.invoke_trap_handler(TrapSignal::Exit, &self.default_exec_params())

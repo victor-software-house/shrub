@@ -143,6 +143,20 @@ impl<R: std::io::BufRead> Parser<R> {
     }
 
     /// Parses the input into an abstract syntax tree (AST) of a shell program.
+    ///
+    /// # Errors
+    ///
+    /// - [`crate::ParseError::Tokenizing`] if the input cannot be tokenized
+    ///   (see [`crate::TokenizerError`]).
+    /// - [`crate::ParseError::ParsingNear`] if the tokens contain a syntax
+    ///   error; it carries the position of the offending token.
+    /// - [`crate::ParseError::ParsingAtEndOfInput`] if the input ends before
+    ///   the program is complete.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the parser was built with the `winnow` implementation (the
+    /// `winnow-parser` feature), because that parser is not yet implemented.
     pub fn parse_program(&mut self) -> Result<ast::Program, crate::error::ParseError> {
         //
         // References:
@@ -179,6 +193,15 @@ impl<R: std::io::BufRead> Parser<R> {
 
     /// Parses a function definition body from the input. The body is expected
     /// to be preceded by "()", but no function name.
+    ///
+    /// # Errors
+    ///
+    /// - [`crate::ParseError::Tokenizing`] if the input cannot be tokenized
+    ///   (see [`crate::TokenizerError`]).
+    /// - [`crate::ParseError::ParsingNear`] if the tokens contain a syntax
+    ///   error; it carries the position of the offending token.
+    /// - [`crate::ParseError::ParsingAtEndOfInput`] if the input ends before
+    ///   the program is complete.
     pub fn parse_function_parens_and_body(
         &mut self,
     ) -> Result<ast::FunctionBody, crate::error::ParseError> {
@@ -231,6 +254,13 @@ impl<R: std::io::BufRead> Parser<R> {
 ///
 /// * `tokens` - The tokens to parse.
 /// * `options` - The options to use when parsing.
+///
+/// # Errors
+///
+/// - [`crate::ParseError::ParsingNear`] if the tokens contain a syntax error;
+///   it carries the position of the offending token.
+/// - [`crate::ParseError::ParsingAtEndOfInput`] if the tokens end before the
+///   program is complete.
 pub fn parse_tokens(
     tokens: &[Token],
     options: &ParserOptions,

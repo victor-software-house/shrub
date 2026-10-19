@@ -156,6 +156,13 @@ impl TraceEventConfig {
         &self.enabled_debug_events
     }
 
+    /// Enables debug tracing for `event`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`shrub_core::ErrorKind::Unimplemented`] when the event was not
+    /// already enabled and tracing was never initialized or the filter cannot
+    /// be reloaded.
     pub fn enable(&mut self, event: TraceEvent) -> Result<(), Error> {
         // Don't bother to reload config if nothing has changed.
         if !self.enabled_debug_events.insert(event) {
@@ -165,6 +172,13 @@ impl TraceEventConfig {
         self.reload_filter()
     }
 
+    /// Disables debug tracing for `event`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`shrub_core::ErrorKind::Unimplemented`] when the event was
+    /// enabled and tracing was never initialized or the filter cannot be
+    /// reloaded.
     pub fn disable(&mut self, event: TraceEvent) -> Result<(), Error> {
         // Don't bother to reload config if nothing has changed.
         if !self.enabled_debug_events.remove(&event) {

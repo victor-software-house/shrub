@@ -57,6 +57,12 @@ pub trait CommandFdInjectionExt {
     /// # Arguments
     ///
     /// * `open_files` - A mapping of child file descriptors to open files.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::error::ErrorKind::NotSupportedOnThisPlatform`] if
+    /// `open_files` yields any file, because this platform cannot map file
+    /// descriptors into children.
     fn inject_fds(
         &mut self,
         open_files: impl Iterator<Item = (ShellFd, openfiles::OpenFile)>,

@@ -11,6 +11,14 @@ type PError = winnow::error::ErrMode<ContextError>;
 /// Parse a shell program from a string with full source location tracking
 ///
 /// This is not yet implemented.
+///
+/// # Errors
+///
+/// No error is returned yet; see Panics.
+///
+/// # Panics
+///
+/// Always panics, because the winnow string parser is not yet implemented.
 pub fn parse_program(
     _input: &str,
     _options: &ParserOptions,

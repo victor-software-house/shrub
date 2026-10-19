@@ -36,6 +36,11 @@ impl History {
     /// # Arguments
     ///
     /// * `reader` - The readable stream to import history from.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`error::ErrorKind::IoError`] if reading from `reader` fails
+    /// with an error other than invalid data, which is skipped.
     pub fn import(reader: impl Read) -> Result<Self, error::Error> {
         let mut history = Self::default();
         let read_time = Utc::now();
@@ -90,6 +95,10 @@ impl History {
     /// # Arguments
     ///
     /// * `id` - The unique identifier of the history item to retrieve.
+    ///
+    /// # Errors
+    ///
+    /// Currently never fails; the result type leaves room for fallible storage.
     pub fn get_by_id(&self, id: ItemId) -> Result<Option<&Item>, error::Error> {
         Ok(self.position_of(id).and_then(|index| self.items.get(index)))
     }
@@ -101,6 +110,11 @@ impl History {
     ///
     /// * `id` - The unique identifier of the history item to update.
     /// * `item` - The new history item to replace the old one.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`error::ErrorKind::HistoryItemNotFound`] if no item has the
+    /// given ID.
     pub fn update_by_id(&mut self, id: ItemId, item: Item) -> Result<(), error::Error> {
         let index = self
             .position_of(id)
@@ -163,6 +177,10 @@ impl History {
     /// # Arguments
     ///
     /// * `item` - The history item to add.
+    ///
+    /// # Errors
+    ///
+    /// Currently never fails; the result type leaves room for fallible storage.
     pub fn add(&mut self, mut item: Item) -> Result<ItemId, error::Error> {
         let id = self.next_id;
 
@@ -180,6 +198,10 @@ impl History {
     /// # Arguments
     ///
     /// * `id` - The unique identifier of the history item to delete.
+    ///
+    /// # Errors
+    ///
+    /// Currently never fails. An ID with no matching item is ignored.
     pub fn delete_item_by_id(&mut self, id: ItemId) -> Result<(), error::Error> {
         if let Some(index) = self.position_of(id) {
             self.remove_nth_item(index);
@@ -189,6 +211,10 @@ impl History {
     }
 
     /// Clears all history items.
+    ///
+    /// # Errors
+    ///
+    /// Currently never fails; the result type leaves room for fallible storage.
     pub fn clear(&mut self) -> Result<(), error::Error> {
         self.items = rpds::VectorSync::new_sync();
         Ok(())
@@ -204,6 +230,11 @@ impl History {
     ///   any items will be marked as "saved" once saved.
     /// * `write_timestamps` - Whether to write timestamps for each command
     ///   line.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`error::ErrorKind::IoError`] if the history file cannot be
+    /// opened or written. Items stay marked unsaved when writing fails.
     pub fn flush(
         &mut self,
         history_file_path: impl AsRef<Path>,
@@ -258,6 +289,10 @@ impl History {
     /// # Arguments
     ///
     /// * `query` - The query to use.
+    ///
+    /// # Errors
+    ///
+    /// Currently never fails; the result type leaves room for fallible storage.
     pub fn search(&self, query: Query) -> Result<impl Iterator<Item = &self::Item>, error::Error> {
         Ok(Search::new(self, query))
     }

@@ -50,6 +50,14 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
     ///
     /// * `profile_behavior` - Behavior for loading profile files.
     /// * `rc_behavior` - Behavior for loading rc files.
+    ///
+    /// # Errors
+    ///
+    /// - [`crate::error::ErrorKind::FailedSourcingFile`] if a profile or rc
+    ///   file exists but cannot be read, or is a directory.
+    /// - [`crate::error::ErrorKind::Unimplemented`] for a non-interactive,
+    ///   non-login shell with `BASH_ENV` (or `ENV` in `sh` mode) set.
+    /// - Failure to load the history file is not an error.
     pub async fn load_config(
         &mut self,
         profile_behavior: &ProfileLoadBehavior,

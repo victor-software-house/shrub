@@ -438,6 +438,13 @@ impl Pattern {
     /// # Arguments
     ///
     /// * `value` - The string to check for a match.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the pattern cannot be translated to a regular
+    /// expression (an invalid pattern), if that expression does not compile
+    /// ([`error::ErrorKind::InvalidRegexError`]), or if matching fails
+    /// ([`error::ErrorKind::RegexError`]).
     pub fn exactly_matches(&self, value: &str) -> Result<bool, error::Error> {
         let re = self.to_regex(true, true)?;
         Ok(re.is_match(value)?)

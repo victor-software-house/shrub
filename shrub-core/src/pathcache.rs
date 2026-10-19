@@ -38,6 +38,12 @@ impl PathCache {
     }
 
     /// Projects the cache into a shell value.
+    ///
+    /// # Errors
+    ///
+    /// Returns any error from
+    /// [`variables::ShellValue::associative_array_from_literals`].
+    /// Cache entries always carry keys, so this does not fail in practice.
     pub fn to_value(&self) -> Result<variables::ShellValue, error::Error> {
         let pairs = self
             .cache

@@ -6,6 +6,11 @@ use crate::{error, extensions};
 
 impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
     /// Checks for completed jobs in the shell, reporting any changes found.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::error::ErrorKind::IoError`] if reporting a finished job
+    /// on stderr fails.
     pub fn check_for_completed_jobs(&mut self) -> Result<(), error::Error> {
         let results = self.jobs.poll()?;
 

@@ -174,6 +174,13 @@ impl<SE: extensions::ShellExtensions> std::ops::DerefMut for ShellForCommand<'_,
 /// * `empty_env` - If true, the command will be executed with an empty
 ///   environment; if false, the command will inherit environment variables
 ///   marked as exported in the provided `Shell`.
+///
+/// # Errors
+///
+/// Returns [`error::ErrorKind::IoError`] if a redirected file descriptor cannot
+/// be duplicated into a `Stdio` for the child (for example under descriptor
+/// exhaustion), or an error if injecting the shell's other open file
+/// descriptors into the child fails.
 #[allow(unused_variables, reason = "argv0 is only used on unix platforms")]
 pub fn compose_std_command<S: AsRef<OsStr>, SE: extensions::ShellExtensions>(
     context: &ExecutionContext<'_, SE>,
@@ -368,10 +375,15 @@ impl<'a, SE: extensions::ShellExtensions> SimpleCommand<'a, SE> {
     /// The command may be a builtin, a shell function, or an externally
     /// executed command. This function's implementation is responsible for
     /// dispatching it appropriately according to the context provided.
-    #[allow(
-        clippy::missing_panics_doc,
-        reason = "these unwrap calls should not panic"
-    )]
+    ///
+    /// # Errors
+    ///
+    /// * [`ErrorKind::CommandNotFound`] if the name is not a builtin or
+    ///   function and is not found in the search path.
+    /// * Any error from starting a builtin, function, or external process; for
+    ///   example [`ErrorKind::FailedToExecuteCommand`] or
+    ///   [`ErrorKind::WorkingDirMissing`] when an external command cannot be
+    ///   spawned.
     pub async fn execute(mut self) -> Result<ExecutionSpawnResult, error::Error> {
         // First see if it's the name of a builtin.
         let builtin = self.shell.builtins().get(&self.command_name).cloned();
@@ -379,13 +391,12 @@ impl<'a, SE: extensions::ShellExtensions> SimpleCommand<'a, SE> {
         // If we're in POSIX mode and found a special builtin (that's not
         // disabled), then invoke it without considering functions.
         if self.shell.options().posix_mode
-            && builtin
+            && let Some(special_builtin) = builtin
                 .as_ref()
-                .is_some_and(|r| !r.disabled && r.special_builtin)
+                .filter(|r| !r.disabled && r.special_builtin)
+                .cloned()
         {
-            #[allow(clippy::unwrap_used, reason = "we just checked that builtin is Some")]
-            let builtin = builtin.unwrap();
-            return self.execute_via_builtin(builtin).await;
+            return self.execute_via_builtin(special_builtin).await;
         }
 
         // Assuming we weren't requested not to do so, check if it's the name of

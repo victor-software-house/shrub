@@ -16,12 +16,21 @@ impl Child {
     }
 
     /// Asynchronously waits for the child process to exit.
+    ///
+    /// # Errors
+    ///
+    /// Returns the I/O error from waiting on the child process.
     pub async fn wait(&mut self) -> std::io::Result<ExitStatus> {
         self.inner.wait()
     }
 
     /// Asynchronously waits for the child process to exit and collects its
     /// output.
+    ///
+    /// # Errors
+    ///
+    /// Returns the I/O error from waiting on the child process or collecting
+    /// its output.
     pub async fn wait_with_output(self) -> std::io::Result<Output> {
         self.inner.wait_with_output()
     }

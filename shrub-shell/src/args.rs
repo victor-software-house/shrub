@@ -261,11 +261,12 @@ impl CommandLineArgs {
     /// This is useful for detecting which CLI arguments were explicitly
     /// provided vs. which retained their default values (e.g., for config
     /// file merging).
+    ///
+    /// # Panics
+    ///
+    /// Panics if clap cannot parse the program name alone, which would mean an
+    /// argument was declared required without a default.
     #[must_use]
-    #[allow(
-        clippy::missing_panics_doc,
-        reason = "parsing defaults should not panic"
-    )]
     pub fn default_values() -> Self {
         // Parse with just the program name to get all defaults.
         // This won't fail because all arguments have defaults or are optional.

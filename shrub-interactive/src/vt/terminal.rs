@@ -14,9 +14,17 @@ pub trait Terminal: Send {
     /// at a time, without being echoed or interpreted. Output is still
     /// translated as usual, so a newline (`\n`) moves to the start of the
     /// next line.
+    ///
+    /// # Errors
+    ///
+    /// Returns an I/O error when the terminal cannot be switched to raw mode.
     fn enable_raw_mode(&mut self) -> std::io::Result<()>;
 
     /// Restores the mode the terminal was in before [`Self::enable_raw_mode`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an I/O error when the previous mode cannot be restored.
     fn disable_raw_mode(&mut self) -> std::io::Result<()>;
 
     /// Returns the terminal's width, in columns, if known.
@@ -35,6 +43,10 @@ pub trait Terminal: Send {
     /// # Arguments
     ///
     /// * `buf` - Where to put what's read.
+    ///
+    /// # Errors
+    ///
+    /// Returns an I/O error when reading from the terminal fails.
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         std::io::stdin().read(buf)
     }
@@ -47,6 +59,10 @@ pub trait Terminal: Send {
     /// # Arguments
     ///
     /// * `timeout` - How long to wait.
+    ///
+    /// # Errors
+    ///
+    /// Returns an I/O error when polling the terminal for input fails.
     fn wait_for_input(&mut self, timeout: Duration) -> std::io::Result<bool> {
         let _ = timeout;
         Ok(false)

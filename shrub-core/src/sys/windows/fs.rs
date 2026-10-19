@@ -148,6 +148,11 @@ pub fn split_paths<T: AsRef<OsStr> + ?Sized>(s: &T) -> std::env::SplitPaths<'_> 
 }
 
 /// Opens a null file that will discard all I/O.
+///
+/// # Errors
+///
+/// Returns [`crate::error::ErrorKind::IoError`] if `NUL` cannot be opened for
+/// reading and writing.
 pub fn open_null_file() -> Result<std::fs::File, error::Error> {
     let f = std::fs::File::options()
         .read(true)
@@ -158,6 +163,12 @@ pub fn open_null_file() -> Result<std::fs::File, error::Error> {
 
 /// Gives the platform an opportunity to handle a special file path (e.g.
 /// `/dev/null`).
+///
+/// # Errors
+///
+/// Returns `Some(Err(_))` with an I/O error if `path` is the absolute
+/// `dev/null` path and `NUL` cannot be opened. Returns `None` for any other
+/// path.
 pub fn try_open_special_file(path: &Path) -> Option<Result<std::fs::File, std::io::Error>> {
     if path.ends_with("dev/null") && path.is_absolute() {
         Some(open_null_file().map_err(std::io::Error::other))

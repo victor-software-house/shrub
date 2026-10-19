@@ -40,6 +40,12 @@ impl JobTask {
     }
 
     /// Waits for the task to complete. Returns the result of the wait.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if waiting on an external process fails, if an internal
+    /// task fails to join (for example when it panicked or was cancelled),
+    /// or if the internal task itself returns an error.
     pub async fn wait(&mut self) -> Result<JobTaskWaitResult, error::Error> {
         match self {
             Self::External(process) => {
@@ -85,10 +91,6 @@ impl JobManager {
     /// # Arguments
     ///
     /// * `job` - The job to add.
-    #[allow(
-        clippy::missing_panics_doc,
-        reason = "push() guarantees the vector length is >= 1"
-    )]
     pub fn add_as_current(&mut self, mut job: Job) -> &Job {
         for j in &mut self.jobs {
             if matches!(j.annotation, JobAnnotation::Current) {
@@ -102,8 +104,8 @@ impl JobManager {
         job.annotation = JobAnnotation::Current;
         self.jobs.push(job);
 
-        #[allow(clippy::unwrap_used, reason = "we just pushed an element")]
-        self.jobs.last().unwrap()
+        // The job just pushed sits at index `id - 1`.
+        &self.jobs[id - 1]
     }
 
     /// Returns the current job, if there is one.
@@ -157,6 +159,11 @@ impl JobManager {
     }
 
     /// Waits for all managed jobs to complete.
+    ///
+    /// # Errors
+    ///
+    /// Returns the first error from [`Job::wait`]; jobs after it are not waited
+    /// on.
     pub async fn wait_all(&mut self) -> Result<Vec<Job>, error::Error> {
         for job in &mut self.jobs {
             job.wait().await?;
@@ -166,6 +173,10 @@ impl JobManager {
     }
 
     /// Polls all managed jobs for completion.
+    ///
+    /// # Errors
+    ///
+    /// Returns the first error from [`Job::poll_done`].
     pub fn poll(&mut self) -> Result<Vec<JobResult>, error::Error> {
         let mut results = Vec::with_capacity(self.jobs.len());
 
@@ -330,6 +341,11 @@ impl Job {
     }
 
     /// Polls whether the job has completed.
+    ///
+    /// # Errors
+    ///
+    /// Currently never fails; task errors are reported through the inner
+    /// result.
     pub fn poll_done(
         &mut self,
     ) -> Result<Option<Result<ExecutionResult, error::Error>>, error::Error> {
@@ -358,6 +374,11 @@ impl Job {
     }
 
     /// Waits for the job to complete.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if waiting on any of the job's tasks fails; see
+    /// [`JobTask::wait`].
     pub async fn wait(&mut self) -> Result<ExecutionResult, error::Error> {
         let mut result = ExecutionResult::success();
 
@@ -380,11 +401,22 @@ impl Job {
     }
 
     /// Moves the job to execute in the background.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`error::ErrorKind::FailedToSendSignal`] if the job has no
+    /// process to continue, or a platform error if the continue signal
+    /// cannot be sent to a stopped job.
     pub fn move_to_background(&mut self) -> Result<(), error::Error> {
         self.continue_job()
     }
 
     /// Moves the job to execute in the foreground.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same errors as [`Job::move_to_background`]. Failing to hand
+    /// the terminal to the job is logged and does not fail the call.
     pub fn move_to_foreground(&mut self) -> Result<(), error::Error> {
         // The job gets the terminal before it's continued, so that it doesn't
         // find itself in the background and stop again on reading from
@@ -428,6 +460,14 @@ impl Job {
     }
 
     /// Checks whether the job can be signaled.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`error::ErrorKind::FailedToSendSignal`] if the job has no
+    /// process, or a platform error such as
+    /// [`error::ErrorKind::NoSuchProcess`] or
+    /// [`error::ErrorKind::PermissionDenied`] if the process or group cannot be
+    /// signaled.
     pub fn check_signalable(&self) -> Result<(), error::Error> {
         if let Some(pgid) = self.own_process_group() {
             sys::signal::check_process_group_signalable(pgid)
@@ -445,6 +485,12 @@ impl Job {
     /// # Arguments
     ///
     /// * `signal` - The signal to send to the job.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`error::ErrorKind::FailedToSendSignal`] if the job has no
+    /// process, or a platform error if sending the signal fails. A
+    /// subsequent failure to continue a stopped job is also returned.
     pub fn kill(&mut self, signal: traps::TrapSignal) -> Result<(), error::Error> {
         if let Some(pgid) = self.own_process_group() {
             sys::signal::kill_process_group(pgid, signal)?;

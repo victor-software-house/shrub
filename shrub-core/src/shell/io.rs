@@ -78,6 +78,10 @@ impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
     /// * `file_table` - The open file table to use for any file descriptor
     ///   references.
     /// * `err` - The error to display.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::error::ErrorKind::IoError`] if writing to `file` fails.
     pub fn display_error(
         &self,
         file: &mut impl std::io::Write,

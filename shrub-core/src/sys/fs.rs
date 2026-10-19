@@ -33,5 +33,13 @@ pub trait PathExt {
     fn exists_and_is_sticky_bit(&self) -> bool;
 
     /// Returns the device ID and inode number for the path.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::error::ErrorKind::IoError`] if the path's metadata
+    /// cannot be read, for example because it does not exist. Platforms that
+    /// cannot report device and inode numbers return
+    /// [`crate::error::ErrorKind::NotSupportedOnThisPlatform`] or placeholder
+    /// values.
     fn get_device_and_inode(&self) -> Result<(u64, u64), crate::error::Error>;
 }

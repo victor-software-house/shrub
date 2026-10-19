@@ -18,11 +18,21 @@ pub trait Stream: std::io::Read + std::io::Write + Send + Sync {
 
     /// Converts the stream into an `OwnedFd`. Returns an error if the operation
     /// is not supported or if it fails.
+    ///
+    /// # Errors
+    ///
+    /// Implementations return an error if the stream has no underlying
+    /// descriptor or duplicating it fails.
     #[cfg(unix)] // ast-grep-ignore: platform-cfg-outside-sys
     fn try_clone_to_owned(&self) -> Result<std::os::fd::OwnedFd, error::Error>;
 
     /// Borrows the stream as a `BorrowedFd`. Returns an error if the operation
     /// is not supported or if it fails.
+    ///
+    /// # Errors
+    ///
+    /// Implementations return an error if the stream has no underlying
+    /// descriptor.
     #[cfg(unix)] // ast-grep-ignore: platform-cfg-outside-sys
     fn try_borrow_as_fd(&self) -> Result<std::os::fd::BorrowedFd<'_>, error::Error>;
 }
@@ -98,6 +108,10 @@ impl<'de> serde::Deserialize<'de> for OpenFile {
 }
 
 /// Returns an open file that will discard all I/O.
+///
+/// # Errors
+///
+/// Returns an error if the platform null device cannot be opened.
 pub fn null() -> Result<OpenFile, error::Error> {
     let file = sys::fs::open_null_file()?;
     Ok(file.into())
@@ -447,6 +461,11 @@ impl OpenFiles {
     /// # Arguments
     ///
     /// * `file`: The open file to add.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`error::ErrorKind::TooManyOpenFiles`] if every descriptor up to
+    /// the maximum is already in use.
     pub fn add(&mut self, file: OpenFile) -> Result<ShellFd, error::Error> {
         // Start searching for free file descriptors after the standard ones.
         let mut fd = Self::FIRST_NON_STDIO_FD;

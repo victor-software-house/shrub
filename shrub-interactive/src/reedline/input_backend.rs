@@ -41,6 +41,16 @@ impl ReedlineInputBackend {
     ///
     /// * `options` - Options for creating the input backend.
     /// * `shell_ref` - Shell that the backend will be used with.
+    ///
+    /// # Errors
+    ///
+    /// Currently always returns `Ok`; the `Result` matches the constructors of
+    /// the other input backends.
+    ///
+    /// # Panics
+    ///
+    /// Panics when called outside a multi-threaded Tokio runtime, because it
+    /// blocks the current thread to lock the shell.
     pub fn new(
         options: &crate::UIOptions,
         shell_ref: &refs::ShellRef<impl shrub_core::ShellExtensions>,

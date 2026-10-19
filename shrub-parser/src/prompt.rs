@@ -155,6 +155,11 @@ peg::parser! {
 /// # Arguments
 ///
 /// * `s` - The prompt string to parse.
+///
+/// # Errors
+///
+/// Returns [`crate::WordParseError::Prompt`] if `s` is not a valid prompt
+/// string.
 pub fn parse(s: &str) -> Result<Vec<PromptPiece>, error::WordParseError> {
     let result = prompt_parser::prompt(s).map_err(|e| error::WordParseError::Prompt(e.into()))?;
     Ok(result)

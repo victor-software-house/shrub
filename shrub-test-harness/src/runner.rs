@@ -25,6 +25,19 @@ impl TestRunner {
     }
 
     /// Runs all tests and returns success/failure.
+    ///
+    /// Returns `Ok(true)` when no test case failed.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a test case file cannot be opened or parsed as
+    /// YAML, when a version constraint cannot be parsed, when a test case set
+    /// fails to run or its task fails to join, or when reporting results fails.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the test case directory forms an invalid glob pattern, when
+    /// a matched path cannot be read, or when called outside a Tokio runtime.
     pub async fn run(&self) -> Result<bool> {
         let mut success_count = 0;
         let mut skip_count = 0;

@@ -484,6 +484,10 @@ impl Error {
 /// # Arguments
 ///
 /// * `msg` - The message to include in the error
+///
+/// # Errors
+///
+/// Always returns [`ErrorKind::Unimplemented`].
 pub fn unimp<T>(msg: &'static str) -> Result<T, Error> {
     Err(ErrorKind::Unimplemented(msg).into())
 }
@@ -496,6 +500,10 @@ pub fn unimp<T>(msg: &'static str) -> Result<T, Error> {
 /// * `msg` - The message to include in the error
 /// * `project_issue_id` - The GitHub issue ID where the implementation is
 ///   tracked.
+///
+/// # Errors
+///
+/// Always returns [`ErrorKind::UnimplementedAndTracked`].
 pub fn unimp_with_issue<T>(msg: &'static str, project_issue_id: u32) -> Result<T, Error> {
     Err(ErrorKind::UnimplementedAndTracked(msg, project_issue_id).into())
 }

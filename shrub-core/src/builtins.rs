@@ -40,6 +40,12 @@ pub trait Command: clap::Parser {
     /// # Arguments
     ///
     /// * `args` - The arguments to the command.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`clap::Error`] if `args` do not parse as valid arguments for
+    /// the command, including unknown options, missing required values, and
+    /// requests for help or version text.
     fn new<I>(args: I) -> Result<Self, clap::Error>
     where
         I: IntoIterator<Item = String>,
@@ -83,6 +89,11 @@ pub trait Command: clap::Parser {
     /// # Arguments
     ///
     /// * `context` - The context in which the command is being executed.
+    ///
+    /// # Errors
+    ///
+    /// The returned future resolves to `Self::Error` when the command fails.
+    /// The conditions are specific to each built-in.
     // NOTE: we use desugared async here because we need a Send marker
     fn execute<SE: extensions::ShellExtensions>(
         &self,
@@ -97,6 +108,12 @@ pub trait Command: clap::Parser {
     /// * `name` - The name of the command.
     /// * `content_type` - The type of content to retrieve.
     /// * `options` - Additional options for content retrieval.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`error::ErrorKind::Unimplemented`] for
+    /// [`ContentType::ManPage`], since man page rendering is not yet
+    /// implemented.
     fn get_content(
         name: &str,
         content_type: ContentType,
@@ -348,6 +365,11 @@ where
 /// Similar to [`parse_known`] but with [`clap::Parser::try_parse_from`]
 /// This function is used to parse arguments in builtins such as
 /// `crate::echo::EchoCommand`
+///
+/// # Errors
+///
+/// Returns a [`clap::Error`] if the arguments before the first `--` do not
+/// parse as `T`.
 pub fn try_parse_known<T: clap::Parser>(
     args: impl IntoIterator<Item = String>,
 ) -> Result<(T, Option<impl Iterator<Item = String>>), clap::Error> {
@@ -369,6 +391,11 @@ pub fn try_parse_known<T: clap::Parser>(
 /// A simple command that can be registered as a built-in.
 pub trait SimpleCommand {
     /// Returns the content of the built-in command.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the requested content cannot be produced for the
+    /// built-in.
     fn get_content(
         name: &str,
         content_type: ContentType,
@@ -376,6 +403,11 @@ pub trait SimpleCommand {
     ) -> Result<String, error::Error>;
 
     /// Executes the built-in command.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the built-in fails; the conditions are specific to
+    /// each built-in.
     fn execute<SE: extensions::ShellExtensions, I: Iterator<Item = S>, S: AsRef<str>>(
         context: commands::ExecutionContext<'_, SE>,
         args: I,

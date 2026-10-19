@@ -66,6 +66,11 @@ pub struct KeyStroke {
 /// # Arguments
 ///
 /// * `input` - The input string to parse
+///
+/// # Errors
+///
+/// Returns [`crate::BindingParseError::Unknown`] if `input` is not a valid key
+/// sequence.
 pub fn parse_key_sequence(input: &str) -> Result<KeySequence, error::BindingParseError> {
     readline_binding::key_sequence(input)
         .map_err(|_err| error::BindingParseError::Unknown(input.to_owned()))
@@ -77,6 +82,11 @@ pub fn parse_key_sequence(input: &str) -> Result<KeySequence, error::BindingPars
 /// # Arguments
 ///
 /// * `input` - The input string to parse
+///
+/// # Errors
+///
+/// Returns [`crate::BindingParseError::Unknown`] if `input` is not a valid
+/// key-sequence-to-command binding.
 pub fn parse_key_sequence_shell_cmd_binding(
     input: &str,
 ) -> Result<KeySequenceShellCommandBinding, error::BindingParseError> {
@@ -90,6 +100,11 @@ pub fn parse_key_sequence_shell_cmd_binding(
 /// # Arguments
 ///
 /// * `input` - The input string to parse
+///
+/// # Errors
+///
+/// Returns [`crate::BindingParseError::Unknown`] if `input` is not a valid
+/// key-sequence-to-readline-target binding.
 pub fn parse_key_sequence_readline_binding(
     input: &str,
 ) -> Result<KeySequenceReadlineBinding, error::BindingParseError> {
@@ -102,6 +117,11 @@ pub fn parse_key_sequence_readline_binding(
 /// # Arguments
 ///
 /// * `seq` - The key sequence to convert
+///
+/// # Errors
+///
+/// Returns [`crate::BindingParseError::MissingKeyCode`] if the sequence ends
+/// with a control or meta modifier that no key code follows.
 pub fn key_sequence_to_strokes(
     seq: &KeySequence,
 ) -> Result<Vec<KeyStroke>, error::BindingParseError> {

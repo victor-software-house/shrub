@@ -21,6 +21,11 @@ pub enum EscapeExpansionMode {
 ///
 /// * `s` - The string to expand.
 /// * `mode` - The mode to use for expansion.
+///
+/// # Errors
+///
+/// Returns [`error::ErrorKind::IntParseError`] if an octal or hexadecimal
+/// escape digit sequence cannot be parsed into a value of its width.
 #[expect(clippy::too_many_lines)]
 pub fn expand_backslash_escapes(
     s: &str,

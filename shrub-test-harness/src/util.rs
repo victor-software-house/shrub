@@ -17,6 +17,16 @@ pub fn get_host_os_id() -> Option<String> {
 }
 
 /// Reads and processes the expectrl log output.
+///
+/// # Errors
+///
+/// Returns an error when the log is not valid UTF-8.
+///
+/// # Panics
+///
+/// Panics when a line starting with `read:` is not of the form
+/// `read: "..."`, that is, lacks the opening `read: "` prefix or the closing
+/// quote.
 #[cfg(pty)]
 pub fn read_expectrl_log(log: Vec<u8>) -> Result<String> {
     let output_str = String::from_utf8(log)?;
@@ -35,6 +45,11 @@ pub fn read_expectrl_log(log: Vec<u8>) -> Result<String> {
 }
 
 /// Makes expectrl output human-readable by unescaping and stripping ANSI codes.
+///
+/// # Panics
+///
+/// Panics when `output` contains an invalid escape sequence, which expectrl's
+/// logging does not produce.
 pub fn make_expectrl_output_readable<S: AsRef<str>>(output: S) -> String {
     // Unescape the escaping done by expectrl's logging mechanism.
     let unescaped = output.as_ref().to_unescaped().unwrap().to_string();
@@ -44,6 +59,10 @@ pub fn make_expectrl_output_readable<S: AsRef<str>>(output: S) -> String {
 }
 
 /// Writes a diff between two strings to a writer.
+///
+/// # Errors
+///
+/// Returns an error when writing to `writer` fails.
 pub fn write_diff(
     writer: &mut impl std::io::Write,
     indent: usize,
@@ -74,6 +93,11 @@ pub fn write_diff(
 /// This is needed because the test harness clears env vars (including `PATH`)
 /// before spawning child processes, so a launcher binary referenced by name
 /// (e.g., `wasmtime`) would fail to resolve at exec time.
+///
+/// # Errors
+///
+/// Returns an error when the first token is a relative name that matches no
+/// file in any `PATH` directory.
 pub fn resolve_launcher_path(tokens: &mut [String]) -> Result<()> {
     let Some(first) = tokens.first() else {
         return Ok(());
@@ -92,6 +116,11 @@ pub fn resolve_launcher_path(tokens: &mut [String]) -> Result<()> {
 }
 
 /// Gets the bash version string from the given bash path.
+///
+/// # Errors
+///
+/// Returns an error when the bash binary cannot be run, or when its output is
+/// not valid UTF-8.
 pub fn get_bash_version_str(bash_path: &std::path::Path) -> Result<String> {
     use anyhow::Context;
 

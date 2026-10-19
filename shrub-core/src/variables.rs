@@ -107,6 +107,11 @@ impl ShellVariable {
     }
 
     /// Marks the variable as not read-only.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`error::ErrorKind::ReadonlyVariable`] if the variable is
+    /// currently read-only.
     pub fn unset_readonly(&mut self) -> Result<&mut Self, error::Error> {
         if self.readonly {
             return Err(error::ErrorKind::ReadonlyVariable.into());
@@ -191,6 +196,11 @@ impl ShellVariable {
     }
 
     /// Converts the variable to an indexed array.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`error::ErrorKind::ConvertingAssociativeArrayToIndexedArray`]
+    /// if the variable already holds an associative array.
     pub fn convert_to_indexed_array(&mut self) -> Result<(), error::Error> {
         match self.value() {
             ShellValue::IndexedArray(_) => Ok(()),
@@ -210,6 +220,11 @@ impl ShellVariable {
     }
 
     /// Converts the variable to an associative array.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`error::ErrorKind::ConvertingIndexedArrayToAssociativeArray`]
+    /// if the variable already holds an indexed array.
     pub fn convert_to_associative_array(&mut self) -> Result<(), error::Error> {
         match self.value() {
             ShellValue::AssociativeArray(_) => Ok(()),
@@ -236,6 +251,14 @@ impl ShellVariable {
     /// * `value` - The value to assign to the variable.
     /// * `append` - Whether or not to append the value to the preexisting
     ///   value.
+    ///
+    /// # Errors
+    ///
+    /// * [`error::ErrorKind::ReadonlyVariable`] if the variable is read-only.
+    /// * [`error::ErrorKind::ArrayIndexOutOfRange`] if an element assignment
+    ///   uses a negative index that falls before the start of the array.
+    /// * [`error::ErrorKind::Unimplemented`] if an associative array literal
+    ///   has misaligned keys and values.
     #[expect(clippy::too_many_lines)]
     pub fn assign(&mut self, value: ShellValueLiteral, append: bool) -> Result<(), error::Error> {
         if self.is_readonly() {
@@ -380,6 +403,14 @@ impl ShellVariable {
     /// * `value` - The value to assign to the variable at the given index.
     /// * `append` - Whether or not to append the value to the preexisting value
     ///   stored at the given index.
+    ///
+    /// # Errors
+    ///
+    /// * [`error::ErrorKind::ArrayIndexOutOfRange`] if the variable is an
+    ///   indexed array and `array_index` is negative and reaches before the
+    ///   first element.
+    /// * [`error::ErrorKind::Unimplemented`] if the variable holds a dynamic
+    ///   value.
     pub fn assign_at_index(
         &mut self,
         array_index: String,
@@ -505,6 +536,14 @@ impl ShellVariable {
     /// # Arguments
     ///
     /// * `index` - The index at which to unset the value.
+    ///
+    /// # Errors
+    ///
+    /// * [`error::ErrorKind::NotArray`] if the variable is a string, or is
+    ///   unset without an array type.
+    /// * [`error::ErrorKind::ArrayIndexOutOfRange`] if the variable is an
+    ///   indexed array and `index` is negative and reaches before the first
+    ///   element.
     pub fn unset_index(&mut self, index: &str) -> Result<bool, error::Error> {
         match &mut self.value {
             ShellValue::Unset(ty) => match ty {
@@ -820,6 +859,11 @@ impl ShellValue {
     /// # Arguments
     ///
     /// * `literals` - The literals to construct the associative array from.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`error::ErrorKind::Unimplemented`] if the literal has
+    /// misaligned keys and values.
     pub fn associative_array_from_literals(literals: ArrayLiteral) -> Result<Self, error::Error> {
         let mut values = BTreeMap::new();
         Self::update_associative_array_from_literals(&mut values, literals)?;
@@ -858,6 +902,11 @@ impl ShellValue {
     /// # Arguments
     ///
     /// * `style` - The style to use for formatting the value.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`error::ErrorKind::FormattingError`] if writing the formatted
+    /// text fails, or any error from resolving a dynamic value.
     pub fn format(
         &self,
         style: FormatStyle,
@@ -924,6 +973,12 @@ impl ShellValue {
     /// # Arguments
     ///
     /// * `index` - The index at which to retrieve the value.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`error::ErrorKind::ArrayIndexOutOfRange`] if the value is an
+    /// indexed array and `index` is negative and reaches before the first
+    /// element.
     pub fn get_at(
         &self,
         index: &str,
@@ -1018,6 +1073,11 @@ impl ShellValue {
     ///
     /// * `index` - The index at which to retrieve the value, if indexing is to
     ///   be performed.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`error::ErrorKind::FormattingError`] if formatting an array
+    /// value fails.
     pub fn to_assignable_str(
         &self,
         index: Option<&str>,
