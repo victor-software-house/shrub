@@ -5,12 +5,13 @@ prepare:
   stage: [Cargo.lock]
 
 # Every crate releases at the version in [workspace.package]; the stock cargo
-# driver reads it there. `cargo publish --workspace` uploads every publishable
-# member in dependency order.
+# driver reads it there. Cargo.toml is a virtual workspace manifest, so the
+# stock cargo publisher uploads each publishable member in dependency order,
+# one `cargo publish --package` at a time, and skips a member the crates.io
+# index already lists, so a rerun after a partial release resumes.
 packages:
   - name: shrub
     path: Cargo.toml
-    publish: [cargo, publish, --locked, --workspace]
 
 # The members depend on each other through exact requirements in
 # [workspace.dependencies], one per publishable internal crate.
