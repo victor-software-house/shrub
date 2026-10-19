@@ -30,10 +30,10 @@ mise pins every tool, and the tasks are the only supported commands.
 | `mise run check:repo` | TOML format, Markdown, spelling, workflow lint, and `check:local` |
 | `mise run check:local` | The sys-boundary rule (ast-grep) and the workflow audit (zizmor) |
 
-`verify` comes from ctl-core's shared Rust tasks; `check:features` and `check:local` are in `mise-tasks/`.
+`verify` comes from ctl-core's shared Rust tasks; `check:features` is in `mise-tasks/check.toml`, and `check:local` is `mise-tasks/check/local.sh`, which runs `check:sys-boundary` and `check:workflows`.
 `test` overrides ctl-core's in `mise.toml`, because the compatibility suite and shrub-parser's stub `winnow-parser` feature need the default features.
 CI runs `verify` on x86_64 Linux, and `.github/workflows/test.yml` runs `test` on macOS and arm64 Linux.
-lefthook runs `format` before a commit and `verify` before a push.
+lefthook runs `format` before a commit, and lints the pushed commits and scans for credentials before a push; the pull request's CI runs `verify`.
 `cargo xtask` stays for the test runner and generated docs; see [docs/how-to/run-tests.md](docs/how-to/run-tests.md).
 
 ## Tests
