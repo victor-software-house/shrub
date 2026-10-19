@@ -70,9 +70,9 @@
 //! |---|---|
 //! | `arbitrary` | Implements `arbitrary::Arbitrary` for the syntax tree and tokens, for fuzzing. |
 //! | `debug-tracing` | Turns on the `peg` crate's rule tracing. |
-//! | `diagnostics` | Adds [`PrettyError`] and `ParseError::to_pretty_error`, which render a parse error with `miette`. |
+//! | `diagnostics` | Adds `PrettyError` and `ParseError::to_pretty_error`, which render a parse error with `miette`. |
 //! | `serde` | Implements `Serialize` and `Deserialize` for the syntax tree and tokens. |
-//! | `winnow-parser` | Adds the `winnow`-based parser, selected with [`ParserImpl::Winnow`]. |
+//! | `winnow-parser` | Adds the `winnow`-based parser, selected with `ParserImpl::Winnow`. |
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 // TODO(unwrap): remove or scope this allow attribute
