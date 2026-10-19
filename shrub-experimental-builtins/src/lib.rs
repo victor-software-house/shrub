@@ -19,8 +19,7 @@
 //! use shrub_experimental_builtins::ShellBuilderExt as _;
 //!
 //! # use shrub_core::Error;
-//! # #[tokio::main(flavor = "current_thread")]
-//! # async fn main() -> Result<(), Error> {
+//! # async fn run() -> Result<(), Error> {
 //! let mut shell = Shell::builder()
 //!     .experimental_builtins()
 //!     .profile(ProfileLoadBehavior::Skip)
@@ -34,6 +33,7 @@
 //!     .await?;
 //! # Ok(())
 //! # }
+//! # fn main() {}
 //! ```
 //!
 //! ## Registering without the builder

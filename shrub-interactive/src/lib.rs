@@ -21,8 +21,7 @@
 //! };
 //! use tokio::sync::Mutex;
 //!
-//! # #[tokio::main(flavor = "current_thread")]
-//! # async fn main() -> Result<(), ShellError> {
+//! # async fn run() -> Result<(), ShellError> {
 //! let shell = Shell::builder().interactive(true).build().await?;
 //! let shell: ShellRef = Arc::new(Mutex::new(shell));
 //!
@@ -32,6 +31,7 @@
 //!     .await?;
 //! # Ok(())
 //! # }
+//! # fn main() {}
 //! ```
 //!
 //! ## Input backends
