@@ -39,13 +39,13 @@
 //! An [`InputBackend`] turns terminal input into [`ReadResult`] values. The
 //! crate provides three:
 //!
-//! - [`MinimalInputBackend`] reads whole lines from standard input and draws
-//!   only the prompt. It works everywhere, including when standard input is not
-//!   a terminal.
-//! - [`VtInputBackend`] edits the line with completion and history, using
-//!   nothing from the terminal but bytes and escape sequences. A host that
-//!   supplies its own [`Terminal`](vt::Terminal) can use it on any target.
-//! - [`ReedlineInputBackend`] offers the richest editing, built on the [reedline](https://docs.rs/reedline)
+//! - `MinimalInputBackend` reads whole lines from standard input and draws only
+//!   the prompt. It works everywhere, including when standard input is not a
+//!   terminal.
+//! - `VtInputBackend` edits the line with completion and history, using nothing
+//!   from the terminal but bytes and escape sequences. A host that supplies its
+//!   own `Terminal` can use it on any target.
+//! - `ReedlineInputBackend` offers the richest editing, built on the [reedline](https://docs.rs/reedline)
 //!   library. It exists on Unix and Windows.
 //!
 //! Implement [`InputBackend`] to add another.
@@ -67,12 +67,12 @@
 //!
 //! | Feature | Effect |
 //! |---|---|
-//! | `minimal` | Compiles [`MinimalInputBackend`], which also reads input when standard input is not a terminal. |
-//! | `vt` | Compiles the [`vt`] module and [`VtInputBackend`]; also enables `completion` and `minimal`. |
+//! | `minimal` | Compiles `MinimalInputBackend`, which also reads input when standard input is not a terminal. |
+//! | `vt` | Compiles the `vt` module and `VtInputBackend`; also enables `completion` and `minimal`. |
 //! | `basic` | Enables `vt`. |
-//! | `reedline` | Compiles [`ReedlineInputBackend`] on Unix and Windows; also enables `completion` and `highlighting`. Elsewhere it enables nothing. |
+//! | `reedline` | Compiles `ReedlineInputBackend` on Unix and Windows; also enables `completion` and `highlighting`. Elsewhere it enables nothing. |
 //! | `completion` | Compiles completion support. |
-//! | `highlighting` | Compiles the [`highlighting`] module. |
+//! | `highlighting` | Compiles the `highlighting` module. |
 //!
 //! No feature is on by default.
 
