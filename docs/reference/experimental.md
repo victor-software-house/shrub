@@ -8,7 +8,7 @@ canonical index of what's currently experimental and how to opt in.
 Experimental features fall into two categories:
 
 1. **Build-time experiments** — additional functionality gated behind
-   Cargo feature flags. To get them, you build `shrub-shell` with the
+   Cargo feature flags. To get them, you build `shrub` with the
    relevant feature(s) enabled.
 2. **Run-time experiments** — features that ship in standard builds but
    are off by default and enabled through configuration.
@@ -20,16 +20,17 @@ Experimental features fall into two categories:
 
 ## Build-time experiments (Cargo features)
 
-These are flags on the `shrub-shell` crate. You can enable them
+These are flags on the `shrub-shell` crate, which the `shrub` crate passes
+through under the same names. You can enable them
 individually, or pull in the whole set with the umbrella `experimental`
 feature.
 
 ```bash
 # Enable everything experimental
-cargo install --locked shrub-shell --features experimental
+cargo install --locked shrub --features experimental
 
 # Or pick and choose
-cargo install --locked shrub-shell --features experimental-bundled-coreutils
+cargo install --locked shrub --features experimental-bundled-coreutils
 ```
 
 ### `experimental-bundled-coreutils`

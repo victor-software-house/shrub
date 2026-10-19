@@ -219,4 +219,4 @@ Found a script that works in `bash` but not in `shrub`?
 
 - [`bash` Reference Manual](https://www.gnu.org/software/bash/manual/)
 - [POSIX Shell Specification](https://pubs.opengroup.org/onlinepubs/9699919799/)
-- [`shrub` Test Cases](https://github.com/victor-software-house/shrub/tree/main/shrub-shell/tests/cases)
+- [`shrub` Test Cases](https://github.com/victor-software-house/shrub/tree/main/shrub/tests/cases)
