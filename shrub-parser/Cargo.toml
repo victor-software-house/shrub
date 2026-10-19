@@ -65,3 +65,7 @@ required-features = ["serde"]
 # Used only on wasm32, to enable the JavaScript backends; no code names them.
 [package.metadata.cargo-machete]
 ignored = ["getrandom", "uuid"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cap-lints", "warn"]
