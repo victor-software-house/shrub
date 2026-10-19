@@ -309,6 +309,16 @@ cases:
       (( -- y ))
       echo "y after -- y: $y"
 
+  - name: "Doubled sign before a non-variable operand"
+    stdin: |
+      echo "++0 => $((++0))"
+      echo "--5 => $((--5))"
+      echo "++-1 => $((++-1))"
+      echo "--(1) => $((--(1)))"
+      echo "1 - --2 => $((1 - --2))"
+      x=3
+      echo "--x => $((--x)), x is now $x"
+
   - name: "INT64_MIN and wrapping arithmetic"
     stdin: |
       # INT64_MIN via unary minus of the literal
