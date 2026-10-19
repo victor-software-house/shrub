@@ -3,16 +3,16 @@
 lockfile_version = 3
 
 [[tools."github:victor-software-house/verctl"]]
-version = "0.4.4"
+version = "0.4.9"
 backend = "github:victor-software-house/verctl"
-specifiers = ["0.4.4"]
+specifiers = ["0.4.9"]
 
 [tools."github:victor-software-house/verctl"."platforms.linux-x64"]
-checksum = "sha256:fb2172a1eb7d3ebb93fb9751da4449699b81df9e1325d05ca0a6f17144bde597"
-url = "https://github.com/victor-software-house/verctl/releases/download/v0.4.4/verctl_0.4.4_linux_x64.tar.gz"
-url_api = "https://api.github.com/repos/victor-software-house/verctl/releases/assets/636837446"
+checksum = "sha256:0560004b7d1208b09891fbce9c828e2fafc2b7b50371954d467605c0b86ba0ed"
+url = "https://github.com/victor-software-house/verctl/releases/download/v0.4.9/verctl_0.4.9_linux_x64.tar.gz"
+url_api = "https://api.github.com/repos/victor-software-house/verctl/releases/assets/655105783"
 
 [tools."github:victor-software-house/verctl"."platforms.macos-arm64"]
-checksum = "sha256:b94ad72f5feff759be26e27a8129c3c5687e8558628a9169c1dba4a15171d8a6"
-url = "https://github.com/victor-software-house/verctl/releases/download/v0.4.4/verctl_0.4.4_macos_arm64.tar.gz"
-url_api = "https://api.github.com/repos/victor-software-house/verctl/releases/assets/636851756"
+checksum = "sha256:7868594d33876ffc585e2e348bd664881aaee63178fe37c64fb87ce6bccddace"
+url = "https://github.com/victor-software-house/verctl/releases/download/v0.4.9/verctl_0.4.9_macos_arm64.tar.gz"
+url_api = "https://api.github.com/repos/victor-software-house/verctl/releases/assets/655108329"

@@ -58,6 +58,14 @@ experimental-parser = [
 ]
 schema = ["dep:schemars"]
 
+# `all-features` would also build the bundled coreutils (about 80 uutils
+# crates) and the unfinished `experimental-parser`, only to show two more
+# `CommandLineArgs` fields (`--load` and `--experimental-parser`). `schema`
+# adds the `JsonSchema` impls on the config types.
+[package.metadata.docs.rs]
+features = ["schema"]
+rustdoc-args = ["--cap-lints", "warn"]
+
 [lints]
 workspace = true
 

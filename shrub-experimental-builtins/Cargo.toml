@@ -17,6 +17,10 @@ bench = false
 default = ['builtin.save']
 'builtin.save' = ["shrub-core/serde", "dep:serde_json"]
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cap-lints", "warn"]
+
 [lints]
 workspace = true
 
