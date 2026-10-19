@@ -192,6 +192,18 @@ cases:
       echo {a..e..-99999999999999999999}
       echo "still running"
 
+  - name: "Expansion with curly braces: large increment that fits the sequence"
+    stdin: |
+      echo {-5..-9..9223372036854775807}
+      echo {5..9..9223372036854775807}
+      echo {-5..-9..-9223372036854775807}
+      echo {5..9..-9223372036854775807}
+      echo {a..e..4294967296}
+      echo {a..e..-4294967296}
+      echo {e..a..4294967296}
+      echo {e..a..-4294967296}
+      echo "still running"
+
   - name: "Expansion with curly braces: numeric bounds at the edge of the range"
     stdin: |
       echo {-9223372036854775808..-9223372036854775806}
