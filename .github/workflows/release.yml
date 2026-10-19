@@ -3,8 +3,9 @@ name: Release
 # verctl's reusable release workflow, on every push to main and on demand.
 # It plans every version commit not yet fully released and publishes each at
 # that commit, whatever main's HEAD is now, then opens or updates the Version
-# PR. A run stopped by the crates.io rate limit resumes on the next push or
-# dispatch, since each crate crates.io already lists is skipped.
+# PR with auto-merge, so it merges once its required checks pass. A run
+# stopped by the crates.io rate limit resumes on the next push or dispatch,
+# since each crate crates.io already lists is skipped.
 on:
   push:
     branches: [main]
@@ -17,10 +18,11 @@ jobs:
     permissions:
       contents: write # tags, Releases, and verctl/release/main without the App
       pull-requests: write # the Version PR without the App
-    uses: victor-software-house/verctl/.github/workflows/release.yml@fef4cc7e044ed9c3d6c72f2152a57dc83ddf8dc9 # v0.4.9
+    uses: victor-software-house/verctl/.github/workflows/release.yml@8cf3cc2b7e2a4715b6a049320351411b79cd06af # v0.5.3
     with:
       mise-version: 2026.10.10
       mise-env: ci,release
+      auto-merge: true
     # The App token opens the Version PR so that its CI starts; a PR opened
     # with GITHUB_TOKEN starts no workflow.
     secrets:
