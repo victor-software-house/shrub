@@ -13,15 +13,15 @@
 //! [`InteractiveShell`] until the user exits or input ends:
 //!
 //! ```no_run
+//! # // The example needs the `minimal` feature, which is off by default.
+//! # #[cfg(feature = "minimal")]
+//! # async fn run() -> Result<(), shrub_interactive::ShellError> {
 //! use std::sync::Arc;
 //!
 //! use shrub_core::Shell;
-//! use shrub_interactive::{
-//!     InteractiveOptions, InteractiveShell, MinimalInputBackend, ShellError, ShellRef,
-//! };
+//! use shrub_interactive::{InteractiveOptions, InteractiveShell, MinimalInputBackend, ShellRef};
 //! use tokio::sync::Mutex;
 //!
-//! # async fn run() -> Result<(), ShellError> {
 //! let shell = Shell::builder().interactive(true).build().await?;
 //! let shell: ShellRef = Arc::new(Mutex::new(shell));
 //!
