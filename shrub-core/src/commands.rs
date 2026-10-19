@@ -384,6 +384,11 @@ impl<'a, SE: extensions::ShellExtensions> SimpleCommand<'a, SE> {
     ///   example [`ErrorKind::FailedToExecuteCommand`] or
     ///   [`ErrorKind::WorkingDirMissing`] when an external command cannot be
     ///   spawned.
+    ///
+    /// # Panics
+    ///
+    /// Does not panic in practice: the `unwrap` runs only after the builtin
+    /// lookup was checked to be `Some`.
     pub async fn execute(mut self) -> Result<ExecutionSpawnResult, error::Error> {
         // First see if it's the name of a builtin.
         let builtin = self.shell.builtins().get(&self.command_name).cloned();
@@ -391,12 +396,13 @@ impl<'a, SE: extensions::ShellExtensions> SimpleCommand<'a, SE> {
         // If we're in POSIX mode and found a special builtin (that's not
         // disabled), then invoke it without considering functions.
         if self.shell.options().posix_mode
-            && let Some(special_builtin) = builtin
+            && builtin
                 .as_ref()
-                .filter(|r| !r.disabled && r.special_builtin)
-                .cloned()
+                .is_some_and(|r| !r.disabled && r.special_builtin)
         {
-            return self.execute_via_builtin(special_builtin).await;
+            #[allow(clippy::unwrap_used, reason = "we just checked that builtin is Some")]
+            let builtin = builtin.unwrap();
+            return self.execute_via_builtin(builtin).await;
         }
 
         // Assuming we weren't requested not to do so, check if it's the name of

@@ -91,6 +91,11 @@ impl JobManager {
     /// # Arguments
     ///
     /// * `job` - The job to add.
+    ///
+    /// # Panics
+    ///
+    /// Does not panic in practice: the job list is non-empty because the job
+    /// was pushed just before the final lookup.
     pub fn add_as_current(&mut self, mut job: Job) -> &Job {
         for j in &mut self.jobs {
             if matches!(j.annotation, JobAnnotation::Current) {
@@ -104,8 +109,8 @@ impl JobManager {
         job.annotation = JobAnnotation::Current;
         self.jobs.push(job);
 
-        // The job just pushed sits at index `id - 1`.
-        &self.jobs[id - 1]
+        #[allow(clippy::unwrap_used, reason = "we just pushed an element")]
+        self.jobs.last().unwrap()
     }
 
     /// Returns the current job, if there is one.
