@@ -20,7 +20,7 @@ locked = true
 rust = [
   # Pinned stable: build, lint, test.
   { version = "1.99.0", components = "clippy", mr_boxington = true },
-  # Formatting only, for rustfmt's unstable options.
+  # rustfmt's unstable options, and rustdoc as docs.rs builds it.
   { version = "nightly-2026-09-29", profile = "minimal", components = "rustfmt" },
 ]
 mr-boxington = "1.24.0"
@@ -40,18 +40,45 @@ zizmor = "1.30.1"
 # compatibility suite's terminal cases need on slow runners.
 "aqua:nextest-rs/nextest/cargo-nextest" = "0.9.148"
 
+# The shared Rust tasks read their toolchains from here and name none.
+[env]
+# format runs rustfmt on the nightly, for its unstable options.
+RUSTFMT_TOOLCHAIN = "+nightly-2026-09-29"
+# doc builds on the nightly, as docs.rs does.
+RUST_NIGHTLY = "nightly-2026-09-29"
+
+# The one gate, composed from the pieces this repository keeps. deny:advisories
+# and semver need the network, so they run as their own CI steps.
+[tasks.verify]
+description = "Every offline check this repository runs"
+depends = [
+  "check:toolchain",
+  "format",
+  "lint",
+  "check:features",
+  "test",
+  "test:doc",
+  "doc",
+  "deny",
+  "deps",
+  "check:versions",
+  "check:repo",
+]
+
 # mise-tasks/ holds this repository's task fragments and file tasks. An
 # includes list replaces the default task dirs, so mise-tasks comes first; add
 # pinned git:: catalogs after it.
 [task_config]
 includes = [
   "mise-tasks",
-  # The standard Rust tasks, verify included, shared from ctl-core. Bump the
-  # ref together with the rust pins above.
-  "git::https://github.com/victor-software-house/ctl-core.git//tasks/rust.toml?ref=v0.6.27",
-  # `mise run ver`, which the release workflow runs. Bump the ref together
-  # with the verctl pin in mise.release.toml and the workflow's pin.
+  # `mise run ver`, which the release workflow, check:versions, and semver
+  # run. Bump the ref together with the verctl pin in mise.release.toml and
+  # the workflow's pin.
   "git::https://github.com/victor-software-house/verctl.git//tasks/ver?ref=v0.5.3",
+  # The shared Rust tasks, at actions main, 2026-10-19.
+  "git::https://github.com/victor-software-house/actions.git//tasks/rust.toml?ref=066f0ddf09b4610db12d2ca08d985f9d0ee5e157",
+  # template:check, template:off, and template:on, at actions main, 2026-10-19.
+  "git::https://github.com/victor-software-house/actions.git//tasks/template.toml?ref=066f0ddf09b4610db12d2ca08d985f9d0ee5e157",
 ]
 
 # Replaces ctl-core's test, which runs cargo test with --all-features; a
