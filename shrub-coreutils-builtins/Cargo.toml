@@ -190,6 +190,7 @@ default = []
 # No item is gated by a `coreutils.*` feature, so `all-features` would compile
 # about 80 uutils crates only to render the same page.
 [package.metadata.docs.rs]
+features = []
 rustdoc-args = ["--cap-lints", "warn"]
 
 [lints]
