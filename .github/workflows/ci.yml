@@ -24,3 +24,5 @@ jobs:
       mise-version: 2026.10.10
       advisories: true
       semver: true
+      # The workspace's Verify takes 15 to 21 minutes on a cold cache.
+      timeout-minutes: 30
