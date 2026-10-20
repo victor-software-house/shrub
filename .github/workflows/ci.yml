@@ -21,6 +21,6 @@ jobs:
   verify:
     uses: victor-software-house/actions/.github/workflows/rust-ci.yml@066f0ddf09b4610db12d2ca08d985f9d0ee5e157 # main, 2026-10-19
     with:
-      mise-version: 2026.10.9
+      mise-version: 2026.10.10
       advisories: true
       semver: true

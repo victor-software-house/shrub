@@ -28,7 +28,7 @@ feature_sets: []
 github_owner: victor-software-house
 layout: workspace
 max_width: 100
-mise_version: 2026.10.9
+mise_version: 2026.10.10
 nightly_fmt: true
 pieces:
 - hooks

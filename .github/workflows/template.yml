@@ -28,6 +28,6 @@ jobs:
       contents: read
       issues: write
     with:
-      mise-version: 2026.10.9
+      mise-version: 2026.10.10
     # The shared workflow reads only the template-reader App secret.
     secrets: inherit # zizmor: ignore[secrets-inherit]
