@@ -1,9 +1,7 @@
 use std::borrow::Cow;
 use std::collections::VecDeque;
-use std::ffi::CString;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 use itertools::Itertools;
 use shrub_parser::ast::{self, CommandPrefixOrSuffixItem};
@@ -41,9 +39,6 @@ pub struct ExecutionParameters {
     /// Whether `errexit` (exit on error) behavior should be
     /// suppressed in this execution context. Defaults to `false`.
     pub suppress_errexit: bool,
-    /// What the shell does with each external process it spawns in this
-    /// execution context. Defaults to nothing.
-    pub spawn: SpawnOptions,
 }
 
 impl ExecutionParameters {
@@ -178,44 +173,6 @@ impl ExecutionParameters {
 
         all_fds.into_iter()
     }
-}
-
-/// What the shell does with each external process it spawns, for an embedder
-/// that confines or tracks the processes its commands start. The default does
-/// nothing.
-///
-/// The options reach every external command of the execution context they are
-/// set on, pipelines, background jobs and subshells included, since those
-/// contexts copy their parameters.
-#[derive(Clone, Default)]
-pub struct SpawnOptions {
-    /// A file each child writes `0` to after it is forked and before it runs
-    /// its program. For a cgroup v2's `cgroup.procs` file, the write moves
-    /// the child into that cgroup, so it cannot fork a process outside it;
-    /// only Linux has cgroups. When the child cannot open the file or write
-    /// to it, the command fails to execute and its program never runs.
-    pub cgroup_procs: Option<Arc<CString>>,
-    /// Called with each child once it has started, before the shell waits
-    /// for it. It runs on the shell's task, so it should return quickly.
-    pub on_spawn: Option<Arc<dyn Fn(SpawnedProcess) + Send + Sync>>,
-}
-
-impl std::fmt::Debug for SpawnOptions {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SpawnOptions")
-            .field("cgroup_procs", &self.cgroup_procs)
-            .field("on_spawn", &self.on_spawn.as_ref().map(|_| "Fn"))
-            .finish()
-    }
-}
-
-/// An external process the shell has started.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct SpawnedProcess {
-    /// The child's process ID.
-    pub pid: i32,
-    /// The process group the child was placed in, if the shell knows it.
-    pub process_group: Option<i32>,
 }
 
 #[derive(Clone, Debug, Default)]

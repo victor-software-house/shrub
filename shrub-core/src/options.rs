@@ -1,8 +1,49 @@
 //! Defines runtime options for the shell.
 
+use std::ffi::CString;
+use std::sync::Arc;
+
 use itertools::Itertools;
 
 use crate::{CreateOptions, extensions, namedoptions};
+
+/// What the shell does with each external process it spawns, for an embedder
+/// that confines or tracks the processes its commands start. The default does
+/// nothing.
+///
+/// The options are part of the shell's [`RuntimeOptions`], so they reach every
+/// external command the shell runs, pipelines, background jobs and subshells
+/// included, since those copy the shell they run in.
+#[derive(Clone, Default)]
+pub struct SpawnOptions {
+    /// A file each child writes `0` to after it is forked and before it runs
+    /// its program. For a cgroup v2's `cgroup.procs` file, the write moves
+    /// the child into that cgroup, so it cannot fork a process outside it;
+    /// only Linux has cgroups. When the child cannot open the file or write
+    /// to it, the command fails to execute and its program never runs.
+    pub cgroup_procs: Option<Arc<CString>>,
+    /// Called with each child once it has started, before the shell waits
+    /// for it. It runs on the shell's task, so it should return quickly.
+    pub on_spawn: Option<Arc<dyn Fn(SpawnedProcess) + Send + Sync>>,
+}
+
+impl std::fmt::Debug for SpawnOptions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SpawnOptions")
+            .field("cgroup_procs", &self.cgroup_procs)
+            .field("on_spawn", &self.on_spawn.as_ref().map(|_| "Fn"))
+            .finish()
+    }
+}
+
+/// An external process the shell has started.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SpawnedProcess {
+    /// The child's process ID.
+    pub pid: i32,
+    /// The process group the child was placed in, if the shell knows it.
+    pub process_group: Option<i32>,
+}
 
 /// Runtime changeable options for a shell instance.
 #[derive(Clone, Default)]
@@ -201,6 +242,10 @@ pub struct RuntimeOptions {
     /// Whether externally spawned commands are killed when their spawning shell
     /// is dropped.
     pub kill_external_commands_on_drop: bool,
+    /// What the shell does with each external process it spawns. Defaults to
+    /// nothing; an embedder sets it before each command it runs.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub spawn: SpawnOptions,
     /// Maximum function call depth.
     pub max_function_call_depth: Option<usize>,
 }

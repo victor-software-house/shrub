@@ -16,8 +16,8 @@ use crate::openfiles::{self, OpenFile, OpenFiles};
 use crate::results::ExecutionSpawnResult;
 use crate::{
     ErrorKind, ExecutionControlFlow, ExecutionExitCode, ExecutionParameters, ExecutionResult,
-    Shell, ShellFd, builtins, commands, env, error, escape, functions, pathsearch, processes, sys,
-    trace_categories, traps, variables,
+    Shell, ShellFd, builtins, commands, env, error, escape, functions, options, pathsearch,
+    processes, sys, trace_categories, traps, variables,
 };
 
 /// Encapsulates the result of waiting for a command to complete.
@@ -725,7 +725,7 @@ pub(crate) fn execute_external_command(
     }
 
     // Move the child into the embedder's cgroup before it runs anything.
-    if let Some(cgroup_procs) = &context.params.spawn.cgroup_procs {
+    if let Some(cgroup_procs) = &context.shell.options().spawn.cgroup_procs {
         cmd.join_cgroup(std::sync::Arc::clone(cgroup_procs))?;
     }
 
@@ -753,8 +753,8 @@ pub(crate) fn execute_external_command(
                 tracing::warn!("could not retrieve pid for child process");
             }
 
-            if let (Some(on_spawn), Some(pid)) = (&context.params.spawn.on_spawn, pid) {
-                on_spawn(interp::SpawnedProcess {
+            if let (Some(on_spawn), Some(pid)) = (&context.shell.options().spawn.on_spawn, pid) {
+                on_spawn(options::SpawnedProcess {
                     pid,
                     process_group: actual_pgid,
                 });
