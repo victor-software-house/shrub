@@ -779,6 +779,25 @@ pub(crate) fn execute_external_command(
     }
 }
 
+/// The error for a spawn or `exec` that failed with
+/// [`std::io::ErrorKind::NotFound`] because the cgroup that `options` name in
+/// [`options::SpawnOptions::cgroup_procs`] is gone, or `None` when it is not.
+///
+/// A child reports only an errno from before its program runs, so a cgroup
+/// file that is gone reads as a missing program; this tells them apart.
+pub fn missing_cgroup(options: &options::RuntimeOptions) -> Option<std::io::Error> {
+    let cgroup_procs = options.spawn.cgroup_procs.as_ref()?;
+    sys::commands::is_missing(cgroup_procs).then(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            std::format!(
+                "cannot join the cgroup: {} is missing",
+                cgroup_procs.to_string_lossy()
+            ),
+        )
+    })
+}
+
 /// The error for an external command whose spawn failed with `spawn_err`.
 fn spawn_error(
     context: ExecutionContext<'_, impl extensions::ShellExtensions>,
@@ -788,18 +807,7 @@ fn spawn_error(
         return error::ErrorKind::FailedToExecuteCommand(context.command_name, spawn_err).into();
     }
 
-    // The child reports only an errno, so a cgroup file that is gone looks
-    // like a missing program; tell them apart here.
-    if let Some(cgroup_procs) = &context.shell.options().spawn.cgroup_procs
-        && sys::commands::is_missing(cgroup_procs)
-    {
-        let missing = std::io::Error::new(
-            spawn_err.kind(),
-            std::format!(
-                "cannot join the cgroup: {} is missing",
-                cgroup_procs.to_string_lossy()
-            ),
-        );
+    if let Some(missing) = missing_cgroup(context.shell.options()) {
         error::ErrorKind::FailedToExecuteCommand(context.command_name, missing).into()
     } else if !context.shell.working_dir().exists() {
         error::ErrorKind::WorkingDirMissing(context.shell.working_dir().to_owned()).into()
