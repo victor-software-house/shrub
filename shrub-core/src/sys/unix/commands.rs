@@ -1,6 +1,8 @@
 //! Command execution utilities.
 
+use std::ffi::{CStr, CString};
 pub use std::os::unix::process::{CommandExt, ExitStatusExt};
+use std::sync::Arc;
 
 use command_fds::{CommandFdExt, FdMapping};
 
@@ -105,4 +107,51 @@ fn pre_exec_lead_session() -> Result<(), std::io::Error> {
     }
 
     Ok(())
+}
+
+/// Extension trait for moving a command into a cgroup before it runs.
+pub trait CommandCgroupExt {
+    /// Arranges for the command to write `0` to `cgroup_procs`, a cgroup v2's
+    /// `cgroup.procs` file, after it is forked and before it runs its program,
+    /// which moves it into that cgroup.
+    ///
+    /// # Errors
+    ///
+    /// None here: a child that cannot open or write the file fails its spawn.
+    fn join_cgroup(&mut self, cgroup_procs: Arc<CString>) -> Result<(), error::Error>;
+}
+
+impl CommandCgroupExt for std::process::Command {
+    fn join_cgroup(&mut self, cgroup_procs: Arc<CString>) -> Result<(), error::Error> {
+        // SAFETY:
+        // This arranges for a provided function to run in the context of
+        // the forked process before it exec's the target command. The
+        // function allocates nothing and only calls open, write and close,
+        // which are async-signal-safe.
+        unsafe {
+            self.pre_exec(move || pre_exec_join_cgroup(&cgroup_procs));
+        }
+        Ok(())
+    }
+}
+
+fn pre_exec_join_cgroup(cgroup_procs: &CStr) -> Result<(), std::io::Error> {
+    use nix::fcntl::{OFlag, open};
+    use nix::sys::stat::Mode;
+
+    let file = open(
+        cgroup_procs,
+        OFlag::O_WRONLY | OFlag::O_CLOEXEC,
+        Mode::empty(),
+    )?;
+    nix::unistd::write(&file, b"0")?;
+    Ok(())
+}
+
+/// Whether nothing exists at `path`, such as a `cgroup.procs` file whose
+/// cgroup was removed.
+pub(crate) fn is_missing(path: &CStr) -> bool {
+    use std::os::unix::ffi::OsStrExt as _;
+
+    !std::path::Path::new(std::ffi::OsStr::from_bytes(path.to_bytes())).exists()
 }

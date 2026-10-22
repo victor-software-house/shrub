@@ -76,10 +76,12 @@ impl builtins::Command for ExecCommand {
 
         let exec_error = cmd.exec();
 
-        if exec_error.kind() == std::io::ErrorKind::NotFound {
-            Ok(ExecutionExitCode::NotFound.into())
-        } else {
+        if exec_error.kind() != std::io::ErrorKind::NotFound {
             Err(ErrorKind::from(exec_error).into())
+        } else if let Some(missing) = commands::missing_cgroup(context.shell.options()) {
+            Err(ErrorKind::FailedToExecuteCommand(self.args[0].clone(), missing).into())
+        } else {
+            Ok(ExecutionExitCode::NotFound.into())
         }
     }
 }

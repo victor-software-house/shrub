@@ -1,6 +1,7 @@
 //! Command execution utilities.
 
-use std::ffi::OsStr;
+use std::ffi::{CString, OsStr};
+use std::sync::Arc;
 
 use crate::{ShellFd, error, openfiles};
 
@@ -98,4 +99,26 @@ impl CommandFgControlExt for std::process::Command {
     fn lead_session(&mut self) {
         // NOTE: This is a no-op.
     }
+}
+
+/// Extension trait for moving a command into a cgroup before it runs.
+pub trait CommandCgroupExt {
+    /// Fails: only Linux has cgroups, so a command cannot join one here.
+    ///
+    /// # Errors
+    ///
+    /// Always, so that no command runs outside the cgroup it was meant for.
+    fn join_cgroup(&mut self, cgroup_procs: Arc<CString>) -> Result<(), error::Error>;
+}
+
+impl CommandCgroupExt for std::process::Command {
+    fn join_cgroup(&mut self, _cgroup_procs: Arc<CString>) -> Result<(), error::Error> {
+        Err(error::ErrorKind::NotSupportedOnThisPlatform("joining a cgroup").into())
+    }
+}
+
+/// Whether nothing exists at `path`. No command joins a cgroup here, so a
+/// spawn never fails for a missing `cgroup.procs` file.
+pub(crate) const fn is_missing(_path: &std::ffi::CStr) -> bool {
+    false
 }

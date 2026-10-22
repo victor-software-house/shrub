@@ -8,7 +8,7 @@ use std::process::Stdio;
 
 use itertools::Itertools;
 use shrub_parser::ast;
-use sys::commands::{CommandExt, CommandFdInjectionExt, CommandFgControlExt};
+use sys::commands::{CommandCgroupExt, CommandExt, CommandFdInjectionExt, CommandFgControlExt};
 
 use crate::extensions::{self, ShellExtensions};
 use crate::interp::{self, Execute, ProcessGroupPolicy};
@@ -16,8 +16,8 @@ use crate::openfiles::{self, OpenFile, OpenFiles};
 use crate::results::ExecutionSpawnResult;
 use crate::{
     ErrorKind, ExecutionControlFlow, ExecutionExitCode, ExecutionParameters, ExecutionResult,
-    Shell, ShellFd, builtins, commands, env, error, escape, functions, pathsearch, processes, sys,
-    trace_categories, traps, variables,
+    Shell, ShellFd, builtins, commands, env, error, escape, functions, options, pathsearch,
+    processes, sys, trace_categories, traps, variables,
 };
 
 /// Encapsulates the result of waiting for a command to complete.
@@ -180,7 +180,10 @@ impl<SE: extensions::ShellExtensions> std::ops::DerefMut for ShellForCommand<'_,
 /// Returns [`error::ErrorKind::IoError`] if a redirected file descriptor cannot
 /// be duplicated into a `Stdio` for the child (for example under descriptor
 /// exhaustion), or an error if injecting the shell's other open file
-/// descriptors into the child fails.
+/// descriptors into the child fails, or, where the shell's
+/// [`SpawnOptions`](crate::options::SpawnOptions) name a `cgroup_procs` file,
+/// [`error::ErrorKind::NotSupportedOnThisPlatform`] on a platform that cannot
+/// join a cgroup.
 #[allow(unused_variables, reason = "argv0 is only used on unix platforms")]
 pub fn compose_std_command<S: AsRef<OsStr>, SE: extensions::ShellExtensions>(
     context: &ExecutionContext<'_, SE>,
@@ -261,6 +264,13 @@ pub fn compose_std_command<S: AsRef<OsStr>, SE: extensions::ShellExtensions>(
         *fd != OpenFiles::STDIN_FD && *fd != OpenFiles::STDOUT_FD && *fd != OpenFiles::STDERR_FD
     });
     cmd.inject_fds(other_files)?;
+
+    // Move the child into the embedder's cgroup before it runs anything. It
+    // is set here, where every spawn path and `exec` compose their command,
+    // so no program the shell starts runs outside the cgroup.
+    if let Some(cgroup_procs) = &context.shell.options().spawn.cgroup_procs {
+        cmd.join_cgroup(std::sync::Arc::clone(cgroup_procs))?;
+    }
 
     Ok(cmd)
 }
@@ -748,6 +758,13 @@ pub(crate) fn execute_external_command(
                 tracing::warn!("could not retrieve pid for child process");
             }
 
+            if let (Some(on_spawn), Some(pid)) = (&context.shell.options().spawn.on_spawn, pid) {
+                on_spawn(options::SpawnedProcess {
+                    pid,
+                    process_group: actual_pgid,
+                });
+            }
+
             Ok(ExecutionSpawnResult::StartedProcess(
                 processes::ChildProcess::new(child, pid, actual_pgid),
             ))
@@ -757,22 +774,45 @@ pub(crate) fn execute_external_command(
                 sys::terminal::move_self_to_foreground()?;
             }
 
-            if spawn_err.kind() == std::io::ErrorKind::NotFound {
-                if !context.shell.working_dir().exists() {
-                    Err(
-                        error::ErrorKind::WorkingDirMissing(context.shell.working_dir().to_owned())
-                            .into(),
-                    )
-                } else {
-                    Err(error::ErrorKind::CommandNotFound(context.command_name).into())
-                }
-            } else {
-                Err(
-                    error::ErrorKind::FailedToExecuteCommand(context.command_name, spawn_err)
-                        .into(),
-                )
-            }
+            Err(spawn_error(context, spawn_err))
         }
+    }
+}
+
+/// The error for a spawn or `exec` that failed with
+/// [`std::io::ErrorKind::NotFound`] because the cgroup that `options` name in
+/// [`options::SpawnOptions::cgroup_procs`] is gone, or `None` when it is not.
+///
+/// A child reports only an errno from before its program runs, so a cgroup
+/// file that is gone reads as a missing program; this tells them apart.
+pub fn missing_cgroup(options: &options::RuntimeOptions) -> Option<std::io::Error> {
+    let cgroup_procs = options.spawn.cgroup_procs.as_ref()?;
+    sys::commands::is_missing(cgroup_procs).then(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            std::format!(
+                "cannot join the cgroup: {} is missing",
+                cgroup_procs.to_string_lossy()
+            ),
+        )
+    })
+}
+
+/// The error for an external command whose spawn failed with `spawn_err`.
+fn spawn_error(
+    context: ExecutionContext<'_, impl extensions::ShellExtensions>,
+    spawn_err: std::io::Error,
+) -> error::Error {
+    if spawn_err.kind() != std::io::ErrorKind::NotFound {
+        return error::ErrorKind::FailedToExecuteCommand(context.command_name, spawn_err).into();
+    }
+
+    if let Some(missing) = missing_cgroup(context.shell.options()) {
+        error::ErrorKind::FailedToExecuteCommand(context.command_name, missing).into()
+    } else if !context.shell.working_dir().exists() {
+        error::ErrorKind::WorkingDirMissing(context.shell.working_dir().to_owned()).into()
+    } else {
+        error::ErrorKind::CommandNotFound(context.command_name).into()
     }
 }
 
