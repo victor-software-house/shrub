@@ -77,10 +77,20 @@ declare -r R=fixed
 declare -n REF=A
 declare -l LOW=MiXeD
 declare -u UP=MiXeD
-declare -A MAP=([one]=1 ['two words']='a "b" $c' ['[x]=y']=z)
+declare -A MAP=([one]=1 ['two words']='a "b" $c' ['x=y; z']=z)
 ARR=([0]=x [5]='y z')
 declare -a EMPTY
 export LATER
+count() {
+    local item
+    for item in "$@"; do
+        if [ "$item" = skip ]; then
+            continue
+        fi
+        echo "<$item>"
+    done
+}
+export -f count
 greet() {
     cat <<EOF
 hello $1
@@ -111,7 +121,7 @@ dirs -l -p
 pwd
 echo $# $*
 enable -n
-greet world
+count a skip 'b c'
 ";
 
 #[tokio::test]
@@ -122,13 +132,31 @@ async fn a_restored_shell_prints_the_same_state() -> Result<()> {
     assert_eq!(run(&mut shell, SETUP).await?, 1);
 
     let (mut fresh, snapshot) = restored(&shell, dir.path()).await?;
-    assert_eq!(fresh.snapshot(&SnapshotOptions::default())?, snapshot);
+    // shrub prints a here-document's body right after its operator, so the
+    // source of a function holding one does not parse back; the snapshot
+    // names it instead of keeping it.
+    assert_eq!(
+        snapshot.not_kept,
+        vec![NotKept {
+            kind: NotKeptKind::Function,
+            name: "greet".to_owned(),
+        }]
+    );
+    assert!(snapshot.functions.contains_key("count"));
+    assert_eq!(
+        fresh.snapshot(&SnapshotOptions::default())?,
+        ShellSnapshot {
+            not_kept: vec![],
+            ..snapshot
+        }
+    );
 
+    assert_eq!(run(&mut shell, "unset -f greet").await?, 0);
     let before = output(&mut shell, PROBE).await?;
     let after = output(&mut fresh, PROBE).await?;
     assert_eq!(after, before);
     assert!(before.starts_with("status 1\n"), "{before}");
-    assert!(before.contains("hello world\nafter heredoc"), "{before}");
+    assert!(before.ends_with("<a>\n<b c>\n"), "{before}");
     Ok(())
 }
 

@@ -18,9 +18,11 @@
 //!
 //! What a snapshot cannot carry is listed in [`ShellSnapshot::not_kept`]:
 //! background jobs, open file descriptors above 2, and functions whose source
-//! does not parse back to the same definition. A fresh shell rebuilds the
-//! command hash table, completion specifications and history itself, and
-//! `OLDPWD`, `RANDOM`'s seed and `SECONDS`' offset are not carried.
+//! does not parse back to the same definition, such as one holding a
+//! here-document, whose body shrub prints right after its operator. A fresh
+//! shell rebuilds the command hash table, completion specifications and
+//! history itself, and `OLDPWD`, `RANDOM`'s seed and `SECONDS`' offset are not
+//! carried.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
