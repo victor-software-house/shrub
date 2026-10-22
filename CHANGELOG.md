@@ -1,5 +1,12 @@
 # Changelog
 
+## shrub 0.1.0
+
+- `RuntimeOptions` gains `spawn: SpawnOptions`, which an embedder uses to see each external process the shell starts (`on_spawn`, called with its pid and process group) and to move each one into a cgroup v2 before its program runs (`cgroup_procs`, a `cgroup.procs` path the child writes `0` to).
+A child that cannot write that file fails to execute, so no command runs outside its cgroup; on a platform without cgroups, setting the path fails every external command.
+An external command or `exec` whose cgroup file is gone fails with an error that names the file, not as a missing program; `commands::missing_cgroup` makes that check.
+The default does neither, so existing callers behave as before ([#33](https://github.com/victor-software-house/shrub/pull/33)).
+
 ## shrub 0.0.4
 
 - The shared verify runs verctl's version guard: ctl-core's Rust tasks at 0.6.27 and verctl at 0.5.3, so a manifest version changes only on the Version PR ([#26](https://github.com/victor-software-house/shrub/pull/26)).
