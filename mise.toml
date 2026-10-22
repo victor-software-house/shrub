@@ -76,10 +76,10 @@ includes = [
   # run. Bump the ref together with the verctl pin in mise.release.toml and
   # the workflow's pin.
   "git::https://github.com/victor-software-house/verctl.git//tasks/ver?ref=v0.5.3",
-  # The shared Rust tasks, at actions main, 2026-10-21.
-  "git::https://github.com/victor-software-house/actions.git//tasks/rust.toml?ref=a04de3586cc377e1c7d98972f10ae7e8fb4c0631",
-  # template:check, template:off, and template:on, at actions main, 2026-10-21.
-  "git::https://github.com/victor-software-house/actions.git//tasks/template.toml?ref=a04de3586cc377e1c7d98972f10ae7e8fb4c0631",
+  # The shared Rust tasks, at actions main, 2026-10-22.
+  "git::https://github.com/victor-software-house/actions.git//tasks/rust.toml?ref=bd1cd8fb3d311a73d2063fc674205116f3042bc9",
+  # template:check, template:off, and template:on, at actions main, 2026-10-22.
+  "git::https://github.com/victor-software-house/actions.git//tasks/template.toml?ref=bd1cd8fb3d311a73d2063fc674205116f3042bc9",
 ]
 
 # Replaces ctl-core's test, which runs cargo test with --all-features; a
