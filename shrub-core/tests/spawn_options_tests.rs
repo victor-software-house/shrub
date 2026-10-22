@@ -138,10 +138,18 @@ async fn a_join_file_that_cannot_be_opened_fails_the_command_and_runs_nothing() 
     let script = format!("/usr/bin/touch {}", marker.display());
     let result = run(&mut shell, &script).await;
 
-    assert!(
-        result.is_err() || result.is_ok_and(|result| !result.is_success()),
-        "the command succeeded without its join file"
-    );
+    // A missing join file must not read as a missing program.
+    if let Ok(result) = result {
+        assert!(
+            !result.is_success(),
+            "the command succeeded without its join file"
+        );
+        assert_ne!(
+            u8::from(result.exit_code),
+            127,
+            "reported as command not found"
+        );
+    }
     assert!(!marker.exists(), "the program ran outside its cgroup");
 
     Ok(())

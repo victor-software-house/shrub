@@ -147,3 +147,11 @@ fn pre_exec_join_cgroup(cgroup_procs: &CStr) -> Result<(), std::io::Error> {
     nix::unistd::write(&file, b"0")?;
     Ok(())
 }
+
+/// Whether nothing exists at `path`, such as a `cgroup.procs` file whose
+/// cgroup was removed.
+pub(crate) fn is_missing(path: &CStr) -> bool {
+    use std::os::unix::ffi::OsStrExt as _;
+
+    !std::path::Path::new(std::ffi::OsStr::from_bytes(path.to_bytes())).exists()
+}

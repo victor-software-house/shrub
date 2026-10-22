@@ -116,3 +116,9 @@ impl CommandCgroupExt for std::process::Command {
         Err(error::ErrorKind::NotSupportedOnThisPlatform("joining a cgroup").into())
     }
 }
+
+/// Whether nothing exists at `path`. No command joins a cgroup here, so a
+/// spawn never fails for a missing `cgroup.procs` file.
+pub(crate) const fn is_missing(_path: &std::ffi::CStr) -> bool {
+    false
+}
