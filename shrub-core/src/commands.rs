@@ -8,7 +8,7 @@ use std::process::Stdio;
 
 use itertools::Itertools;
 use shrub_parser::ast;
-use sys::commands::{CommandExt, CommandFdInjectionExt, CommandFgControlExt};
+use sys::commands::{CommandCgroupExt, CommandExt, CommandFdInjectionExt, CommandFgControlExt};
 
 use crate::extensions::{self, ShellExtensions};
 use crate::interp::{self, Execute, ProcessGroupPolicy};
@@ -724,6 +724,11 @@ pub(crate) fn execute_external_command(
         }
     }
 
+    // Move the child into the embedder's cgroup before it runs anything.
+    if let Some(cgroup_procs) = &context.params.spawn.cgroup_procs {
+        cmd.join_cgroup(std::sync::Arc::clone(cgroup_procs))?;
+    }
+
     // When tracing is enabled, report.
     tracing::debug!(
         target: trace_categories::COMMANDS,
@@ -746,6 +751,13 @@ pub(crate) fn execute_external_command(
                 }
             } else {
                 tracing::warn!("could not retrieve pid for child process");
+            }
+
+            if let (Some(on_spawn), Some(pid)) = (&context.params.spawn.on_spawn, pid) {
+                on_spawn(interp::SpawnedProcess {
+                    pid,
+                    process_group: actual_pgid,
+                });
             }
 
             Ok(ExecutionSpawnResult::StartedProcess(
