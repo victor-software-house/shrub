@@ -57,6 +57,13 @@
 //! The syntax tree types are re-exported in [`parser`]. [`Shell::parse_string`]
 //! parses with the options the shell currently has set.
 //!
+//! ## Snapshots
+//!
+//! [`Shell::snapshot`] copies the state a command can change, between
+//! commands, into a [`snapshot::ShellSnapshot`], and
+//! [`Shell::restore_snapshot`] applies one to a fresh shell, so an embedder
+//! can carry a shell across a process restart.
+//!
 //! ## Cargo features
 //!
 //! | Feature | Effect |
@@ -97,6 +104,7 @@ mod prompt;
 mod regex;
 pub mod results;
 mod shell;
+pub mod snapshot;
 pub mod sourceinfo;
 pub mod sys;
 pub mod tasks;

@@ -176,3 +176,5 @@ procfs = "0.18.0"
 [dev-dependencies]
 anyhow = { workspace = true }
 pretty_assertions = { workspace = true, features = ["unstable"] }
+proptest = { workspace = true }
+tempfile = { workspace = true }

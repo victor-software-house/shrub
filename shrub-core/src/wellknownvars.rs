@@ -15,6 +15,26 @@ const BASH_MACHINE: &str = "unknown";
 
 const DEFAULT_LINENO: usize = 1;
 
+/// The variables [`init_well_known_vars`] sets from the process the shell
+/// runs in, which describe that process rather than anything a command chose.
+/// A snapshot leaves them out, so a shell restored in another process keeps
+/// its own; the variables with dynamic values are left out by their kind.
+pub(crate) const PROCESS_VARIABLES: &[&str] = &[
+    "BASH",
+    "BASHPID",
+    "BASH_VERSINFO",
+    "BASH_VERSION",
+    "EUID",
+    "HOSTNAME",
+    "HOSTTYPE",
+    "MACHTYPE",
+    "OSTYPE",
+    "PPID",
+    "SHLVL",
+    "SHRUB_VERSION",
+    "UID",
+];
+
 /// Inherit environment variables from the host process into the shell's
 /// environment.
 ///
