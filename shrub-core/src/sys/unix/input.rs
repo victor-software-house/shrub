@@ -8,7 +8,7 @@ use terminfo::capability as cap;
 use crate::{error, interfaces};
 
 macro_rules! key {
-    ( $terminfo:expr , $our_key:expr, $terminfo_key:ty ) => {{
+    ($terminfo:expr, $our_key:expr, $terminfo_key:ty) => {{
         (
             $our_key,
             $terminfo
