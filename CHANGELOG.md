@@ -1,5 +1,16 @@
 # Changelog
 
+## shrub 0.4.0
+
+- `Shell::fork_state` returns a copy of the shell's state at the same level, not as a subshell: the copy keeps the shell's depth, so `$BASH_SUBSHELL` is unchanged and `exec` replaces the process instead of running as `command`.
+Like `Clone::clone`, the copy starts with an empty job table, so a job it starts with `&` belongs to the copy alone.
+An embedder can run a command in the copy and then keep it in place of the shell or drop it.
+The `fork-state-cost` example of `shrub-shell` times `fork_state` and `clone` on a shell with 200 variables, 50 functions and a directory stack, next to one run of the external `true` program, found on `PATH` ([#49](https://github.com/victor-software-house/shrub/pull/49)).
+- Each module with unsafe code now says why safe code cannot do its job, and each `unsafe` block's `SAFETY:` comment names the callee's preconditions and how they are met.
+A child that takes the foreground no longer calls `std::io::stdin()` between the fork and `exec`, whose first call allocates; it calls `tcsetpgrp` on descriptor 0, and still ignores its failure.
+A child that leads a session builds its `setsid` and `TIOCSCTTY` errors from the errno instead of allocating a message, so the spawn error is the OS error alone.
+`sys::fd::try_get_file_for_open_fd` and `try_iter_open_fds` duplicate a descriptor number with `fcntl(F_DUPFD_CLOEXEC)` instead of borrowing a descriptor that may have closed ([#51](https://github.com/victor-software-house/shrub/pull/51)).
+
 ## shrub 0.3.1
 
 - The lockfile moves tokio from 1.53.2 to 1.53.3, the fixed release for [RUSTSEC-2026-0386](https://rustsec.org/advisories/RUSTSEC-2026-0386), an unsound `AsyncFd` constructor.
