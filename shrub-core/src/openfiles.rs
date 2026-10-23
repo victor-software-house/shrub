@@ -449,6 +449,13 @@ impl OpenFiles {
         self.files.insert(fd, Some(file)).and_then(|f| f)
     }
 
+    /// Returns how many file descriptors above standard error are open.
+    pub fn count_above_stderr(&self) -> usize {
+        self.iter_fds()
+            .filter(|(fd, _)| *fd >= Self::FIRST_NON_STDIO_FD)
+            .count()
+    }
+
     /// Iterates over all file descriptors.
     pub fn iter_fds(&self) -> impl Iterator<Item = (ShellFd, &OpenFile)> {
         self.files

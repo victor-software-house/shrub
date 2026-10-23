@@ -7,6 +7,13 @@ use itertools::Itertools;
 
 use crate::{CreateOptions, extensions, namedoptions};
 
+/// The default for [`CreateOptions::max_kept_descriptors`].
+///
+/// It is enough for the descriptors a script keeps with `exec` and `coproc`,
+/// while a script that opens them in a loop fails long before the process
+/// runs out of them.
+pub const DEFAULT_MAX_KEPT_DESCRIPTORS: usize = 64;
+
 /// What the shell does with each external process it spawns, for an embedder
 /// that confines or tracks the processes its commands start. The default does
 /// nothing.
@@ -248,6 +255,11 @@ pub struct RuntimeOptions {
     pub spawn: SpawnOptions,
     /// Maximum function call depth.
     pub max_function_call_depth: Option<usize>,
+    /// The most file descriptors above standard error that the shell keeps
+    /// across commands, such as those `exec 3>file` or `coproc` open; `None`
+    /// keeps any number. A command that would keep more fails, and the shell
+    /// keeps the descriptors it had.
+    pub max_kept_descriptors: Option<usize>,
 }
 
 impl RuntimeOptions {
@@ -299,6 +311,11 @@ impl RuntimeOptions {
             glob_skip_dots: true,
             patsub_replacement: true,
             max_function_call_depth: create_options.max_function_call_depth,
+            max_kept_descriptors: Some(
+                create_options
+                    .max_kept_descriptors
+                    .unwrap_or(DEFAULT_MAX_KEPT_DESCRIPTORS),
+            ),
             ..Self::default()
         };
 

@@ -757,6 +757,9 @@ impl Execute for ast::CoprocessCommand {
             return Ok(ExecutionExitCode::GeneralError.into());
         }
 
+        // The coprocess leaves the shell keeping two more descriptors.
+        shell.check_kept_descriptors(shell.open_files().count_above_stderr() + 2)?;
+
         // Set up the pipes that we'll use to communicate with the coprocess.
         let (stdin_reader, stdin_writer) = sys::pipes::pipe()?;
         let (stdout_reader, stdout_writer) = sys::pipes::pipe()?;

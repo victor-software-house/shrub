@@ -244,6 +244,11 @@ pub struct CreateOptions<SE: extensions::ShellExtensions = extensions::DefaultSh
     pub command_string_mode: bool,
     /// Maximum function call depth.
     pub max_function_call_depth: Option<usize>,
+    /// The most file descriptors above standard error that the shell keeps
+    /// across commands; see [`options::RuntimeOptions::max_kept_descriptors`].
+    /// `None` takes [`options::DEFAULT_MAX_KEPT_DESCRIPTORS`]; an embedder that
+    /// wants no cap sets the runtime option to `None` after building.
+    pub max_kept_descriptors: Option<usize>,
     /// Key bindings helper for the shell to use.
     pub key_bindings: Option<KeyBindingsHelper>,
     /// Shrub implementation version.

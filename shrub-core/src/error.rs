@@ -328,6 +328,11 @@ pub enum ErrorKind {
     #[error("too many open files")]
     TooManyOpenFiles,
 
+    /// A command would leave the shell keeping more file descriptors than
+    /// [`crate::options::RuntimeOptions::max_kept_descriptors`] allows.
+    #[error("the shell keeps at most {0} file descriptors above standard error")]
+    TooManyKeptDescriptors(usize),
+
     /// The function name shadows a special built-in command.
     #[error("function name '{}' shadows a special built-in command", .name)]
     FunctionNameShadowsSpecialBuiltin {
