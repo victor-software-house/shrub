@@ -1,5 +1,18 @@
 # Changelog
 
+## shrub 0.3.0
+
+- `RuntimeOptions` gains `max_kept_descriptors`, the most file descriptors above standard error a shell keeps across commands, and `CreateOptions::max_kept_descriptors` sets it; left unset, as in `CreateOptions::default()`, it is `options::DEFAULT_MAX_KEPT_DESCRIPTORS` (64).
+An `exec` redirection or a `coproc` that would keep more fails, and the shell keeps the descriptors it had, so a script that opens descriptors in a loop cannot exhaust the process that embeds the shell.
+A change that does not grow the set is allowed even above the cap, so a script can still close descriptors; `None` keeps any number, as before.
+The cap is a shell option, so pipeline stages and subshells, which run on copies of the shell, carry it.
+Breaking: `Shell::replace_open_files` now returns a `Result`, and `ErrorKind` gains `TooManyKeptDescriptors`, which a `match` over every variant must handle ([#40](https://github.com/victor-software-house/shrub/pull/40)).
+- `SpawnOptions` gains `open_file_limit`, the soft `RLIMIT_NOFILE` each external process gets, set after the fork and before its program runs, so an embedder that raised its own soft limit can give its children the one it started with.
+A value above the hard limit sets the hard limit; `None`, the default, leaves the inherited limit, and on a platform without resource limits setting it fails every external command ([#41](https://github.com/victor-software-house/shrub/pull/41)).
+- `SpawnOptions` gains `pids_limits`, a list of `options::PidsLimit` (an open `pids.current` file and the highest count allowed) that each external process checks after it joins `cgroup_procs` and before its program runs.
+The kernel does not apply `pids.max` to a process that moves into a cgroup, so a child whose count is above a limit, or cannot be read, fails its spawn without running its program: the command fails to execute, with status 126, and `on_spawn` is not called.
+The check reads only descriptors opened before the fork, allocates nothing, and returns an error instead of exiting, and the `exec` builtin refuses to replace the shell while the list is non-empty, with status 126 and before any step runs, because in the shell's own process a count would include every thread of the shell; an empty list, the default, checks nothing, and on a platform without the check a non-empty list fails every external command ([#42](https://github.com/victor-software-house/shrub/pull/42)).
+
 ## shrub 0.2.0
 
 - `Shell::snapshot` copies the state a command can change into a `snapshot::ShellSnapshot`, and `Shell::restore_snapshot` applies one to a fresh shell, so an embedder can carry a shell across a process restart or an upgrade.
