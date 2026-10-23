@@ -50,25 +50,29 @@ async fn exec_with_a_missing_join_file_fails_without_reading_as_not_found() -> R
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn exec_with_an_unreadable_process_count_fails_and_the_shell_lives_on() -> Result<()> {
+async fn exec_with_process_limits_is_refused_and_the_shell_lives_on() -> Result<()> {
     let mut shell = shrub_core::Shell::builder()
         .default_builtins(BuiltinSet::BashMode)
         .do_not_inherit_env(true)
         .skip_well_known_vars(true)
         .build()
         .await?;
-    // Reading a directory fails, so the count cannot be read.
+    // A count far under its limit, which a forked child would pass.
+    let count = std::env::temp_dir().join(format!("shrub-exec-count-{}", std::process::id()));
+    std::fs::write(&count, "1\n")?;
+    let current = Arc::new(std::fs::File::open(&count)?);
+    std::fs::remove_file(&count)?;
     shell.options_mut().spawn = SpawnOptions {
         pids_limits: vec![PidsLimit {
-            current: Arc::new(std::fs::File::open("/")?),
+            current,
             max: u64::MAX,
         }]
         .into(),
         ..SpawnOptions::default()
     };
 
-    // exec runs the check in this test process, with no fork: were the check
-    // to end the process, or to pass, the test run would end here.
+    // exec would replace this test process: were it not refused, the test
+    // run would end here with status 3.
     let params = shell.default_exec_params();
     let result = shell
         .run_string(
@@ -78,10 +82,7 @@ async fn exec_with_an_unreadable_process_count_fails_and_the_shell_lives_on() ->
         )
         .await?;
 
-    assert!(
-        !result.is_success(),
-        "exec succeeded with an unreadable count"
-    );
+    assert_eq!(u8::from(result.exit_code), 126);
 
     Ok(())
 }

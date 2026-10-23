@@ -25,8 +25,8 @@ pub const DEFAULT_MAX_KEPT_DESCRIPTORS: usize = 64;
 /// The `exec` builtin applies them in the shell's own process, with no fork,
 /// so an `exec` that fails leaves in place the steps that ran before the
 /// failure. The order is the cgroup join, the process counts, the shell's
-/// other descriptors, then the open-file limit: an `exec` refused by a count
-/// leaves the shell only in the `cgroup_procs` cgroup.
+/// other descriptors, then the open-file limit; with process counts set, the
+/// builtin refuses before any step runs.
 #[derive(Clone, Default)]
 pub struct SpawnOptions {
     /// A file each child writes `0` to after it is forked and before it runs
@@ -49,11 +49,11 @@ pub struct SpawnOptions {
     /// child checks the count itself and fails its spawn, without running its
     /// program, when a count is above its limit or cannot be read: the
     /// command then fails to execute, with status 126, and `on_spawn` is not
-    /// called. On the `exec` builtin's path a count includes every thread of
-    /// the shell, which the program that replaces it will not have, so on
-    /// Linux the shell's threads other than one are subtracted first. Empty,
-    /// the default, checks nothing; on a platform without this check, a
-    /// non-empty list fails every external command.
+    /// called. The `exec` builtin refuses to replace the shell while the
+    /// list is non-empty, because in the shell's own process a count would
+    /// include every thread of the shell; a subshell's `exec` forks and is
+    /// checked as usual. Empty, the default, checks nothing; on a platform
+    /// without this check, a non-empty list fails every external command.
     pub pids_limits: Arc<[PidsLimit]>,
     /// Called with each child once it has started, before the shell waits
     /// for it. It runs on the shell's task, so it should return quickly.

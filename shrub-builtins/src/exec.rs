@@ -60,6 +60,21 @@ impl builtins::Command for ExecCommand {
             return cmd_cmd.execute(context).await;
         }
 
+        // A child checks the embedder's process counts after it joins its
+        // cgroup. Here the shell's own process would join instead, and its
+        // count would include every thread of the shell, so the shell is not
+        // replaced while counts are set; nothing has run yet.
+        if !context.shell.options().spawn.pids_limits.is_empty() {
+            return Err(ErrorKind::FailedToExecuteCommand(
+                self.args[0].clone(),
+                std::io::Error::new(
+                    std::io::ErrorKind::Unsupported,
+                    "exec cannot replace a shell that checks process limits",
+                ),
+            )
+            .into());
+        }
+
         let mut argv0 = Cow::Borrowed(self.name_for_argv0.as_ref().unwrap_or(&self.args[0]));
 
         if self.exec_as_login {
