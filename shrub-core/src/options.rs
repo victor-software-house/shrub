@@ -21,6 +21,12 @@ pub const DEFAULT_MAX_KEPT_DESCRIPTORS: usize = 64;
 /// The options are part of the shell's [`RuntimeOptions`], so they reach every
 /// external command the shell runs, pipelines, background jobs and subshells
 /// included, since those copy the shell they run in.
+///
+/// The `exec` builtin applies them in the shell's own process, with no fork,
+/// so an `exec` that fails leaves in place the steps that ran before the
+/// failure. The order is the cgroup join, the process counts, the shell's
+/// other descriptors, then the open-file limit; with process counts set, the
+/// builtin refuses before any step runs.
 #[derive(Clone, Default)]
 pub struct SpawnOptions {
     /// A file each child writes `0` to after it is forked and before it runs
@@ -37,6 +43,18 @@ pub struct SpawnOptions {
     /// leaves the limit the child inherits; on a platform without resource
     /// limits, setting it fails every external command.
     pub open_file_limit: Option<u64>,
+    /// Process counts each child checks after it joins the cgroup in
+    /// `cgroup_procs` and before it runs its program. The kernel does not
+    /// apply a cgroup's `pids.max` to a process that moves into it, so the
+    /// child checks the count itself and fails its spawn, without running its
+    /// program, when a count is above its limit or cannot be read: the
+    /// command then fails to execute, with status 126, and `on_spawn` is not
+    /// called. The `exec` builtin refuses to replace the shell while the
+    /// list is non-empty, because in the shell's own process a count would
+    /// include every thread of the shell; a subshell's `exec` forks and is
+    /// checked as usual. Empty, the default, checks nothing; on a platform
+    /// without this check, a non-empty list fails every external command.
+    pub pids_limits: Arc<[PidsLimit]>,
     /// Called with each child once it has started, before the shell waits
     /// for it. It runs on the shell's task, so it should return quickly.
     pub on_spawn: Option<Arc<dyn Fn(SpawnedProcess) + Send + Sync>>,
@@ -47,9 +65,22 @@ impl std::fmt::Debug for SpawnOptions {
         f.debug_struct("SpawnOptions")
             .field("cgroup_procs", &self.cgroup_procs)
             .field("open_file_limit", &self.open_file_limit)
+            .field("pids_limits", &self.pids_limits)
             .field("on_spawn", &self.on_spawn.as_ref().map(|_| "Fn"))
             .finish()
     }
+}
+
+/// A process count that each child checks before its program runs; see
+/// [`SpawnOptions::pids_limits`].
+#[derive(Clone, Debug)]
+pub struct PidsLimit {
+    /// A cgroup's `pids.current` file, opened before the shell spawns, so the
+    /// child reads it without opening anything.
+    pub current: Arc<std::fs::File>,
+    /// The highest count, the child included, at which the child still runs
+    /// its program.
+    pub max: u64,
 }
 
 /// An external process the shell has started.

@@ -10,7 +10,7 @@ use itertools::Itertools;
 use shrub_parser::ast;
 use sys::commands::{
     CommandCgroupExt, CommandExt, CommandFdInjectionExt, CommandFgControlExt,
-    CommandOpenFileLimitExt,
+    CommandOpenFileLimitExt, CommandPidsLimitsExt,
 };
 
 use crate::extensions::{self, ShellExtensions};
@@ -186,8 +186,8 @@ impl<SE: extensions::ShellExtensions> std::ops::DerefMut for ShellForCommand<'_,
 /// descriptors into the child fails, or, where the shell's
 /// [`SpawnOptions`](crate::options::SpawnOptions) name a `cgroup_procs` file,
 /// [`error::ErrorKind::NotSupportedOnThisPlatform`] on a platform that cannot
-/// join a cgroup, and likewise where they set an `open_file_limit` on a
-/// platform without resource limits.
+/// join a cgroup, and likewise where they set an `open_file_limit` or
+/// `pids_limits` on a platform that cannot apply them.
 #[allow(unused_variables, reason = "argv0 is only used on unix platforms")]
 pub fn compose_std_command<S: AsRef<OsStr>, SE: extensions::ShellExtensions>(
     context: &ExecutionContext<'_, SE>,
@@ -263,12 +263,6 @@ pub fn compose_std_command<S: AsRef<OsStr>, SE: extensions::ShellExtensions>(
         }
     }
 
-    // Inject any other fds.
-    let other_files = context.iter_fds().filter(|(fd, _)| {
-        *fd != OpenFiles::STDIN_FD && *fd != OpenFiles::STDOUT_FD && *fd != OpenFiles::STDERR_FD
-    });
-    cmd.inject_fds(other_files)?;
-
     // Move the child into the embedder's cgroup before it runs anything. It
     // is set here, where every spawn path and `exec` compose their command,
     // so no program the shell starts runs outside the cgroup.
@@ -276,8 +270,25 @@ pub fn compose_std_command<S: AsRef<OsStr>, SE: extensions::ShellExtensions>(
         cmd.join_cgroup(std::sync::Arc::clone(cgroup_procs))?;
     }
 
-    // Set here for the same reason: every program the shell starts gets the
-    // open-file limit the embedder chose.
+    // Registered after the cgroup join, so the child counts itself in the
+    // cgroup it moved into, and before the descriptors are injected, which
+    // could place a redirected file on a `pids.current` descriptor's number.
+    // A refusal then comes before every later step, which matters for
+    // `exec`, whose steps run in the shell's own process.
+    let pids_limits = &context.shell.options().spawn.pids_limits;
+    if !pids_limits.is_empty() {
+        cmd.check_pids_limits(std::sync::Arc::clone(pids_limits))?;
+    }
+
+    // Inject any other fds.
+    let other_files = context.iter_fds().filter(|(fd, _)| {
+        *fd != OpenFiles::STDIN_FD && *fd != OpenFiles::STDOUT_FD && *fd != OpenFiles::STDERR_FD
+    });
+    cmd.inject_fds(other_files)?;
+
+    // Every program the shell starts gets the open-file limit the embedder
+    // chose. Set last, so a lower limit cannot make dup2 refuse a descriptor
+    // number above it while the descriptors are injected.
     if let Some(limit) = context.shell.options().spawn.open_file_limit {
         cmd.set_open_file_limit(limit)?;
     }

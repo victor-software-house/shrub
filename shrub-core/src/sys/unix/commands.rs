@@ -6,7 +6,13 @@ use std::sync::Arc;
 
 use command_fds::{CommandFdExt, FdMapping};
 
+use crate::options::PidsLimit;
 use crate::{ShellFd, error, openfiles};
+
+/// The bytes a child reads from a `pids.current` file: more than the longest
+/// count, a `u64` of 20 digits and a newline, so a full buffer means the file
+/// holds something else.
+const PIDS_CURRENT_BUFFER: usize = 32;
 
 /// Extension trait for injecting file descriptors into commands.
 pub trait CommandFdInjectionExt {
@@ -202,10 +208,132 @@ fn pre_exec_set_open_file_limit(limit: u64) -> Result<(), std::io::Error> {
     Ok(result?)
 }
 
+/// Extension trait for checking process counts before a command runs.
+pub trait CommandPidsLimitsExt {
+    /// Arranges for the command, after it is forked and before it runs its
+    /// program, to read each limit's count and to fail its spawn when a count
+    /// is above its limit (`EAGAIN`, the error `fork` returns at `pids.max`)
+    /// or cannot be read (`EIO`).
+    ///
+    /// In the process that registered it, as on a path that runs the
+    /// command's steps with no fork, the check fails with `ENOTSUP` without
+    /// reading a count: there a count would include every thread of that
+    /// process, and the `exec` builtin refuses such a command before it
+    /// composes it.
+    ///
+    /// # Errors
+    ///
+    /// None here: a child whose check fails fails its spawn.
+    fn check_pids_limits(&mut self, limits: Arc<[PidsLimit]>) -> Result<(), error::Error>;
+}
+
+impl CommandPidsLimitsExt for std::process::Command {
+    fn check_pids_limits(&mut self, limits: Arc<[PidsLimit]>) -> Result<(), error::Error> {
+        // The process that registers the check: the function runs in it, not
+        // in a child, only on the exec builtin's path.
+        let shell_pid = nix::unistd::getpid();
+        // SAFETY:
+        // This arranges for a provided function to run in the context of
+        // the forked process before it exec's the target command. The
+        // function allocates nothing and only calls getpid and pread, which
+        // are async-signal-safe. A failure is returned rather than ending the
+        // process, because a path with no fork runs it in the shell's own
+        // process.
+        unsafe {
+            self.pre_exec(move || pre_exec_check_pids_limits(&limits, shell_pid));
+        }
+        Ok(())
+    }
+}
+
+fn pre_exec_check_pids_limits(
+    limits: &[PidsLimit],
+    shell_pid: nix::unistd::Pid,
+) -> Result<(), std::io::Error> {
+    if nix::unistd::getpid() == shell_pid {
+        return Err(std::io::Error::from_raw_os_error(libc::ENOTSUP));
+    }
+    limits.iter().try_for_each(check_pids_limit)
+}
+
+/// Fails with `EAGAIN` when `limit`'s count is above its maximum, and with
+/// `EIO` when the count cannot be read. Both errors are built from an errno,
+/// which allocates nothing.
+fn check_pids_limit(limit: &PidsLimit) -> Result<(), std::io::Error> {
+    use std::os::unix::fs::FileExt as _;
+
+    let mut buffer = [0u8; PIDS_CURRENT_BUFFER];
+    let count = match limit.current.read_at(&mut buffer, 0) {
+        Ok(len) if len < buffer.len() => buffer.get(..len).and_then(parse_count),
+        _ => None,
+    };
+    match count {
+        Some(count) if count <= limit.max => Ok(()),
+        Some(_) => Err(std::io::Error::from_raw_os_error(libc::EAGAIN)),
+        None => Err(std::io::Error::from_raw_os_error(libc::EIO)),
+    }
+}
+
+/// Parses a cgroup count file: ASCII digits and an optional newline, with no
+/// allocation, so a forked child can call it.
+fn parse_count(bytes: &[u8]) -> Option<u64> {
+    let digits = bytes.strip_suffix(b"\n").unwrap_or(bytes);
+    if digits.is_empty() {
+        return None;
+    }
+    digits.iter().try_fold(0u64, |count, byte| {
+        let digit = byte.checked_sub(b'0').filter(|digit| *digit <= 9)?;
+        count.checked_mul(10)?.checked_add(u64::from(digit))
+    })
+}
+
 /// Whether nothing exists at `path`, such as a `cgroup.procs` file whose
 /// cgroup was removed.
 pub(crate) fn is_missing(path: &CStr) -> bool {
     use std::os::unix::ffi::OsStrExt as _;
 
     !std::path::Path::new(std::ffi::OsStr::from_bytes(path.to_bytes())).exists()
+}
+
+#[cfg(test)]
+mod tests {
+    use proptest::prelude::*;
+
+    use super::parse_count;
+
+    proptest! {
+        #[test]
+        fn a_count_parses_with_or_without_its_newline(count: u64) {
+            prop_assert_eq!(parse_count(count.to_string().as_bytes()), Some(count));
+            prop_assert_eq!(parse_count(format!("{count}\n").as_bytes()), Some(count));
+        }
+
+        #[test]
+        fn anything_parsed_is_the_decimal_it_reads(bytes: Vec<u8>) {
+            if let Some(count) = parse_count(&bytes) {
+                let digits = bytes.strip_suffix(b"\n").unwrap_or(&bytes);
+                prop_assert!(digits.iter().all(u8::is_ascii_digit));
+                let text = std::str::from_utf8(digits).map_err(|e| TestCaseError::fail(e.to_string()))?;
+                prop_assert_eq!(text.parse::<u64>().ok(), Some(count));
+            }
+        }
+
+        #[test]
+        fn a_count_with_anything_else_does_not_parse(
+            count: u64,
+            junk in "[^0-9]{1,4}",
+        ) {
+            prop_assume!(junk != "\n");
+            let text = format!("{count}{junk}");
+            prop_assert_eq!(parse_count(text.as_bytes()), None);
+        }
+    }
+
+    #[test]
+    fn empty_and_overflowing_counts_do_not_parse() {
+        assert_eq!(parse_count(b""), None);
+        assert_eq!(parse_count(b"\n"), None);
+        assert_eq!(parse_count(b"18446744073709551616"), None);
+        assert_eq!(parse_count(b"max\n"), None);
+    }
 }

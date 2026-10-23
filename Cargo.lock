@@ -3729,6 +3729,7 @@ dependencies = [
  "nix 0.31.3",
  "normalize-path",
  "pretty_assertions",
+ "proptest",
  "rand 0.10.3",
  "rpds",
  "serde",
