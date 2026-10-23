@@ -114,3 +114,24 @@ async fn a_kept_copy_carries_its_changes() -> Result<()> {
 
     Ok(())
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_kept_copy_holds_only_its_own_jobs() -> Result<()> {
+    let mut shell = new_shell().await?;
+    run(&mut shell, BACKGROUND).await?;
+
+    let mut copy = shell.fork_state();
+    run(&mut copy, "/bin/sleep 31 &").await?;
+    shell = copy;
+
+    let lines: Vec<&str> = shell
+        .jobs()
+        .jobs
+        .iter()
+        .map(|job| job.command_line.as_str())
+        .collect();
+    assert_eq!(lines.len(), 1);
+    assert!(lines.iter().all(|line| line.contains("31")), "{lines:?}");
+
+    Ok(())
+}

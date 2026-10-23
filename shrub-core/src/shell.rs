@@ -168,6 +168,10 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
     /// job it starts with `&` belongs to the copy alone. A caller can run a
     /// command in the copy and then keep it in place of this shell (`*shell
     /// = copy`) or drop it.
+    ///
+    /// Keeping the copy drops this shell's job table: `jobs`, `wait`, `fg`
+    /// and `%n` in the kept shell see only the jobs the copy started. A
+    /// caller that needs this shell's jobs afterwards must not replace it.
     #[must_use]
     pub fn fork_state(&self) -> Self {
         self.copy_at_depth(self.depth)
