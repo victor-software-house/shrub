@@ -1,4 +1,13 @@
 //! Filesystem utilities.
+//!
+//! # Why this module is unsafe
+//!
+//! 1. Safe code cannot do it. Outside Android, the default `PATH` comes from
+//!    `confstr(_CS_PATH)`, which neither the standard library nor nix wraps, so
+//!    `confstr` calls libc's function, which writes through a raw pointer.
+//! 2. Speed is not the reason.
+//! 3. The unsafe operations are the two `libc::confstr` calls and the
+//!    `Vec::set_len` that records what the second one wrote, in `confstr`.
 
 use std::os::unix::ffi::OsStringExt;
 use std::os::unix::fs::FileTypeExt;
@@ -159,10 +168,9 @@ fn confstr_cs_path() -> Result<Option<PathBuf>, std::io::Error> {
 /// unsafe call directly.
 #[cfg(not(target_os = "android"))]
 fn confstr(name: nix::libc::c_int) -> Result<Option<std::ffi::OsString>, std::io::Error> {
-    // SAFETY:
-    // Calling `confstr` with a null pointer and size 0 is a documented way to
-    // query the required size of the buffer to hold the value associated
-    // with `name`. It should not end up causing any undefined behavior.
+    // SAFETY: `confstr` writes at most `len` bytes to `buf`. With `len` 0 it
+    // writes nothing, so the null `buf` is never written; it returns the size
+    // the value needs, terminator included (POSIX `confstr`).
     let required_size = unsafe { nix::libc::confstr(name, std::ptr::null_mut(), 0) };
 
     // When confstr returns 0, it either means there's no value associated with
@@ -175,12 +183,10 @@ fn confstr(name: nix::libc::c_int) -> Result<Option<std::ffi::OsString>, std::io
 
     let mut buffer = Vec::<u8>::with_capacity(required_size);
 
-    // SAFETY:
-    // We are calling `confstr` with a valid pointer and size that we obtained
-    // from the allocated buffer. Writing `c_char` (i8 or u8 depending on
-    // the platform) into `Vec<u8>` is fine, as i8 and u8 have compatible
-    // representations, and Rust does not support platforms where `c_char`
-    // is not 8-bit wide.
+    // SAFETY: `confstr` writes at most `len` bytes to `buf`. `buf` points to
+    // `buffer`'s allocation, which holds `buffer.capacity()` bytes and lives
+    // across the call, and `len` is that capacity. `c_char` is one byte on
+    // every platform Rust supports, so the bytes it writes are valid `u8`s.
     let final_size =
         unsafe { nix::libc::confstr(name, buffer.as_mut_ptr().cast(), buffer.capacity()) };
 
@@ -198,12 +204,10 @@ fn confstr(name: nix::libc::c_int) -> Result<Option<std::ffi::OsString>, std::io
         ));
     }
 
-    // SAFETY:
-    // We are trusting `confstr` to have written exactly `final_size` bytes into
-    // the buffer. We have checked above that it didn't return a value
-    // *larger* than the capacity of the buffer, and also checked for known
-    // error cases. Note that the returned length should include the null
-    // terminator.
+    // SAFETY: `set_len` requires a length at most the capacity, with every
+    // byte below it initialized. `final_size` is at most `buffer.capacity()`,
+    // checked above, and `confstr` wrote the value and its terminator, which
+    // is `final_size` bytes when they fit in `len`.
     unsafe { buffer.set_len(final_size) };
 
     // The last byte is a null terminator. We assert that it is.

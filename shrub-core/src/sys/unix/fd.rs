@@ -1,8 +1,26 @@
 //! File descriptor utilities.
+//!
+//! # Why this module is unsafe
+//!
+//! 1. Safe code cannot do it. The shell takes over descriptors it finds by
+//!    number, in `/proc/self/fd` or `/dev/fd` or from its caller, which may
+//!    have closed since. The safe way to duplicate one,
+//!    `BorrowedFd::try_clone_to_owned`, needs a `BorrowedFd`, and
+//!    `BorrowedFd::borrow_raw` requires the descriptor to stay open, which
+//!    these callers cannot promise. nix's `fcntl` also takes a borrowed
+//!    descriptor.
+//! 2. Speed is not the reason.
+//! 3. The unsafe operations are the `fcntl` call that duplicates the number and
+//!    `OwnedFd::from_raw_fd` on the duplicate, in `open_file_by_fd`.
 
 use std::os::fd::RawFd;
 
 use crate::{ShellFd, error, openfiles};
+
+/// The lowest number a duplicate may take, as for
+/// `BorrowedFd::try_clone_to_owned`: below it sit standard input, output and
+/// error.
+const FIRST_DUPLICATE_FD: RawFd = 3;
 
 cfg_if::cfg_if! {
     if #[cfg(any(target_os = "linux", target_os = "android"))] {
@@ -49,15 +67,10 @@ pub fn try_iter_open_fds() -> impl Iterator<Item = (ShellFd, openfiles::OpenFile
         .filter_map(|entry| {
             let fd: RawFd = entry.file_name().to_str()?.parse().ok()?;
 
-            // SAFETY:
-            // We are trying to open the file descriptor we found listed
-            // in the filesystem, but there's a risk that it's not the same one
-            // that we enumerated or that it's since been closed. For the
-            // purposes of this function, either of those outcomes
-            // are acceptable. We simply skip any fds that we can't
-            // open, and the function's purpose is to make a
-            // best-effort attempt to open all available fds.
-            let file = unsafe { open_file_by_fd(fd) }.ok()?;
+            // The descriptor may have closed, or been reused, since it was
+            // listed; one that cannot be duplicated is skipped, as this is a
+            // best-effort listing.
+            let file = open_file_by_fd(fd).ok()?;
 
             Some((fd, file))
         })
@@ -74,23 +87,28 @@ pub fn try_iter_open_fds() -> impl Iterator<Item = (ShellFd, openfiles::OpenFile
 ///
 /// * `fd` - The file descriptor to open.
 pub fn try_get_file_for_open_fd(fd: RawFd) -> Option<openfiles::OpenFile> {
-    // SAFETY:
-    // We are trying to open the file descriptor provided by the caller. There's
-    // a risk that the fd is invalid or has been closed since it was
-    // enumerated. For the purposes of this function, we simply return None
-    // if we can't open it. There's also a risk that the fd has been closed
-    // and re-used for a different file; again, for the purposes of this
-    // function, we accept that risk and document it as part of the
-    // function's contract.
-    unsafe { open_file_by_fd(fd).ok() }
+    open_file_by_fd(fd).ok()
 }
 
-unsafe fn open_file_by_fd(fd: RawFd) -> Result<openfiles::OpenFile, error::Error> {
-    // SAFETY: We are creating a BorrowedFd from a file descriptor. Callers
-    // typically enumerate available file descriptors from procfs, devfs, or
-    // similar, but there's still a risk that the fd has become invalid or
-    // closed since then -- or that this function gets used incorrectly.
-    let borrowed_fd = unsafe { std::os::fd::BorrowedFd::borrow_raw(fd) };
-    let owned_fd = borrowed_fd.try_clone_to_owned()?;
+/// Duplicates the descriptor numbered `fd`, whatever it now refers to, into a
+/// new file that this process owns.
+///
+/// It takes a number, not a borrowed descriptor, because its callers cannot
+/// promise that `fd` stays open: they found it in a listing, or were given
+/// it. A closed `fd` fails with `EBADF`.
+fn open_file_by_fd(fd: RawFd) -> Result<openfiles::OpenFile, error::Error> {
+    use std::os::fd::FromRawFd as _;
+
+    // SAFETY: `fcntl` with `F_DUPFD_CLOEXEC` takes the descriptor number and
+    // the lowest new number by value, so it reads no memory of this process,
+    // and it neither closes nor changes `fd`, which another owner may hold.
+    let duplicate = unsafe { libc::fcntl(fd, libc::F_DUPFD_CLOEXEC, FIRST_DUPLICATE_FD) };
+    if duplicate == -1 {
+        return Err(std::io::Error::last_os_error().into());
+    }
+    // SAFETY: `from_raw_fd` requires an open descriptor that nothing else
+    // owns. `duplicate` was just returned by `fcntl`, so it is open, and no
+    // other code has seen its number.
+    let owned_fd = unsafe { std::os::fd::OwnedFd::from_raw_fd(duplicate) };
     Ok(std::fs::File::from(owned_fd).into())
 }

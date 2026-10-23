@@ -1,4 +1,15 @@
 //! Execution logic for running shell commands.
+//!
+//! # Why this module is unsafe
+//!
+//! 1. Safe code cannot do it. The shell under test runs in a new session, so
+//!    that it cannot open `/dev/tty` or get the terminal's signals, and the
+//!    child must call `setsid` before `exec`. `CommandExt::setsid` is unstable,
+//!    and `CommandExt::process_group` makes a process group, not a session, so
+//!    the call goes through the unsafe `CommandExt::pre_exec`.
+//! 2. Speed is not the reason.
+//! 3. The unsafe operation is that `pre_exec` registration, in
+//!    `run_command_with_stdin`.
 
 #[cfg(pty)]
 use std::os::unix::process::ExitStatusExt;
@@ -312,16 +323,11 @@ impl TestCase {
 
     #[allow(unused_mut, reason = "only mutated on some platforms")]
     fn run_command_with_stdin(&self, mut cmd: std::process::Command) -> Result<RunResult> {
-        // SAFETY:
-        // To avoid bash trying to directly access /dev/tty and generate
-        // tty-related signals, we create a new session for the child
-        // process. The standard library has a setsid() API but it's
-        // unstable, so we use nix here. Calling pre_exec can be unsafe as
-        // it runs in the child process after fork() but before exec(), and
-        // there are constraints around what can be safely done in that
-        // context. However, calling setsid() is generally considered
-        // safe as it doesn't allocate memory or perform complex operations to
-        // forked state.
+        // SAFETY: `pre_exec` requires a closure that is safe to run in a
+        // forked child of a process that may have other threads: no
+        // allocation, no lock, no `std::env`. The closure calls only
+        // `setsid`, which is async-signal-safe (signal-safety(7)), ignores
+        // its result and allocates nothing.
         #[cfg(unix)]
         unsafe {
             cmd.pre_exec(|| {

@@ -1,4 +1,24 @@
 //! Command execution utilities.
+//!
+//! # Why this module is unsafe
+//!
+//! 1. Safe code cannot do it. Each step here runs in a command's child after
+//!    the fork and before `exec`: taking the terminal's foreground, leading a
+//!    session and taking its controlling terminal, joining a cgroup, setting
+//!    the open-file limit and checking process counts. The standard library's
+//!    only hook there is `CommandExt::pre_exec`, which is unsafe; its safe
+//!    `process_group` sets a process group only, and its `setsid` is unstable.
+//!    `TIOCSCTTY` has no safe wrapper, and nix's `tcsetpgrp` needs a borrowed
+//!    descriptor, which for descriptor 0 means the unsafe
+//!    `BorrowedFd::borrow_raw` or `std::io::stdin()`, whose first call
+//!    allocates.
+//! 2. Speed is not the reason.
+//! 3. The unsafe operations are the `pre_exec` registrations in the `Command`
+//!    extension traits, and the `tcsetpgrp` and `ioctl` calls in the child.
+//!
+//! Each function a child runs before `exec` allocates nothing, error paths
+//! included: its errors come from an errno. `std::process::Command` runs it
+//! after the fork, with the command's descriptors in place.
 
 use std::ffi::{CStr, CString};
 pub use std::os::unix::process::{CommandExt, ExitStatusExt};
@@ -66,50 +86,59 @@ pub trait CommandFgControlExt {
 
 impl CommandFgControlExt for std::process::Command {
     fn take_foreground(&mut self) {
-        // SAFETY:
-        // This arranges for a provided function to run in the context of
-        // the forked process before it exec's the target command. In general,
-        // rust can't guarantee safety of code running in such a context.
+        // SAFETY: `pre_exec` requires a closure that is safe to run in a
+        // forked child of a process that may have other threads: no
+        // allocation, no lock, no `std::env`. `pre_exec_take_foreground`
+        // calls only `getpgrp` and `tcsetpgrp`, both async-signal-safe
+        // (signal-safety(7)), and allocates nothing.
         unsafe {
-            self.pre_exec(pre_exec_take_foreground);
+            self.pre_exec(|| {
+                pre_exec_take_foreground();
+                Ok(())
+            });
         }
     }
 
     fn lead_session(&mut self) {
-        // SAFETY:
-        // This arranges for a provided function to run in the context of
-        // the forked process before it exec's the target command. In general,
-        // rust can't guarantee safety of code running in such a context.
+        // SAFETY: `pre_exec` requires a closure that is safe to run in a
+        // forked child of a process that may have other threads: no
+        // allocation, no lock, no `std::env`. `pre_exec_lead_session` calls
+        // only `setsid`, which is async-signal-safe, and `ioctl`, which is
+        // not on POSIX's list but is one system call in glibc, musl and
+        // macOS's libc; it allocates nothing, and its errors come from the
+        // errno.
         unsafe {
             self.pre_exec(pre_exec_lead_session);
         }
     }
 }
 
-fn pre_exec_take_foreground() -> Result<(), std::io::Error> {
-    use crate::sys;
-
-    sys::terminal::move_self_to_foreground()?;
-    Ok(())
+/// Moves the child's process group to the foreground of the terminal on its
+/// standard input. It uses descriptor 0 directly, because the first call to
+/// `std::io::stdin()` allocates its buffer.
+fn pre_exec_take_foreground() {
+    let pgrp = nix::unistd::getpgrp();
+    // SAFETY: `tcsetpgrp` takes a descriptor number and a process group by
+    // value and reads no memory of this process. When descriptor 0 is closed
+    // or is not this session's terminal, it fails with `EBADF` or `ENOTTY`,
+    // which is ignored, as `move_self_to_foreground` ignores it.
+    let _ = unsafe { libc::tcsetpgrp(0, pgrp.as_raw()) };
 }
 
 fn pre_exec_lead_session() -> Result<(), std::io::Error> {
-    if let Err(e) = nix::unistd::setsid() {
-        return Err(std::io::Error::other(format!(
-            "failed to become session leader: {e}"
-        )));
-    }
+    nix::unistd::setsid()?;
 
     #[cfg(not(target_os = "macos"))]
     let control = libc::TIOCSCTTY;
     #[cfg(target_os = "macos")]
     let control: u64 = libc::TIOCSCTTY.into();
 
-    // SAFETY:
-    // This is calling a libc function to set the controlling terminal.
+    // SAFETY: `TIOCSCTTY` takes its argument by value, not through a
+    // pointer, so the call reads and writes no memory of this process. On
+    // a descriptor 0 that is not a terminal it fails with an errno.
     let result = unsafe { libc::ioctl(0, control, 0) };
     if result != 0 {
-        return Err(std::io::Error::other("failed to set controlling terminal"));
+        return Err(std::io::Error::last_os_error());
     }
 
     Ok(())
@@ -129,11 +158,13 @@ pub trait CommandCgroupExt {
 
 impl CommandCgroupExt for std::process::Command {
     fn join_cgroup(&mut self, cgroup_procs: Arc<CString>) -> Result<(), error::Error> {
-        // SAFETY:
-        // This arranges for a provided function to run in the context of
-        // the forked process before it exec's the target command. The
-        // function allocates nothing and only calls open, write and close,
-        // which are async-signal-safe.
+        // SAFETY: `pre_exec` requires a closure that is safe to run in a
+        // forked child of a process that may have other threads: no
+        // allocation, no lock, no `std::env`. The closure reads the captured
+        // path without cloning its `Arc`, and `pre_exec_join_cgroup` calls
+        // only `open`, `write` and `close`, all async-signal-safe
+        // (signal-safety(7)); it allocates nothing, and its errors come from
+        // the errno.
         unsafe {
             self.pre_exec(move || pre_exec_join_cgroup(&cgroup_procs));
         }
@@ -168,11 +199,13 @@ pub trait CommandOpenFileLimitExt {
 
 impl CommandOpenFileLimitExt for std::process::Command {
     fn set_open_file_limit(&mut self, limit: u64) -> Result<(), error::Error> {
-        // SAFETY:
-        // This arranges for a provided function to run in the context of
-        // the forked process before it exec's the target command. The
-        // function allocates nothing and only calls getrlimit and
-        // setrlimit, which are async-signal-safe.
+        // SAFETY: `pre_exec` requires a closure that is safe to run in a
+        // forked child of a process that may have other threads: no
+        // allocation, no lock, no `std::env`. `pre_exec_set_open_file_limit`
+        // calls only `getrlimit` and `setrlimit` and allocates nothing; its
+        // errors come from the errno. POSIX does not list the two calls as
+        // async-signal-safe, but glibc and musl make each one `prlimit64`
+        // system call, which takes no lock.
         unsafe {
             self.pre_exec(move || pre_exec_set_open_file_limit(limit));
         }
@@ -232,13 +265,15 @@ impl CommandPidsLimitsExt for std::process::Command {
         // The process that registers the check: the function runs in it, not
         // in a child, only on the exec builtin's path.
         let shell_pid = nix::unistd::getpid();
-        // SAFETY:
-        // This arranges for a provided function to run in the context of
-        // the forked process before it exec's the target command. The
-        // function allocates nothing and only calls getpid and pread, which
-        // are async-signal-safe. A failure is returned rather than ending the
-        // process, because a path with no fork runs it in the shell's own
-        // process.
+        // SAFETY: `pre_exec` requires a closure that is safe to run in a
+        // forked child of a process that may have other threads: no
+        // allocation, no lock, no `std::env`. The closure reads the captured
+        // limits without cloning their `Arc`, and `pre_exec_check_pids_limits`
+        // calls only `getpid`, which is async-signal-safe, and `pread`, which
+        // POSIX does not list but glibc and musl make one system call; it
+        // allocates nothing, and its errors come from an errno. A failure is
+        // returned rather than ending the process, because a path with no
+        // fork runs it in the shell's own process.
         unsafe {
             self.pre_exec(move || pre_exec_check_pids_limits(&limits, shell_pid));
         }
