@@ -117,6 +117,23 @@ impl CommandCgroupExt for std::process::Command {
     }
 }
 
+/// Extension trait for setting a command's open-file limit before it runs.
+pub trait CommandOpenFileLimitExt {
+    /// Fails: this platform has no resource limits to set.
+    ///
+    /// # Errors
+    ///
+    /// Always, so that no command runs with a limit other than the one it was
+    /// meant to have.
+    fn set_open_file_limit(&mut self, limit: u64) -> Result<(), error::Error>;
+}
+
+impl CommandOpenFileLimitExt for std::process::Command {
+    fn set_open_file_limit(&mut self, _limit: u64) -> Result<(), error::Error> {
+        Err(error::ErrorKind::NotSupportedOnThisPlatform("setting an open-file limit").into())
+    }
+}
+
 /// Whether nothing exists at `path`. No command joins a cgroup here, so a
 /// spawn never fails for a missing `cgroup.procs` file.
 pub(crate) const fn is_missing(_path: &std::ffi::CStr) -> bool {
