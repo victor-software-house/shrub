@@ -39,7 +39,7 @@ impl builtins::Command for ExecCommand {
             #[allow(clippy::needless_collect)]
             let fds: Vec<_> = context.iter_fds().collect();
 
-            context.shell.replace_open_files(fds.into_iter());
+            context.shell.replace_open_files(fds.into_iter())?;
             return Ok(ExecutionResult::success());
         }
 

@@ -258,11 +258,35 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
     /// # Arguments
     ///
     /// * `open_files` - The new set of open files to use.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`error::ErrorKind::TooManyKeptDescriptors`] if the new set
+    /// holds more descriptors above standard error than
+    /// [`max_kept_descriptors`](crate::options::RuntimeOptions::max_kept_descriptors)
+    /// allows, and more than the shell keeps now; the shell then keeps its
+    /// current set.
     pub fn replace_open_files(
         &mut self,
         open_fds: impl Iterator<Item = (ShellFd, openfiles::OpenFile)>,
-    ) {
-        self.open_files = openfiles::OpenFiles::from(open_fds);
+    ) -> Result<(), error::Error> {
+        let open_files = openfiles::OpenFiles::from(open_fds);
+        self.check_kept_descriptors(open_files.count_above_stderr())?;
+        self.open_files = open_files;
+        Ok(())
+    }
+
+    /// Fails if keeping `count` descriptors above standard error would pass
+    /// the shell's cap and grow the number it keeps now. A set that does not
+    /// grow is allowed even above the cap, so that a script can still close
+    /// descriptors an embedder added.
+    pub(crate) fn check_kept_descriptors(&self, count: usize) -> Result<(), error::Error> {
+        match self.options.max_kept_descriptors {
+            Some(max) if count > max && count > self.open_files.count_above_stderr() => {
+                Err(error::ErrorKind::TooManyKeptDescriptors(max).into())
+            }
+            _ => Ok(()),
+        }
     }
 
     pub(crate) const fn persistent_open_files(&self) -> &openfiles::OpenFiles {
