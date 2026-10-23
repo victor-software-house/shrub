@@ -45,6 +45,10 @@ without its front end. Keep that in mind when deciding what to export.
   behavior (today, how errors are formatted) at compile time.
 - Platform-specific code lives under the `sys` module, so the rest of the crate stays
   platform-neutral.
+- The `snapshot` module holds a copy of a shell's state as plain data:
+  `Shell::snapshot` takes one between commands, and `Shell::restore_snapshot` applies
+  it to a fresh shell through the public API, so an embedder can carry a shell across
+  a process restart or an upgrade and store the copy in its own format.
 
 ## Layering principles
 

@@ -32,7 +32,7 @@ pub struct ShellVariable {
 }
 
 /// Kind of transformation to apply to a variable's value when it is updated.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ShellVariableUpdateTransform {
     /// No transformation.
@@ -672,7 +672,7 @@ fn default_dynamic_value_setter() -> DynamicValueSetter {
 }
 
 /// The type of an unset shell value.
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ShellValueUnsetType {
     /// The value is untyped.

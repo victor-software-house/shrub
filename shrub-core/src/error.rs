@@ -100,6 +100,11 @@ pub enum ErrorKind {
     #[error("missing environment scope")]
     MissingScope,
 
+    /// A snapshot was taken or restored while a function or command scope was
+    /// open; both happen only between commands.
+    #[error("a shell snapshot is taken or restored only between commands")]
+    NotBetweenCommands,
+
     /// The environment scope required for a new variable is not available.
     #[error("environment scope required for new variable is not available")]
     MissingScopeForNewVariable,

@@ -43,6 +43,7 @@ mod job_control;
 mod parsing;
 mod prompts;
 mod readline;
+mod snapshot;
 mod state;
 mod traps;
 
