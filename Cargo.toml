@@ -125,6 +125,10 @@ todo = "deny"
 unwrap_in_result = "deny"
 unwrap_used = "deny"
 undocumented_unsafe_blocks = "deny"
+# A `SAFETY:` comment or `# Safety` section on safe code sends a reader looking
+# for a contract that is not there.
+unnecessary_safety_comment = "deny"
+unnecessary_safety_doc = "deny"
 
 # Allowed rules
 bool_to_int_with_if = "allow"
