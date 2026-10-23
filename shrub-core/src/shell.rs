@@ -154,6 +154,26 @@ pub struct Shell<SE: extensions::ShellExtensions = extensions::DefaultShellExten
 
 impl<SE: extensions::ShellExtensions> Clone for Shell<SE> {
     fn clone(&self) -> Self {
+        self.copy_at_depth(self.depth + 1)
+    }
+}
+
+impl<SE: extensions::ShellExtensions> Shell<SE> {
+    /// Returns a copy of this shell's state at the same level, not as a
+    /// subshell.
+    ///
+    /// Unlike [`Clone::clone`], the copy keeps this shell's depth:
+    /// `$BASH_SUBSHELL` is unchanged, and `exec` in it replaces the process
+    /// instead of running as `command`. Its job table starts empty, so a
+    /// job it starts with `&` belongs to the copy alone. A caller can run a
+    /// command in the copy and then keep it in place of this shell (`*shell
+    /// = copy`) or drop it.
+    #[must_use]
+    pub fn fork_state(&self) -> Self {
+        self.copy_at_depth(self.depth)
+    }
+
+    fn copy_at_depth(&self, depth: usize) -> Self {
         Self {
             error_formatter: self.error_formatter.clone(),
             traps: self.traps.clone(),
@@ -192,7 +212,7 @@ impl<SE: extensions::ShellExtensions> Clone for Shell<SE> {
             parser_impl: self.parser_impl,
             key_bindings: self.key_bindings.clone(),
             history: self.history.clone(),
-            depth: self.depth + 1,
+            depth,
         }
     }
 }
