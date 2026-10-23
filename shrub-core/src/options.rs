@@ -37,6 +37,14 @@ pub struct SpawnOptions {
     /// leaves the limit the child inherits; on a platform without resource
     /// limits, setting it fails every external command.
     pub open_file_limit: Option<u64>,
+    /// Process counts each child checks after it joins the cgroup in
+    /// `cgroup_procs` and before it runs its program. The kernel does not
+    /// apply a cgroup's `pids.max` to a process that moves into it, so the
+    /// child checks the count itself and exits with status 126, without
+    /// running its program, when a count is above its limit or cannot be
+    /// read. Empty, the default, checks nothing; on a platform without this
+    /// check, a non-empty list fails every external command.
+    pub pids_limits: Arc<[PidsLimit]>,
     /// Called with each child once it has started, before the shell waits
     /// for it. It runs on the shell's task, so it should return quickly.
     pub on_spawn: Option<Arc<dyn Fn(SpawnedProcess) + Send + Sync>>,
@@ -47,9 +55,22 @@ impl std::fmt::Debug for SpawnOptions {
         f.debug_struct("SpawnOptions")
             .field("cgroup_procs", &self.cgroup_procs)
             .field("open_file_limit", &self.open_file_limit)
+            .field("pids_limits", &self.pids_limits)
             .field("on_spawn", &self.on_spawn.as_ref().map(|_| "Fn"))
             .finish()
     }
+}
+
+/// A process count that each child checks before its program runs; see
+/// [`SpawnOptions::pids_limits`].
+#[derive(Clone, Debug)]
+pub struct PidsLimit {
+    /// A cgroup's `pids.current` file, opened before the shell spawns, so the
+    /// child reads it without opening anything.
+    pub current: Arc<std::fs::File>,
+    /// The highest count, the child included, at which the child still runs
+    /// its program.
+    pub max: u64,
 }
 
 /// An external process the shell has started.

@@ -7,7 +7,8 @@
 //! fork and before the program, and that a child that cannot write it never
 //! runs its program. `shrub-core` alone has no builtins, so every command in
 //! these scripts is an external program. The open-file limit tests read the
-//! child's limit with `ulimit -n`.
+//! child's limit with `ulimit -n`, and the process count tests use plain files
+//! in place of `pids.current`.
 
 #![cfg(unix)]
 #![cfg(test)]
@@ -21,7 +22,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use nix::sys::resource::{RLIM_INFINITY, Resource, rlim_t};
-use shrub_core::options::{SpawnOptions, SpawnedProcess};
+use shrub_core::options::{PidsLimit, SpawnOptions, SpawnedProcess};
 
 /// How long the background process of a script may take to start and write
 /// its pid.
@@ -239,6 +240,72 @@ async fn an_open_file_limit_above_the_hard_limit_sets_the_hard_limit() -> Result
     );
     #[cfg(not(target_os = "macos"))]
     assert_eq!(limit, hard);
+
+    Ok(())
+}
+
+/// A file standing in for a cgroup's `pids.current`, holding `content`.
+fn pids_current(dir: &Path, name: &str, content: &str) -> Result<Arc<std::fs::File>> {
+    let path = dir.join(name);
+    std::fs::write(&path, content)?;
+    Ok(Arc::new(std::fs::File::open(path)?))
+}
+
+/// Runs `touch` in a shell with `limits`, and returns its exit status and
+/// whether the program ran.
+async fn touch_with_pids_limits(dir: &Path, limits: Vec<PidsLimit>) -> Result<(u8, bool)> {
+    let marker = dir.join("marker");
+    let mut shell = new_shell(SpawnOptions {
+        pids_limits: limits.into(),
+        ..SpawnOptions::default()
+    })
+    .await?;
+
+    let script = format!("/usr/bin/touch {}", marker.display());
+    let result = run(&mut shell, &script).await?;
+    Ok((u8::from(result.exit_code), marker.exists()))
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_count_at_its_limit_runs_the_program() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let limits = vec![
+        PidsLimit {
+            current: pids_current(dir.path(), "session", "5\n")?,
+            max: 5,
+        },
+        PidsLimit {
+            current: pids_current(dir.path(), "total", "12")?,
+            max: 20,
+        },
+    ];
+
+    assert_eq!(touch_with_pids_limits(dir.path(), limits).await?, (0, true));
+
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_count_over_its_limit_or_unreadable_exits_126_before_the_program() -> Result<()> {
+    for content in ["6\n", "max\n", "", "-1\n"] {
+        let dir = tempfile::tempdir()?;
+        let limits = vec![
+            PidsLimit {
+                current: pids_current(dir.path(), "session", "1\n")?,
+                max: 20,
+            },
+            PidsLimit {
+                current: pids_current(dir.path(), "total", content)?,
+                max: 5,
+            },
+        ];
+
+        assert_eq!(
+            touch_with_pids_limits(dir.path(), limits).await?,
+            (126, false),
+            "{content:?}"
+        );
+    }
 
     Ok(())
 }

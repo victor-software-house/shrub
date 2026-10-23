@@ -10,7 +10,7 @@ use itertools::Itertools;
 use shrub_parser::ast;
 use sys::commands::{
     CommandCgroupExt, CommandExt, CommandFdInjectionExt, CommandFgControlExt,
-    CommandOpenFileLimitExt,
+    CommandOpenFileLimitExt, CommandPidsLimitsExt,
 };
 
 use crate::extensions::{self, ShellExtensions};
@@ -186,8 +186,8 @@ impl<SE: extensions::ShellExtensions> std::ops::DerefMut for ShellForCommand<'_,
 /// descriptors into the child fails, or, where the shell's
 /// [`SpawnOptions`](crate::options::SpawnOptions) name a `cgroup_procs` file,
 /// [`error::ErrorKind::NotSupportedOnThisPlatform`] on a platform that cannot
-/// join a cgroup, and likewise where they set an `open_file_limit` on a
-/// platform without resource limits.
+/// join a cgroup, and likewise where they set an `open_file_limit` or
+/// `pids_limits` on a platform that cannot apply them.
 #[allow(unused_variables, reason = "argv0 is only used on unix platforms")]
 pub fn compose_std_command<S: AsRef<OsStr>, SE: extensions::ShellExtensions>(
     context: &ExecutionContext<'_, SE>,
@@ -280,6 +280,13 @@ pub fn compose_std_command<S: AsRef<OsStr>, SE: extensions::ShellExtensions>(
     // open-file limit the embedder chose.
     if let Some(limit) = context.shell.options().spawn.open_file_limit {
         cmd.set_open_file_limit(limit)?;
+    }
+
+    // Registered after the cgroup join, so the child counts itself in the
+    // cgroup it moved into.
+    let pids_limits = &context.shell.options().spawn.pids_limits;
+    if !pids_limits.is_empty() {
+        cmd.check_pids_limits(std::sync::Arc::clone(pids_limits))?;
     }
 
     Ok(cmd)

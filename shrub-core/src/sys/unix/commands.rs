@@ -6,7 +6,18 @@ use std::sync::Arc;
 
 use command_fds::{CommandFdExt, FdMapping};
 
+use crate::options::PidsLimit;
 use crate::{ShellFd, error, openfiles};
+
+/// The exit status of a child that does not run its program because a
+/// process count is above its limit or cannot be read: 126, as for a program
+/// that cannot run.
+const PIDS_LIMIT_EXIT_STATUS: i32 = 126;
+
+/// The bytes a child reads from a `pids.current` file: more than the longest
+/// count, a `u64` of 20 digits and a newline, so a full buffer means the file
+/// holds something else.
+const PIDS_CURRENT_BUFFER: usize = 32;
 
 /// Extension trait for injecting file descriptors into commands.
 pub trait CommandFdInjectionExt {
@@ -202,10 +213,118 @@ fn pre_exec_set_open_file_limit(limit: u64) -> Result<(), std::io::Error> {
     Ok(result?)
 }
 
+/// Extension trait for checking process counts before a command runs.
+pub trait CommandPidsLimitsExt {
+    /// Arranges for the command, after it is forked and before it runs its
+    /// program, to read each limit's count and to exit with status 126 when
+    /// a count is above its limit or cannot be read.
+    ///
+    /// # Errors
+    ///
+    /// None here: the child itself exits when a check fails.
+    fn check_pids_limits(&mut self, limits: Arc<[PidsLimit]>) -> Result<(), error::Error>;
+}
+
+impl CommandPidsLimitsExt for std::process::Command {
+    fn check_pids_limits(&mut self, limits: Arc<[PidsLimit]>) -> Result<(), error::Error> {
+        // SAFETY:
+        // This arranges for a provided function to run in the context of
+        // the forked process before it exec's the target command. The
+        // function allocates nothing and only calls pread and _exit, which
+        // are async-signal-safe.
+        unsafe {
+            self.pre_exec(move || {
+                pre_exec_check_pids_limits(&limits);
+                Ok(())
+            });
+        }
+        Ok(())
+    }
+}
+
+fn pre_exec_check_pids_limits(limits: &[PidsLimit]) {
+    if !limits.iter().all(within_limit) {
+        // SAFETY:
+        // _exit is async-signal-safe and ends the child at once, without
+        // running the exit handlers it inherited from the shell's process.
+        unsafe { libc::_exit(PIDS_LIMIT_EXIT_STATUS) };
+    }
+}
+
+/// Whether `limit`'s count can be read and is at most its maximum.
+fn within_limit(limit: &PidsLimit) -> bool {
+    use std::os::unix::fs::FileExt as _;
+
+    let mut buffer = [0u8; PIDS_CURRENT_BUFFER];
+    match limit.current.read_at(&mut buffer, 0) {
+        Ok(len) if len < buffer.len() => buffer
+            .get(..len)
+            .and_then(parse_count)
+            .is_some_and(|count| count <= limit.max),
+        _ => false,
+    }
+}
+
+/// Parses a cgroup count file: ASCII digits and an optional newline, with no
+/// allocation, so a forked child can call it.
+fn parse_count(bytes: &[u8]) -> Option<u64> {
+    let digits = bytes.strip_suffix(b"\n").unwrap_or(bytes);
+    if digits.is_empty() {
+        return None;
+    }
+    digits.iter().try_fold(0u64, |count, byte| {
+        let digit = byte.checked_sub(b'0').filter(|digit| *digit <= 9)?;
+        count.checked_mul(10)?.checked_add(u64::from(digit))
+    })
+}
+
 /// Whether nothing exists at `path`, such as a `cgroup.procs` file whose
 /// cgroup was removed.
 pub(crate) fn is_missing(path: &CStr) -> bool {
     use std::os::unix::ffi::OsStrExt as _;
 
     !std::path::Path::new(std::ffi::OsStr::from_bytes(path.to_bytes())).exists()
+}
+
+#[cfg(test)]
+mod tests {
+    use proptest::prelude::*;
+
+    use super::parse_count;
+
+    proptest! {
+        #[test]
+        fn a_count_parses_with_or_without_its_newline(count: u64) {
+            prop_assert_eq!(parse_count(count.to_string().as_bytes()), Some(count));
+            prop_assert_eq!(parse_count(format!("{count}\n").as_bytes()), Some(count));
+        }
+
+        #[test]
+        fn anything_parsed_is_the_decimal_it_reads(bytes: Vec<u8>) {
+            if let Some(count) = parse_count(&bytes) {
+                let digits = bytes.strip_suffix(b"\n").unwrap_or(&bytes);
+                prop_assert!(digits.iter().all(u8::is_ascii_digit));
+                let text = std::str::from_utf8(digits).map_err(|e| TestCaseError::fail(e.to_string()))?;
+                prop_assert_eq!(text.parse::<u64>().ok(), Some(count));
+            }
+        }
+
+        #[test]
+        fn a_count_with_anything_else_does_not_parse(
+            count: u64,
+            junk in "[^0-9]{1,4}",
+        ) {
+            prop_assume!(junk != "\n");
+            let text = format!("{count}{junk}");
+            prop_assert_eq!(parse_count(text.as_bytes()), None);
+        }
+    }
+
+    #[test]
+    fn empty_and_overflowing_counts_do_not_parse() {
+        assert_eq!(parse_count(b""), None);
+        assert_eq!(parse_count(b"\n"), None);
+        assert_eq!(parse_count(b"18446744073709551616"), None);
+        assert_eq!(parse_count(b"max\n"), None);
+    }
 }

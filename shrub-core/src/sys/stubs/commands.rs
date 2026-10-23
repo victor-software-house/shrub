@@ -134,6 +134,28 @@ impl CommandOpenFileLimitExt for std::process::Command {
     }
 }
 
+/// Extension trait for checking process counts before a command runs.
+pub trait CommandPidsLimitsExt {
+    /// Fails: no child here can check a count before its program runs.
+    ///
+    /// # Errors
+    ///
+    /// Always, so that no command runs unchecked.
+    fn check_pids_limits(
+        &mut self,
+        limits: Arc<[crate::options::PidsLimit]>,
+    ) -> Result<(), error::Error>;
+}
+
+impl CommandPidsLimitsExt for std::process::Command {
+    fn check_pids_limits(
+        &mut self,
+        _limits: Arc<[crate::options::PidsLimit]>,
+    ) -> Result<(), error::Error> {
+        Err(error::ErrorKind::NotSupportedOnThisPlatform("checking process counts").into())
+    }
+}
+
 /// Whether nothing exists at `path`. No command joins a cgroup here, so a
 /// spawn never fails for a missing `cgroup.procs` file.
 pub(crate) const fn is_missing(_path: &std::ffi::CStr) -> bool {
