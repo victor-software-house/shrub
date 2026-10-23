@@ -6,6 +6,16 @@
 //! builds and runs those images, then decides each adapter's result from the
 //! `JUnit` it left behind, weighed against the adapter's `xfail-list.txt`. See
 //! `e2e/README.md` for the full contract.
+//!
+//! # Why this module is unsafe
+//!
+//! 1. Safe code cannot do it. The container runs as the caller's effective user
+//!    and group, so the results it writes stay the caller's. The standard
+//!    library has no call that returns them, and `xtask` does not depend on
+//!    nix, whose `geteuid` and `getegid` are safe.
+//! 2. Speed is not the reason.
+//! 3. The unsafe operations are the `geteuid` and `getegid` calls in
+//!    `run_e2e_adapter`.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsString;
@@ -1081,9 +1091,11 @@ fn run_e2e_adapter(run: &E2eRun<'_>, app: &str) -> Result<Option<String>> {
 
     let mut results_mount = results.as_os_str().to_owned();
     results_mount.push(":/results");
-    // SAFETY: geteuid takes no arguments and has no preconditions.
+    // SAFETY: `geteuid` takes no arguments, cannot fail and touches no
+    // memory of this process (POSIX `geteuid`).
     let uid = unsafe { libc::geteuid() };
-    // SAFETY: getegid takes no arguments and has no preconditions.
+    // SAFETY: `getegid` takes no arguments, cannot fail and touches no
+    // memory of this process (POSIX `getegid`).
     let gid = unsafe { libc::getegid() };
     let container = format!("{image}-{}", std::process::id());
     let mut test = ProcessCommand::new(docker);

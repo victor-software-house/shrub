@@ -1,4 +1,16 @@
 //! Signal processing utilities
+//!
+//! # Why this module is unsafe
+//!
+//! 1. Safe code cannot do it. Ignoring `SIGTTOU` needs `sigaction`, and nix's
+//!    `sigaction` and `signal` are unsafe, because a handler they install runs
+//!    at any point. On macOS, waiting for one child's state change without
+//!    reaping it needs `waitid`, which nix builds only for Android, FreeBSD,
+//!    Haiku and Linux, so `waitid_macos` calls libc's.
+//! 2. Speed is not the reason.
+//! 3. The unsafe operations are `sigaction` in `mask_sigttou`; the zeroed
+//!    `siginfo_t` and the `waitid` call in `waitid_macos`; and the `si_pid` and
+//!    `si_status` reads in `siginfo_to_wait_status`.
 
 pub(crate) use nix::sys::signal::Signal;
 
@@ -139,12 +151,10 @@ pub(crate) fn mask_sigttou() -> Result<(), error::Error> {
         nix::sys::signal::SigSet::empty(),
     );
 
-    // SAFETY:
-    // Setting the signal action should be safe here. The unsafe concerns
-    // for calling `sigaction` are primarily around ensuring that any provided
-    // signal handler functions are only performing operations that are
-    // safe to do in a signal handler context. Here we are not providing
-    // a custom handler, just asking the OS to ignore the signal.
+    // SAFETY: nix's `sigaction` requires that a handler it installs does
+    // only what is safe in a signal handler, and warns that the previous
+    // handler it returns may not be valid. `SigIgn` installs no handler, and
+    // the previous action is dropped without its handler being read.
     unsafe { nix::sys::signal::sigaction(nix::sys::signal::Signal::SIGTTOU, &ignore) }?;
 
     Ok(())
@@ -266,16 +276,16 @@ fn waitid_macos(
     id: nix::libc::id_t,
     flags: nix::sys::wait::WaitPidFlag,
 ) -> Result<nix::sys::wait::WaitStatus, nix::errno::Errno> {
-    // SAFETY:
-    // Code copied from nix::sys::wait implementation of waitid for other
-    // platforms. The siginfo structure is valid when filled with zeroes.
-    // Memory is zeroed rather than uninitialized, as not all platforms
-    // initialize the memory in the StillAlive case.
+    // SAFETY: `zeroed` requires that all-zero bytes are a valid value of
+    // the type. macOS's `siginfo_t` holds only integers, a raw pointer and
+    // padding, for which zero is valid. It is zeroed
+    // rather than left uninitialized, as nix's `waitid` does, because not
+    // every platform writes it when no child has changed state.
     let mut siginfo: nix::libc::siginfo_t = unsafe { std::mem::zeroed() };
 
-    // SAFETY:
-    // Code copied from nix::sys::wait implementation of waitid for other
-    // platforms.
+    // SAFETY: `waitid` writes one `siginfo_t` through its pointer argument.
+    // `&raw mut siginfo` points to a `siginfo_t` on this stack frame that
+    // lives across the call.
     nix::errno::Errno::result(unsafe {
         nix::libc::waitid(idtype, id, &raw mut siginfo, flags.bits())
     })?;
@@ -287,9 +297,10 @@ fn waitid_macos(
 fn siginfo_to_wait_status(
     siginfo: nix::libc::siginfo_t,
 ) -> Result<nix::sys::wait::WaitStatus, nix::errno::Errno> {
-    // SAFETY:
-    // Code copied from nix::sys::wait implementation of waitid for other
-    // platforms.
+    // SAFETY: on macOS, libc's `si_pid` reads a plain field of `siginfo_t`
+    // and has no precondition; it is unsafe for parity with Linux, where the
+    // field sits in a union. `siginfo` is initialized: zeroed, then filled by
+    // `waitid`.
     let si_pid = unsafe { siginfo.si_pid() };
     if si_pid == 0 {
         return Ok(nix::sys::wait::WaitStatus::StillAlive);
@@ -297,9 +308,8 @@ fn siginfo_to_wait_status(
 
     let pid = nix::unistd::Pid::from_raw(si_pid);
 
-    // SAFETY:
-    // Code copied from nix::sys::wait implementation of waitid for other
-    // platforms.
+    // SAFETY: as for `si_pid` above, macOS's `si_status` reads a plain field
+    // of the initialized `siginfo`.
     let si_status = unsafe { siginfo.si_status() };
 
     let status = match siginfo.si_code {

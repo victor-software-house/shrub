@@ -59,6 +59,11 @@ Exported items carry rustdoc; internal docs are best effort.
 - Errors use `thiserror`; `anyhow` only in tests.
 - Debug logging uses `tracing` with the targets in each crate's `trace_categories.rs`, for example `tracing::debug!(target: trace_categories::JOBS, "...")`.
 - Avoid clones unless async ownership needs a separate copy.
+- Unsafe code is written only where safe code cannot do the job, and justified as the [Google Rust style guide](https://google.github.io/styleguide/rustguide.html) asks:
+  1. A module with unsafe code opens with a "Why this module is unsafe" section: why safe code cannot do it, naming the safe APIs checked; whether speed is the reason, with the benchmark if so; and which operations are unsafe.
+  2. Each `unsafe` block holds one operation, under a `// SAFETY:` comment that names each precondition of the callee's contract and the fact in this code that meets it.
+  3. Each `unsafe fn` and `unsafe trait`, private ones included, has a `# Safety` section listing what the caller must ensure.
+  4. Code that runs in a child between the fork and `exec`, such as a `pre_exec` closure, names each call it makes and whether POSIX lists it as async-signal-safe, and allocates nothing, error paths included: its errors come from an errno, never `io::Error::new` or `io::Error::other`.
 
 ## Releases
 
