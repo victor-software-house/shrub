@@ -151,7 +151,8 @@ async fn a_restored_shell_prints_the_same_state() -> Result<()> {
         }
     );
 
-    assert_eq!(run(&mut shell, "unset -f greet").await?, 0);
+    // Through the API, so no command resets `$?` in the original shell.
+    assert!(shell.undefine_func("greet"));
     let before = output(&mut shell, PROBE).await?;
     let after = output(&mut fresh, PROBE).await?;
     assert_eq!(after, before);
@@ -367,6 +368,51 @@ async fn an_item_that_cannot_apply_is_reported_and_the_rest_apply() -> Result<()
     assert_eq!(fresh.working_dir(), dir.path());
     assert_eq!(fresh.env_str("R").as_deref(), Some("fixed"));
     assert_eq!(fresh.env_str("KEPT").as_deref(), Some("yes"));
+    Ok(())
+}
+
+#[tokio::test]
+async fn functions_parse_under_the_restored_options() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let mut shell = new_shell(dir.path()).await?;
+    run(&mut shell, "shopt -s extglob; f() { echo @(a|b); }").await?;
+
+    let snapshot = shell.snapshot(&SnapshotOptions::default())?;
+    assert_eq!(snapshot.shopt_options.get("extglob"), Some(&true));
+    let mut fresh = new_shell(dir.path()).await?;
+    run(&mut fresh, "shopt -u extglob").await?;
+    let report = fresh.restore_snapshot(snapshot)?;
+
+    assert_eq!(report.failed, Vec::<RestoreFailure>::new());
+    assert_eq!(
+        output(&mut fresh, "declare -f f").await?,
+        output(&mut shell, "declare -f f").await?
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_readonly_pwd_is_reported_as_readonly() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    std::fs::create_dir(dir.path().join("sub"))?;
+    let mut shell = new_shell(dir.path()).await?;
+    run(&mut shell, "cd sub").await?;
+    let snapshot = shell.snapshot(&SnapshotOptions::default())?;
+
+    let mut fresh = new_shell(dir.path()).await?;
+    run(&mut fresh, "readonly PWD").await?;
+    let report = fresh.restore_snapshot(snapshot)?;
+
+    let failed: Vec<_> = report
+        .failed
+        .iter()
+        .map(|failure| (failure.kind, failure.reason))
+        .collect();
+    assert_eq!(
+        failed,
+        vec![(StateKind::WorkingDir, RestoreFailureReason::Readonly)]
+    );
+    assert_eq!(fresh.working_dir(), dir.path());
     Ok(())
 }
 

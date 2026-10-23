@@ -163,11 +163,13 @@ impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
         self.restore_working_dir(&snapshot.working_dir, &mut report)?;
         self.directory_stack = snapshot.directory_stack;
         self.restore_variables(&snapshot.unset_variables, snapshot.variables, &mut report)?;
+        // Options first: `posix` and `extglob` change how a function parses,
+        // and the snapshot checked each function under its own shell's options.
+        self.restore_options(ShellOptionKind::SetO, snapshot.set_options, &mut report);
+        self.restore_options(ShellOptionKind::Shopt, snapshot.shopt_options, &mut report);
         self.restore_functions(snapshot.functions, &mut report);
         self.aliases = snapshot.aliases.into_iter().collect();
         self.restore_traps(snapshot.traps, &mut report);
-        self.restore_options(ShellOptionKind::SetO, snapshot.set_options, &mut report);
-        self.restore_options(ShellOptionKind::Shopt, snapshot.shopt_options, &mut report);
         self.restore_disabled_builtins(&snapshot.disabled_builtins, &mut report);
         *self.current_shell_args_mut() = snapshot.positional_parameters;
         self.set_last_exit_status(snapshot.last_exit_status);
@@ -186,12 +188,12 @@ impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
             .env
             .get_using_policy("OLDPWD", EnvironmentLookup::OnlyInGlobal)
             .cloned();
-        if self.set_working_dir(dir).is_err() {
-            report.fail(
-                StateKind::WorkingDir,
-                &dir.to_string_lossy(),
-                RestoreFailureReason::NotADirectory,
-            );
+        if let Err(error) = self.set_working_dir(dir) {
+            let reason = match error.kind() {
+                error::ErrorKind::ReadonlyVariable => RestoreFailureReason::Readonly,
+                _ => RestoreFailureReason::NotADirectory,
+            };
+            report.fail(StateKind::WorkingDir, &dir.to_string_lossy(), reason);
         }
         match oldpwd {
             Some(var) => self.env.set_global("OLDPWD", var)?,

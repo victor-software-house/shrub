@@ -200,7 +200,8 @@ pub enum RestoreFailureReason {
     /// The directory is gone or is not a directory.
     NotADirectory,
     /// The shell already holds a readonly variable of that name with another
-    /// value, or a readonly variable to unset.
+    /// value, or a readonly variable to unset, or a readonly `PWD` or
+    /// `OLDPWD` that changing the working directory must set.
     Readonly,
     /// The function's source does not parse in this shell.
     DoesNotParse,
