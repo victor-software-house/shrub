@@ -20,7 +20,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
-use nix::sys::resource::{RLIM_INFINITY, Resource};
+use nix::sys::resource::{RLIM_INFINITY, Resource, rlim_t};
 use shrub_core::options::{SpawnOptions, SpawnedProcess};
 
 /// How long the background process of a script may take to start and write
@@ -176,6 +176,16 @@ async fn without_spawn_options_a_command_runs_as_before() -> Result<()> {
     Ok(())
 }
 
+/// A resource limit as a `u64`: `rlim_t` is `i64` on FreeBSD.
+#[allow(
+    clippy::unnecessary_fallible_conversions,
+    clippy::useless_conversion,
+    reason = "rlim_t is not u64 on every Unix"
+)]
+fn limit_u64(limit: rlim_t) -> Result<u64> {
+    Ok(u64::try_from(limit)?)
+}
+
 /// Runs `/bin/sh -c 'ulimit -n'` in a shell with `open_file_limit` set to
 /// `limit`, and returns what it prints.
 async fn child_open_file_limit(limit: u64) -> Result<String> {
@@ -198,7 +208,7 @@ async fn child_open_file_limit(limit: u64) -> Result<String> {
 async fn each_child_gets_the_open_file_limit() -> Result<()> {
     let (soft, hard) = nix::sys::resource::getrlimit(Resource::RLIMIT_NOFILE)?;
     // Below this process's own limit, so the child's limit has changed.
-    let limit = soft.min(hard).min(OPEN_FILE_LIMIT) - 1;
+    let limit = limit_u64(soft.min(hard))?.min(OPEN_FILE_LIMIT) - 1;
 
     assert_eq!(child_open_file_limit(limit).await?, limit.to_string());
 
@@ -212,6 +222,7 @@ async fn an_open_file_limit_above_the_hard_limit_sets_the_hard_limit() -> Result
     if hard == RLIM_INFINITY {
         return Ok(());
     }
+    let hard = limit_u64(hard)?;
 
     assert_eq!(child_open_file_limit(hard + 1).await?, hard.to_string());
 
