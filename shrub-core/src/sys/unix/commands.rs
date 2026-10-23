@@ -103,9 +103,14 @@ impl CommandFgControlExt for std::process::Command {
         // SAFETY: `pre_exec` requires a closure that is safe to run in a
         // forked child of a process that may have other threads: no
         // allocation, no lock, no `std::env`. `pre_exec_lead_session` calls
-        // only `setsid`, which is async-signal-safe, and `ioctl`, which is
-        // not on POSIX's list but is one system call in glibc, musl and
-        // macOS's libc; it allocates nothing, and its errors come from the
+        // only `setsid`, which POSIX lists as async-signal-safe
+        // (signal-safety(7)), and `ioctl`, which it does not list. Each
+        // target libc makes `ioctl` one system call with no lock or
+        // allocation:
+        // - glibc: https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/ioctl.c;hb=9e77a668c94f892f2ce0ad9ef7f6e88525852af3
+        // - musl: https://git.musl-libc.org/cgit/musl/tree/src/misc/ioctl.c?id=7813e9119eb5fe681b6750b8a033a0490bca0941
+        // - macOS: https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.1.9/libsyscall/wrappers/ioctl.c
+        // The function allocates nothing, and its errors come from the
         // errno.
         unsafe {
             self.pre_exec(pre_exec_lead_session);
@@ -202,10 +207,20 @@ impl CommandOpenFileLimitExt for std::process::Command {
         // SAFETY: `pre_exec` requires a closure that is safe to run in a
         // forked child of a process that may have other threads: no
         // allocation, no lock, no `std::env`. `pre_exec_set_open_file_limit`
-        // calls only `getrlimit` and `setrlimit` and allocates nothing; its
-        // errors come from the errno. POSIX does not list the two calls as
-        // async-signal-safe, but glibc and musl make each one `prlimit64`
-        // system call, which takes no lock.
+        // calls only `getrlimit` and `setrlimit`, which POSIX does not list
+        // as async-signal-safe (signal-safety(7)). Each target libc makes
+        // each one system call with no lock or allocation:
+        // - glibc: `prlimit64`, https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/getrlimit64.c;hb=9e77a668c94f892f2ce0ad9ef7f6e88525852af3
+        //   and https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/setrlimit64.c;hb=9e77a668c94f892f2ce0ad9ef7f6e88525852af3
+        // - musl: `prlimit64`, https://git.musl-libc.org/cgit/musl/tree/src/misc/getrlimit.c?id=7813e9119eb5fe681b6750b8a033a0490bca0941
+        //   and https://git.musl-libc.org/cgit/musl/tree/src/misc/setrlimit.c?id=7813e9119eb5fe681b6750b8a033a0490bca0941;
+        //   its locking `__synccall` fallback runs only on `ENOSYS`, before
+        //   Linux 2.6.36, older than any kernel Rust supports.
+        // - macOS: the `__getrlimit` and `__setrlimit` system call stubs, after
+        //   setting `_RLIMIT_POSIX_FLAG`, https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.1.9/libsyscall/wrappers/unix03/getrlimit.c
+        //   and https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.1.9/libsyscall/wrappers/unix03/setrlimit.c
+        // The function allocates nothing, and its errors come from the
+        // errno.
         unsafe {
             self.pre_exec(move || pre_exec_set_open_file_limit(limit));
         }
@@ -269,11 +284,16 @@ impl CommandPidsLimitsExt for std::process::Command {
         // forked child of a process that may have other threads: no
         // allocation, no lock, no `std::env`. The closure reads the captured
         // limits without cloning their `Arc`, and `pre_exec_check_pids_limits`
-        // calls only `getpid`, which is async-signal-safe, and `pread`, which
-        // POSIX does not list but glibc and musl make one system call; it
-        // allocates nothing, and its errors come from an errno. A failure is
-        // returned rather than ending the process, because a path with no
-        // fork runs it in the shell's own process.
+        // calls only `getpid`, which POSIX lists as async-signal-safe
+        // (signal-safety(7)), and `pread`, which it does not list. Each
+        // target libc makes `pread` one system call with no lock or
+        // allocation:
+        // - glibc: `pread64`, https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/pread64.c;hb=9e77a668c94f892f2ce0ad9ef7f6e88525852af3
+        // - musl: https://git.musl-libc.org/cgit/musl/tree/src/unistd/pread.c?id=7813e9119eb5fe681b6750b8a033a0490bca0941
+        // - macOS: a generated stub that makes system call 153, https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.1.9/bsd/kern/syscalls.master
+        // The function allocates nothing, and its errors come from an
+        // errno. A failure is returned rather than ending the process,
+        // because a path with no fork runs it in the shell's own process.
         unsafe {
             self.pre_exec(move || pre_exec_check_pids_limits(&limits, shell_pid));
         }
