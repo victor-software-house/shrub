@@ -49,8 +49,11 @@ pub struct SpawnOptions {
     /// child checks the count itself and fails its spawn, without running its
     /// program, when a count is above its limit or cannot be read: the
     /// command then fails to execute, with status 126, and `on_spawn` is not
-    /// called. Empty, the default, checks nothing; on a platform without this
-    /// check, a non-empty list fails every external command.
+    /// called. On the `exec` builtin's path a count includes every thread of
+    /// the shell, which the program that replaces it will not have, so on
+    /// Linux the shell's threads other than one are subtracted first. Empty,
+    /// the default, checks nothing; on a platform without this check, a
+    /// non-empty list fails every external command.
     pub pids_limits: Arc<[PidsLimit]>,
     /// Called with each child once it has started, before the shell waits
     /// for it. It runs on the shell's task, so it should return quickly.

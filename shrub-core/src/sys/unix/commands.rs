@@ -215,6 +215,12 @@ pub trait CommandPidsLimitsExt {
     /// is above its limit (`EAGAIN`, the error `fork` returns at `pids.max`)
     /// or cannot be read (`EIO`).
     ///
+    /// On the exec builtin's path, which runs in the shell's own process with
+    /// no fork, a count includes every thread of the shell, and the program
+    /// that replaces it will be one task; there the shell's other threads are
+    /// subtracted, read from `/proc/self/status` on Linux, the only platform
+    /// whose cgroups have counts. Elsewhere nothing is subtracted.
+    ///
     /// # Errors
     ///
     /// None here: a child whose check fails fails its spawn.
@@ -223,28 +229,69 @@ pub trait CommandPidsLimitsExt {
 
 impl CommandPidsLimitsExt for std::process::Command {
     fn check_pids_limits(&mut self, limits: Arc<[PidsLimit]>) -> Result<(), error::Error> {
+        // The process that registers the check: the function runs in it, not
+        // in a child, only on the exec builtin's path.
+        let shell_pid = nix::unistd::getpid();
         // SAFETY:
         // This arranges for a provided function to run in the context of
         // the forked process before it exec's the target command. The
-        // function allocates nothing and only calls pread, which is
-        // async-signal-safe. A failure is returned rather than ending the
-        // process, because the exec builtin runs these functions in the
-        // shell's own process, with no fork.
+        // function only calls getpid and pread, which are async-signal-safe,
+        // and allocates nothing in a forked child. Only in the shell's own
+        // process, on the exec builtin's path, does it read its thread count,
+        // which allocates. A failure is returned rather than ending the
+        // process, because that path has no fork.
         unsafe {
-            self.pre_exec(move || pre_exec_check_pids_limits(&limits));
+            self.pre_exec(move || pre_exec_check_pids_limits(&limits, shell_pid));
         }
         Ok(())
     }
 }
 
-fn pre_exec_check_pids_limits(limits: &[PidsLimit]) -> Result<(), std::io::Error> {
-    limits.iter().try_for_each(check_pids_limit)
+fn pre_exec_check_pids_limits(
+    limits: &[PidsLimit],
+    shell_pid: nix::unistd::Pid,
+) -> Result<(), std::io::Error> {
+    let other_threads = if nix::unistd::getpid() == shell_pid {
+        own_thread_count()?.saturating_sub(1)
+    } else {
+        0
+    };
+    limits
+        .iter()
+        .try_for_each(|limit| check_pids_limit(limit, other_threads))
 }
 
-/// Fails with `EAGAIN` when `limit`'s count is above its maximum, and with
-/// `EIO` when the count cannot be read. Both errors are built from an errno,
-/// which allocates nothing.
-fn check_pids_limit(limit: &PidsLimit) -> Result<(), std::io::Error> {
+/// The threads of this process, from the `Threads:` line of
+/// `/proc/self/status`; `EIO` when it cannot be read.
+#[cfg(target_os = "linux")]
+fn own_thread_count() -> Result<u64, std::io::Error> {
+    let status = std::fs::read("/proc/self/status")?;
+    parse_threads(&status).ok_or_else(|| std::io::Error::from_raw_os_error(libc::EIO))
+}
+
+/// One: without cgroups there is no count the shell's threads inflate.
+#[cfg(not(target_os = "linux"))]
+#[allow(clippy::unnecessary_wraps, reason = "matches the Linux signature")]
+const fn own_thread_count() -> Result<u64, std::io::Error> {
+    Ok(1)
+}
+
+/// Parses the thread count from the text of `/proc/<pid>/status`.
+#[cfg_attr(
+    not(target_os = "linux"),
+    allow(dead_code, reason = "tested everywhere, used on Linux")
+)]
+fn parse_threads(status: &[u8]) -> Option<u64> {
+    let line = status
+        .split(|byte| *byte == b'\n')
+        .find_map(|line| line.strip_prefix(b"Threads:"))?;
+    parse_count(line.trim_ascii())
+}
+
+/// Fails with `EAGAIN` when `limit`'s count, less `other_threads`, is above
+/// its maximum, and with `EIO` when the count cannot be read. Both errors are
+/// built from an errno, which allocates nothing.
+fn check_pids_limit(limit: &PidsLimit, other_threads: u64) -> Result<(), std::io::Error> {
     use std::os::unix::fs::FileExt as _;
 
     let mut buffer = [0u8; PIDS_CURRENT_BUFFER];
@@ -253,7 +300,7 @@ fn check_pids_limit(limit: &PidsLimit) -> Result<(), std::io::Error> {
         _ => None,
     };
     match count {
-        Some(count) if count <= limit.max => Ok(()),
+        Some(count) if count.saturating_sub(other_threads) <= limit.max => Ok(()),
         Some(_) => Err(std::io::Error::from_raw_os_error(libc::EAGAIN)),
         None => Err(std::io::Error::from_raw_os_error(libc::EIO)),
     }
@@ -284,7 +331,7 @@ pub(crate) fn is_missing(path: &CStr) -> bool {
 mod tests {
     use proptest::prelude::*;
 
-    use super::parse_count;
+    use super::{parse_count, parse_threads};
 
     proptest! {
         #[test]
@@ -311,6 +358,27 @@ mod tests {
             prop_assume!(junk != "\n");
             let text = format!("{count}{junk}");
             prop_assert_eq!(parse_count(text.as_bytes()), None);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn the_thread_count_is_read_from_its_line(
+            before in "([A-Za-z_]{1,12}:\t[ -~]{0,20}\n){0,8}",
+            threads: u64,
+            after in "([A-Za-z_]{1,12}:\t[ -~]{0,20}\n){0,8}",
+        ) {
+            prop_assume!(!before.contains("Threads:") && !after.contains("Threads:"));
+            let status = format!("{before}Threads:\t{threads}\n{after}");
+            prop_assert_eq!(parse_threads(status.as_bytes()), Some(threads));
+        }
+
+        #[test]
+        fn a_status_without_a_thread_line_has_no_count(
+            text in "([A-Za-z_]{1,12}:\t[ -~]{0,20}\n){0,8}",
+        ) {
+            prop_assume!(!text.contains("Threads:"));
+            prop_assert_eq!(parse_threads(text.as_bytes()), None);
         }
     }
 
