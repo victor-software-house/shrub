@@ -40,9 +40,10 @@ pub struct SpawnOptions {
     /// Process counts each child checks after it joins the cgroup in
     /// `cgroup_procs` and before it runs its program. The kernel does not
     /// apply a cgroup's `pids.max` to a process that moves into it, so the
-    /// child checks the count itself and exits with status 126, without
-    /// running its program, when a count is above its limit or cannot be
-    /// read. Empty, the default, checks nothing; on a platform without this
+    /// child checks the count itself and fails its spawn, without running its
+    /// program, when a count is above its limit or cannot be read: the
+    /// command then fails to execute, with status 126, and `on_spawn` is not
+    /// called. Empty, the default, checks nothing; on a platform without this
     /// check, a non-empty list fails every external command.
     pub pids_limits: Arc<[PidsLimit]>,
     /// Called with each child once it has started, before the shell waits

@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use shrub_builtins::{BuiltinSet, ShellBuilderExt as _};
-use shrub_core::options::SpawnOptions;
+use shrub_core::options::{PidsLimit, SpawnOptions};
 
 #[tokio::test(flavor = "multi_thread")]
 async fn exec_with_a_missing_join_file_fails_without_reading_as_not_found() -> Result<()> {
@@ -45,6 +45,43 @@ async fn exec_with_a_missing_join_file_fails_without_reading_as_not_found() -> R
             "reported as command not found"
         );
     }
+
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn exec_with_an_unreadable_process_count_fails_and_the_shell_lives_on() -> Result<()> {
+    let mut shell = shrub_core::Shell::builder()
+        .default_builtins(BuiltinSet::BashMode)
+        .do_not_inherit_env(true)
+        .skip_well_known_vars(true)
+        .build()
+        .await?;
+    // Reading a directory fails, so the count cannot be read.
+    shell.options_mut().spawn = SpawnOptions {
+        pids_limits: vec![PidsLimit {
+            current: Arc::new(std::fs::File::open("/")?),
+            max: u64::MAX,
+        }]
+        .into(),
+        ..SpawnOptions::default()
+    };
+
+    // exec runs the check in this test process, with no fork: were the check
+    // to end the process, or to pass, the test run would end here.
+    let params = shell.default_exec_params();
+    let result = shell
+        .run_string(
+            "exec /bin/sh -c 'exit 3'",
+            &shrub_core::SourceInfo::default(),
+            &params,
+        )
+        .await?;
+
+    assert!(
+        !result.is_success(),
+        "exec succeeded with an unreadable count"
+    );
 
     Ok(())
 }

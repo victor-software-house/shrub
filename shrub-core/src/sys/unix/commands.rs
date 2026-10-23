@@ -9,11 +9,6 @@ use command_fds::{CommandFdExt, FdMapping};
 use crate::options::PidsLimit;
 use crate::{ShellFd, error, openfiles};
 
-/// The exit status of a child that does not run its program because a
-/// process count is above its limit or cannot be read: 126, as for a program
-/// that cannot run.
-const PIDS_LIMIT_EXIT_STATUS: i32 = 126;
-
 /// The bytes a child reads from a `pids.current` file: more than the longest
 /// count, a `u64` of 20 digits and a newline, so a full buffer means the file
 /// holds something else.
@@ -216,12 +211,13 @@ fn pre_exec_set_open_file_limit(limit: u64) -> Result<(), std::io::Error> {
 /// Extension trait for checking process counts before a command runs.
 pub trait CommandPidsLimitsExt {
     /// Arranges for the command, after it is forked and before it runs its
-    /// program, to read each limit's count and to exit with status 126 when
-    /// a count is above its limit or cannot be read.
+    /// program, to read each limit's count and to fail its spawn when a count
+    /// is above its limit (`EAGAIN`, the error `fork` returns at `pids.max`)
+    /// or cannot be read (`EIO`).
     ///
     /// # Errors
     ///
-    /// None here: the child itself exits when a check fails.
+    /// None here: a child whose check fails fails its spawn.
     fn check_pids_limits(&mut self, limits: Arc<[PidsLimit]>) -> Result<(), error::Error>;
 }
 
@@ -230,38 +226,36 @@ impl CommandPidsLimitsExt for std::process::Command {
         // SAFETY:
         // This arranges for a provided function to run in the context of
         // the forked process before it exec's the target command. The
-        // function allocates nothing and only calls pread and _exit, which
-        // are async-signal-safe.
+        // function allocates nothing and only calls pread, which is
+        // async-signal-safe. A failure is returned rather than ending the
+        // process, because the exec builtin runs these functions in the
+        // shell's own process, with no fork.
         unsafe {
-            self.pre_exec(move || {
-                pre_exec_check_pids_limits(&limits);
-                Ok(())
-            });
+            self.pre_exec(move || pre_exec_check_pids_limits(&limits));
         }
         Ok(())
     }
 }
 
-fn pre_exec_check_pids_limits(limits: &[PidsLimit]) {
-    if !limits.iter().all(within_limit) {
-        // SAFETY:
-        // _exit is async-signal-safe and ends the child at once, without
-        // running the exit handlers it inherited from the shell's process.
-        unsafe { libc::_exit(PIDS_LIMIT_EXIT_STATUS) };
-    }
+fn pre_exec_check_pids_limits(limits: &[PidsLimit]) -> Result<(), std::io::Error> {
+    limits.iter().try_for_each(check_pids_limit)
 }
 
-/// Whether `limit`'s count can be read and is at most its maximum.
-fn within_limit(limit: &PidsLimit) -> bool {
+/// Fails with `EAGAIN` when `limit`'s count is above its maximum, and with
+/// `EIO` when the count cannot be read. Both errors are built from an errno,
+/// which allocates nothing.
+fn check_pids_limit(limit: &PidsLimit) -> Result<(), std::io::Error> {
     use std::os::unix::fs::FileExt as _;
 
     let mut buffer = [0u8; PIDS_CURRENT_BUFFER];
-    match limit.current.read_at(&mut buffer, 0) {
-        Ok(len) if len < buffer.len() => buffer
-            .get(..len)
-            .and_then(parse_count)
-            .is_some_and(|count| count <= limit.max),
-        _ => false,
+    let count = match limit.current.read_at(&mut buffer, 0) {
+        Ok(len) if len < buffer.len() => buffer.get(..len).and_then(parse_count),
+        _ => None,
+    };
+    match count {
+        Some(count) if count <= limit.max => Ok(()),
+        Some(_) => Err(std::io::Error::from_raw_os_error(libc::EAGAIN)),
+        None => Err(std::io::Error::from_raw_os_error(libc::EIO)),
     }
 }
 

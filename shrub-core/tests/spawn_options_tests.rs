@@ -286,7 +286,7 @@ async fn a_count_at_its_limit_runs_the_program() -> Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn a_count_over_its_limit_or_unreadable_exits_126_before_the_program() -> Result<()> {
+async fn a_count_over_its_limit_or_unreadable_fails_with_126_before_the_program() -> Result<()> {
     for content in ["6\n", "max\n", "", "-1\n"] {
         let dir = tempfile::tempdir()?;
         let limits = vec![
