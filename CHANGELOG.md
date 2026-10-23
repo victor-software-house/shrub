@@ -1,5 +1,10 @@
 # Changelog
 
+## shrub 0.3.1
+
+- The lockfile moves tokio from 1.53.2 to 1.53.3, the fixed release for [RUSTSEC-2026-0386](https://rustsec.org/advisories/RUSTSEC-2026-0386), an unsound `AsyncFd` constructor.
+shrub does not use `AsyncFd`; the update clears the advisory for builds that use the lockfile, such as `cargo install --locked` ([#54](https://github.com/victor-software-house/shrub/pull/54)).
+
 ## shrub 0.3.0
 
 - `RuntimeOptions` gains `max_kept_descriptors`, the most file descriptors above standard error a shell keeps across commands, and `CreateOptions::max_kept_descriptors` sets it; left unset, as in `CreateOptions::default()`, it is `options::DEFAULT_MAX_KEPT_DESCRIPTORS` (64).
