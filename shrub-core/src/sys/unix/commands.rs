@@ -174,12 +174,32 @@ impl CommandOpenFileLimitExt for std::process::Command {
     }
 }
 
+/// The highest soft open-file limit macOS always accepts: `OPEN_MAX` in
+/// `<sys/syslimits.h>`. Its `setrlimit(2)` page says to use
+/// `min(OPEN_MAX, rlim_max)` where a higher soft limit fails with `EINVAL`.
+#[cfg(target_os = "macos")]
+const MACOS_OPEN_MAX: libc::rlim_t = 10240;
+
 fn pre_exec_set_open_file_limit(limit: u64) -> Result<(), std::io::Error> {
     use nix::sys::resource::{Resource, getrlimit, setrlimit};
 
     let (_, hard) = getrlimit(Resource::RLIMIT_NOFILE)?;
-    setrlimit(Resource::RLIMIT_NOFILE, limit.min(hard), hard)?;
-    Ok(())
+    // `rlim_t` is `u64` on Linux and macOS but `i64` on FreeBSD; a limit
+    // past its range sets the hard limit, as any limit above it does.
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        reason = "rlim_t is not u64 on every Unix"
+    )]
+    let soft = libc::rlim_t::try_from(limit).unwrap_or(hard).min(hard);
+    let result = setrlimit(Resource::RLIMIT_NOFILE, soft, hard);
+    #[cfg(target_os = "macos")]
+    let result = match result {
+        Err(nix::errno::Errno::EINVAL) => {
+            setrlimit(Resource::RLIMIT_NOFILE, soft.min(MACOS_OPEN_MAX), hard)
+        }
+        other => other,
+    };
+    Ok(result?)
 }
 
 /// Whether nothing exists at `path`, such as a `cgroup.procs` file whose

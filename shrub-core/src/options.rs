@@ -32,7 +32,8 @@ pub struct SpawnOptions {
     /// The soft limit on open files (`RLIMIT_NOFILE`) each child gets, set
     /// after it is forked and before it runs its program, for an embedder
     /// that raised its own soft limit and gives its children the one it
-    /// started with. A value above the hard limit sets the hard limit. `None`
+    /// started with. A value above the hard limit sets the hard limit, and
+    /// on macOS a value it refuses is lowered to `OPEN_MAX` (10240). `None`
     /// leaves the limit the child inherits; on a platform without resource
     /// limits, setting it fails every external command.
     pub open_file_limit: Option<u64>,
