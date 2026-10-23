@@ -765,6 +765,14 @@ pub(crate) fn execute_external_command(
             .join(" ")
     );
 
+    // Held until `on_spawn` returns, or until the spawn fails.
+    let _guard = context
+        .shell
+        .options()
+        .spawn
+        .before_spawn
+        .as_ref()
+        .map(|before_spawn| before_spawn());
     match sys::process::spawn(cmd, context.shell.options().kill_external_commands_on_drop) {
         Ok(child) => {
             // Retrieve the pid.
