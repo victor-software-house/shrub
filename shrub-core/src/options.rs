@@ -311,7 +311,11 @@ impl RuntimeOptions {
             glob_skip_dots: true,
             patsub_replacement: true,
             max_function_call_depth: create_options.max_function_call_depth,
-            max_kept_descriptors: Some(create_options.max_kept_descriptors),
+            max_kept_descriptors: Some(
+                create_options
+                    .max_kept_descriptors
+                    .unwrap_or(DEFAULT_MAX_KEPT_DESCRIPTORS),
+            ),
             ..Self::default()
         };
 

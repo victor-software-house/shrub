@@ -8,8 +8,9 @@
 
 use anyhow::Result;
 use shrub_builtins::{BuiltinSet, ShellBuilderExt as _};
-use shrub_core::options::DEFAULT_MAX_KEPT_DESCRIPTORS;
-use shrub_core::{Shell, ShellFd};
+use shrub_core::extensions::DefaultShellExtensions;
+use shrub_core::options::{DEFAULT_MAX_KEPT_DESCRIPTORS, RuntimeOptions};
+use shrub_core::{CreateOptions, Shell, ShellFd};
 
 async fn new_shell(max: usize) -> Result<Shell> {
     Ok(Shell::builder()
@@ -52,6 +53,16 @@ async fn a_built_shell_has_the_default_cap() -> Result<()> {
         Some(DEFAULT_MAX_KEPT_DESCRIPTORS)
     );
     Ok(())
+}
+
+#[test]
+fn default_create_options_have_the_default_cap() {
+    let options =
+        RuntimeOptions::defaults_from(&CreateOptions::<DefaultShellExtensions>::default());
+    assert_eq!(
+        options.max_kept_descriptors,
+        Some(DEFAULT_MAX_KEPT_DESCRIPTORS)
+    );
 }
 
 #[tokio::test]
