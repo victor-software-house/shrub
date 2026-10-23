@@ -29,6 +29,13 @@ pub struct SpawnOptions {
     /// only Linux has cgroups. When the child cannot open the file or write
     /// to it, the command fails to execute and its program never runs.
     pub cgroup_procs: Option<Arc<CString>>,
+    /// The soft limit on open files (`RLIMIT_NOFILE`) each child gets, set
+    /// after it is forked and before it runs its program, for an embedder
+    /// that raised its own soft limit and gives its children the one it
+    /// started with. A value above the hard limit sets the hard limit. `None`
+    /// leaves the limit the child inherits; on a platform without resource
+    /// limits, setting it fails every external command.
+    pub open_file_limit: Option<u64>,
     /// Called with each child once it has started, before the shell waits
     /// for it. It runs on the shell's task, so it should return quickly.
     pub on_spawn: Option<Arc<dyn Fn(SpawnedProcess) + Send + Sync>>,
@@ -38,6 +45,7 @@ impl std::fmt::Debug for SpawnOptions {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SpawnOptions")
             .field("cgroup_procs", &self.cgroup_procs)
+            .field("open_file_limit", &self.open_file_limit)
             .field("on_spawn", &self.on_spawn.as_ref().map(|_| "Fn"))
             .finish()
     }

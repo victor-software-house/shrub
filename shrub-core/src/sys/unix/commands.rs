@@ -148,6 +148,40 @@ fn pre_exec_join_cgroup(cgroup_procs: &CStr) -> Result<(), std::io::Error> {
     Ok(())
 }
 
+/// Extension trait for setting a command's open-file limit before it runs.
+pub trait CommandOpenFileLimitExt {
+    /// Arranges for the command to set its soft `RLIMIT_NOFILE` to `limit`,
+    /// or to its hard limit if that is lower, after it is forked and before
+    /// it runs its program.
+    ///
+    /// # Errors
+    ///
+    /// None here: a child that cannot set the limit fails its spawn.
+    fn set_open_file_limit(&mut self, limit: u64) -> Result<(), error::Error>;
+}
+
+impl CommandOpenFileLimitExt for std::process::Command {
+    fn set_open_file_limit(&mut self, limit: u64) -> Result<(), error::Error> {
+        // SAFETY:
+        // This arranges for a provided function to run in the context of
+        // the forked process before it exec's the target command. The
+        // function allocates nothing and only calls getrlimit and
+        // setrlimit, which are async-signal-safe.
+        unsafe {
+            self.pre_exec(move || pre_exec_set_open_file_limit(limit));
+        }
+        Ok(())
+    }
+}
+
+fn pre_exec_set_open_file_limit(limit: u64) -> Result<(), std::io::Error> {
+    use nix::sys::resource::{Resource, getrlimit, setrlimit};
+
+    let (_, hard) = getrlimit(Resource::RLIMIT_NOFILE)?;
+    setrlimit(Resource::RLIMIT_NOFILE, limit.min(hard), hard)?;
+    Ok(())
+}
+
 /// Whether nothing exists at `path`, such as a `cgroup.procs` file whose
 /// cgroup was removed.
 pub(crate) fn is_missing(path: &CStr) -> bool {

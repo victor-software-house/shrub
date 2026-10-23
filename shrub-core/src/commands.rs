@@ -8,7 +8,10 @@ use std::process::Stdio;
 
 use itertools::Itertools;
 use shrub_parser::ast;
-use sys::commands::{CommandCgroupExt, CommandExt, CommandFdInjectionExt, CommandFgControlExt};
+use sys::commands::{
+    CommandCgroupExt, CommandExt, CommandFdInjectionExt, CommandFgControlExt,
+    CommandOpenFileLimitExt,
+};
 
 use crate::extensions::{self, ShellExtensions};
 use crate::interp::{self, Execute, ProcessGroupPolicy};
@@ -183,7 +186,8 @@ impl<SE: extensions::ShellExtensions> std::ops::DerefMut for ShellForCommand<'_,
 /// descriptors into the child fails, or, where the shell's
 /// [`SpawnOptions`](crate::options::SpawnOptions) name a `cgroup_procs` file,
 /// [`error::ErrorKind::NotSupportedOnThisPlatform`] on a platform that cannot
-/// join a cgroup.
+/// join a cgroup, and likewise where they set an `open_file_limit` on a
+/// platform without resource limits.
 #[allow(unused_variables, reason = "argv0 is only used on unix platforms")]
 pub fn compose_std_command<S: AsRef<OsStr>, SE: extensions::ShellExtensions>(
     context: &ExecutionContext<'_, SE>,
@@ -270,6 +274,12 @@ pub fn compose_std_command<S: AsRef<OsStr>, SE: extensions::ShellExtensions>(
     // so no program the shell starts runs outside the cgroup.
     if let Some(cgroup_procs) = &context.shell.options().spawn.cgroup_procs {
         cmd.join_cgroup(std::sync::Arc::clone(cgroup_procs))?;
+    }
+
+    // Set here for the same reason: every program the shell starts gets the
+    // open-file limit the embedder chose.
+    if let Some(limit) = context.shell.options().spawn.open_file_limit {
+        cmd.set_open_file_limit(limit)?;
     }
 
     Ok(cmd)
