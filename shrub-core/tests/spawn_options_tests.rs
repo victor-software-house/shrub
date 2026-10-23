@@ -15,6 +15,7 @@
 #![allow(clippy::panic_in_result_fn, clippy::expect_used)]
 
 use std::ffi::CString;
+use std::os::fd::AsRawFd as _;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
@@ -306,6 +307,45 @@ async fn a_count_over_its_limit_or_unreadable_fails_with_126_before_the_program(
             "{content:?}"
         );
     }
+
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_redirection_onto_a_count_descriptor_does_not_change_the_count_read() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let current = pids_current(dir.path(), "session", "6\n")?;
+    let fd = current.as_raw_fd();
+    let zero = dir.path().join("zero");
+    std::fs::write(&zero, "0\n")?;
+
+    // The redirection reaches the child at the count descriptor's number.
+    let out = dir.path().join("out");
+    let mut plain = new_shell(SpawnOptions::default()).await?;
+    let script = format!(
+        "/bin/cat /dev/fd/{fd} {fd}<{} > {}",
+        zero.display(),
+        out.display()
+    );
+    assert!(run(&mut plain, &script).await?.is_success());
+    assert_eq!(std::fs::read_to_string(&out)?, "0\n");
+
+    // The check still reads the count, not the redirected file.
+    let marker = dir.path().join("marker");
+    let mut shell = new_shell(SpawnOptions {
+        pids_limits: vec![PidsLimit { current, max: 5 }].into(),
+        ..SpawnOptions::default()
+    })
+    .await?;
+    let script = format!(
+        "/usr/bin/touch {} {fd}<{}",
+        marker.display(),
+        zero.display()
+    );
+    let result = run(&mut shell, &script).await?;
+
+    assert_eq!(u8::from(result.exit_code), 126);
+    assert!(!marker.exists(), "the program ran over its limit");
 
     Ok(())
 }

@@ -21,6 +21,12 @@ pub const DEFAULT_MAX_KEPT_DESCRIPTORS: usize = 64;
 /// The options are part of the shell's [`RuntimeOptions`], so they reach every
 /// external command the shell runs, pipelines, background jobs and subshells
 /// included, since those copy the shell they run in.
+///
+/// The `exec` builtin applies them in the shell's own process, with no fork,
+/// so an `exec` that fails leaves in place the steps that ran before the
+/// failure. The order is the cgroup join, the process counts, the shell's
+/// other descriptors, then the open-file limit: an `exec` refused by a count
+/// leaves the shell only in the `cgroup_procs` cgroup.
 #[derive(Clone, Default)]
 pub struct SpawnOptions {
     /// A file each child writes `0` to after it is forked and before it runs
