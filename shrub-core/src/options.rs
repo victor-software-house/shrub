@@ -55,10 +55,23 @@ pub struct SpawnOptions {
     /// checked as usual. Empty, the default, checks nothing; on a platform
     /// without this check, a non-empty list fails every external command.
     pub pids_limits: Arc<[PidsLimit]>,
+    /// Called before each child is spawned. The shell holds the value it
+    /// returns until `on_spawn` has returned for that child, or until the
+    /// spawn fails, then drops it. An embedder that reaps processes it did
+    /// not spawn, such as a child subreaper, holds a lock in it so that no
+    /// reap runs between the fork and `on_spawn`: a child that exits in that
+    /// window is a zombie the embedder does not yet know, and reaping it
+    /// would take the exit status the shell waits for. It runs on the
+    /// shell's task, so it should return quickly.
+    pub before_spawn: Option<Arc<dyn Fn() -> SpawnGuard + Send + Sync>>,
     /// Called with each child once it has started, before the shell waits
     /// for it. It runs on the shell's task, so it should return quickly.
     pub on_spawn: Option<Arc<dyn Fn(SpawnedProcess) + Send + Sync>>,
 }
+
+/// What [`SpawnOptions::before_spawn`] returns, held across one spawn and
+/// dropped after it.
+pub type SpawnGuard = Box<dyn std::any::Any + Send>;
 
 impl std::fmt::Debug for SpawnOptions {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -66,6 +79,7 @@ impl std::fmt::Debug for SpawnOptions {
             .field("cgroup_procs", &self.cgroup_procs)
             .field("open_file_limit", &self.open_file_limit)
             .field("pids_limits", &self.pids_limits)
+            .field("before_spawn", &self.before_spawn.as_ref().map(|_| "Fn"))
             .field("on_spawn", &self.on_spawn.as_ref().map(|_| "Fn"))
             .finish()
     }

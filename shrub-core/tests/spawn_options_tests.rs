@@ -1,6 +1,7 @@
-//! Integration tests for `SpawnOptions`: the observer that sees each external
-//! process the shell starts, and the file each child writes `0` to before its
-//! program runs, which an embedder points at a cgroup's `cgroup.procs`.
+//! Integration tests for `SpawnOptions`: the guard held across each spawn,
+//! the observer that sees each external process the shell starts, and the
+//! file each child writes `0` to before its program runs, which an embedder
+//! points at a cgroup's `cgroup.procs`.
 //!
 //! The join file here is a plain file, so the tests run without a cgroup and
 //! on every Unix: what they check is that the child writes `0` to it after the
@@ -111,6 +112,71 @@ async fn the_observer_sees_every_external_process_with_its_pid() -> Result<()> {
     assert_eq!(printed.len(), 4);
     assert_eq!(observed, printed);
 
+    Ok(())
+}
+
+/// What a test's hooks saw, in order.
+type Events = Arc<Mutex<Vec<&'static str>>>;
+
+/// Pushes `dropped` to the events when the shell drops it.
+struct Guard(Events);
+
+impl Drop for Guard {
+    fn drop(&mut self) {
+        self.0.lock().expect("the events' lock").push("dropped");
+    }
+}
+
+/// Spawn options whose hooks record into `events`: `before` and a
+/// [`Guard`] from `before_spawn`, `spawned` from `on_spawn`.
+fn recording(events: &Events) -> SpawnOptions {
+    SpawnOptions {
+        before_spawn: Some(Arc::new({
+            let events = Arc::clone(events);
+            move || {
+                events.lock().expect("the events' lock").push("before");
+                Box::new(Guard(Arc::clone(&events)))
+            }
+        })),
+        on_spawn: Some(Arc::new({
+            let events = Arc::clone(events);
+            move |_| events.lock().expect("the events' lock").push("spawned")
+        })),
+        ..SpawnOptions::default()
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_spawn_guard_is_held_until_the_observer_returns() -> Result<()> {
+    let events = Events::default();
+    let mut shell = new_shell(recording(&events)).await?;
+
+    let result = run(&mut shell, "/bin/sh -c true").await?;
+
+    assert!(result.is_success());
+    assert_eq!(
+        *events.lock().expect("the events' lock"),
+        ["before", "spawned", "dropped"]
+    );
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_spawn_guard_is_dropped_when_the_spawn_fails() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let events = Events::default();
+    let mut shell = new_shell(recording(&events)).await?;
+
+    // A name with a path separator skips the path search, so the shell
+    // spawns it, and the spawn fails because no such program exists.
+    let missing = dir.path().join("missing");
+    let result = run(&mut shell, &missing.display().to_string()).await?;
+
+    assert!(!result.is_success());
+    assert_eq!(
+        *events.lock().expect("the events' lock"),
+        ["before", "dropped"]
+    );
     Ok(())
 }
 
