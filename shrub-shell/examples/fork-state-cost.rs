@@ -1,5 +1,8 @@
 //! Measures what `Shell::fork_state` costs on a shell with realistic state,
-//! next to `Shell::clone` and one `/bin/true` run through the same shell.
+//! next to `Shell::clone` and one run of the external `true` program through
+//! the same shell. The program is found on the shell's `PATH` and run by its
+//! path, so the `true` builtin does not run in its place, and the report names
+//! the path.
 //!
 //! The shell holds the process environment as exported variables, plus
 //! `VARIABLES` variables, `FUNCTIONS` functions and a directory stack
@@ -27,6 +30,9 @@ const DIRECTORIES: usize = 5;
 const WARM_UP: usize = 100;
 /// Timed runs of each operation.
 const RUNS: usize = 1000;
+/// The external program each baseline run starts: the cheapest command that
+/// forks and execs.
+const BASELINE: &str = "true";
 
 fn main() -> Result<()> {
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -80,10 +86,18 @@ async fn measure() -> Result<()> {
 
     let fork_state = time(|| drop(black_box(shell.fork_state())));
     let clone = time(|| drop(black_box(shell.clone())));
+    let true_path = shell
+        .find_first_executable_in_path(BASELINE)
+        .ok_or_else(|| anyhow::anyhow!("no `{BASELINE}` program on PATH"))?;
+    let true_command = true_path.display().to_string();
+    anyhow::ensure!(
+        !true_command.contains(char::is_whitespace),
+        "`{true_command}` would need quoting"
+    );
     let mut true_runs = Vec::with_capacity(RUNS);
     for i in 0..WARM_UP + RUNS {
         let start = Instant::now();
-        run(&mut shell, "/bin/true").await?;
+        run(&mut shell, &true_command).await?;
         if i >= WARM_UP {
             true_runs.push(start.elapsed());
         }
@@ -97,9 +111,9 @@ async fn measure() -> Result<()> {
     );
     let fork_state = report("fork_state", fork_state);
     report("clone", clone);
-    let true_median = report("/bin/true", true_runs);
+    let true_median = report(&true_command, true_runs);
     println!(
-        "fork_state median / /bin/true median: {:.2}%",
+        "fork_state median / {true_command} median: {:.2}%",
         100.0 * fork_state.as_secs_f64() / true_median.as_secs_f64()
     );
     Ok(())
