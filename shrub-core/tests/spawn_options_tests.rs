@@ -31,6 +31,10 @@ const BACKGROUND_WAIT: Duration = Duration::from_secs(10);
 /// high enough for `/bin/sh` to start.
 const OPEN_FILE_LIMIT: u64 = 100;
 
+/// macOS's `OPEN_MAX`, from `<sys/syslimits.h>`.
+#[cfg(target_os = "macos")]
+const MACOS_OPEN_MAX: u64 = 10240;
+
 async fn new_shell(spawn: SpawnOptions) -> Result<shrub_core::Shell> {
     let mut shell = shrub_core::Shell::builder()
         .do_not_inherit_env(true)
@@ -223,8 +227,18 @@ async fn an_open_file_limit_above_the_hard_limit_sets_the_hard_limit() -> Result
         return Ok(());
     }
     let hard = limit_u64(hard)?;
+    let limit: u64 = child_open_file_limit(hard + 1).await?.parse()?;
 
-    assert_eq!(child_open_file_limit(hard + 1).await?, hard.to_string());
+    // macOS may refuse a soft limit above OPEN_MAX (10240), and the child then
+    // falls back to it; whether it refuses depends on the kernel's own cap.
+    #[cfg(target_os = "macos")]
+    assert!(
+        (hard.min(MACOS_OPEN_MAX)..=hard).contains(&limit),
+        "{limit} outside {}..={hard}",
+        hard.min(MACOS_OPEN_MAX)
+    );
+    #[cfg(not(target_os = "macos"))]
+    assert_eq!(limit, hard);
 
     Ok(())
 }
