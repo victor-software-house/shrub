@@ -344,6 +344,11 @@ async fn an_item_that_cannot_apply_is_reported_and_the_rest_apply() -> Result<()
             ),
             (StateKind::Variable, "R", RestoreFailureReason::Readonly),
             (
+                StateKind::SetOption,
+                "nosuchoption",
+                RestoreFailureReason::UnknownOption
+            ),
+            (
                 StateKind::Function,
                 "broken",
                 RestoreFailureReason::DoesNotParse
@@ -352,11 +357,6 @@ async fn an_item_that_cannot_apply_is_reported_and_the_rest_apply() -> Result<()
                 StateKind::Trap,
                 "NOSUCHSIGNAL",
                 RestoreFailureReason::UnknownSignal
-            ),
-            (
-                StateKind::SetOption,
-                "nosuchoption",
-                RestoreFailureReason::UnknownOption
             ),
             (
                 StateKind::DisabledBuiltin,
