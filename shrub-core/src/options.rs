@@ -43,6 +43,20 @@ pub struct SpawnOptions {
     /// leaves the limit the child inherits; on a platform without resource
     /// limits, setting it fails every external command.
     pub open_file_limit: Option<u64>,
+    /// The limit on the processes of the user id (`RLIMIT_NPROC`) each
+    /// child gets, set after it is forked and before it runs its program:
+    /// both its soft and its hard limit become this value, or its hard limit
+    /// when that is lower, so neither the program nor its descendants can
+    /// raise it. The kernel then refuses a fork by the child or a descendant
+    /// while the user id has that many processes, except for root and a
+    /// process with `CAP_SYS_RESOURCE` or `CAP_SYS_ADMIN`, which it does not
+    /// bind. The `exec` builtin refuses to replace the shell while it is
+    /// set, because the shell's own process would set it, and would keep a
+    /// hard limit it cannot raise again if the exec failed; a subshell's
+    /// `exec` forks and is limited as usual. `None` leaves the limit the
+    /// child inherits. Only Linux sets it; on another platform, setting it
+    /// fails every external command.
+    pub process_limit: Option<u64>,
     /// Process counts each child checks after it joins the cgroup in
     /// `cgroup_procs` and before it runs its program. The kernel does not
     /// apply a cgroup's `pids.max` to a process that moves into it, so the
@@ -78,6 +92,7 @@ impl std::fmt::Debug for SpawnOptions {
         f.debug_struct("SpawnOptions")
             .field("cgroup_procs", &self.cgroup_procs)
             .field("open_file_limit", &self.open_file_limit)
+            .field("process_limit", &self.process_limit)
             .field("pids_limits", &self.pids_limits)
             .field("before_spawn", &self.before_spawn.as_ref().map(|_| "Fn"))
             .field("on_spawn", &self.on_spawn.as_ref().map(|_| "Fn"))

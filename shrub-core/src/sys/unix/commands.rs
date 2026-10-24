@@ -5,12 +5,12 @@
 //! 1. Safe code cannot do it. Each step here runs in a command's child after
 //!    the fork and before `exec`: taking the terminal's foreground, leading a
 //!    session and taking its controlling terminal, joining a cgroup, setting
-//!    the open-file limit and checking process counts. The standard library's
-//!    only hook there is `CommandExt::pre_exec`, which is unsafe; its safe
-//!    `process_group` sets a process group only, and its `setsid` is unstable.
-//!    `TIOCSCTTY` has no safe wrapper, and nix's `tcsetpgrp` needs a borrowed
-//!    descriptor, which for descriptor 0 means the unsafe
-//!    `BorrowedFd::borrow_raw` or `std::io::stdin()`, whose first call
+//!    the open-file and process limits and checking process counts. The
+//!    standard library's only hook there is `CommandExt::pre_exec`, which is
+//!    unsafe; its safe `process_group` sets a process group only, and its
+//!    `setsid` is unstable. `TIOCSCTTY` has no safe wrapper, and nix's
+//!    `tcsetpgrp` needs a borrowed descriptor, which for descriptor 0 means the
+//!    unsafe `BorrowedFd::borrow_raw` or `std::io::stdin()`, whose first call
 //!    allocates.
 //! 2. Speed is not the reason.
 //! 3. The unsafe operations are the `pre_exec` registrations in the `Command`
@@ -254,6 +254,66 @@ fn pre_exec_set_open_file_limit(limit: u64) -> Result<(), std::io::Error> {
         other => other,
     };
     Ok(result?)
+}
+
+/// Extension trait for setting a command's process limit before it runs.
+pub trait CommandProcessLimitExt {
+    /// Arranges for the command to set its soft and hard `RLIMIT_NPROC` to
+    /// `limit`, or to its hard limit if that is lower, after it is forked
+    /// and before it runs its program. Only Linux sets it.
+    ///
+    /// # Errors
+    ///
+    /// [`error::ErrorKind::NotSupportedOnThisPlatform`] on a Unix other than
+    /// Linux, where `nix` names no `RLIMIT_NPROC` for every target; on
+    /// Linux, none here: a child that cannot set the limit fails its spawn.
+    fn set_process_limit(&mut self, limit: u64) -> Result<(), error::Error>;
+}
+
+impl CommandProcessLimitExt for std::process::Command {
+    #[cfg(target_os = "linux")]
+    fn set_process_limit(&mut self, limit: u64) -> Result<(), error::Error> {
+        // SAFETY: `pre_exec` requires a closure that is safe to run in a
+        // forked child of a process that may have other threads: no
+        // allocation, no lock, no `std::env`. `pre_exec_set_process_limit`
+        // calls only `getrlimit` and `setrlimit`, which POSIX does not list
+        // as async-signal-safe (signal-safety(7)). Each Linux libc makes
+        // each one system call with no lock or allocation:
+        // - glibc: `prlimit64`, https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/getrlimit64.c;hb=9e77a668c94f892f2ce0ad9ef7f6e88525852af3
+        //   and https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/setrlimit64.c;hb=9e77a668c94f892f2ce0ad9ef7f6e88525852af3
+        // - musl: `prlimit64`, https://git.musl-libc.org/cgit/musl/tree/src/misc/getrlimit.c?id=7813e9119eb5fe681b6750b8a033a0490bca0941
+        //   and https://git.musl-libc.org/cgit/musl/tree/src/misc/setrlimit.c?id=7813e9119eb5fe681b6750b8a033a0490bca0941;
+        //   its locking `__synccall` fallback runs only on `ENOSYS`, before
+        //   Linux 2.6.36, older than any kernel Rust supports.
+        // The function allocates nothing, and its errors come from the
+        // errno.
+        unsafe {
+            self.pre_exec(move || pre_exec_set_process_limit(limit));
+        }
+        Ok(())
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    fn set_process_limit(&mut self, _limit: u64) -> Result<(), error::Error> {
+        Err(error::ErrorKind::NotSupportedOnThisPlatform("setting a process limit").into())
+    }
+}
+
+/// Sets this process's soft and hard `RLIMIT_NPROC` to `limit`, or to its
+/// hard limit if that is lower, in a child between the fork and `exec`.
+#[cfg(target_os = "linux")]
+fn pre_exec_set_process_limit(limit: u64) -> Result<(), std::io::Error> {
+    use nix::sys::resource::{Resource, getrlimit, setrlimit};
+
+    let (_, hard) = getrlimit(Resource::RLIMIT_NPROC)?;
+    // `rlim_t` is `u64` on 64-bit Linux and `u32` on some 32-bit targets; a
+    // limit past its range keeps the hard limit, as any limit above it does.
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        reason = "rlim_t is not u64 on every Linux target"
+    )]
+    let limit = libc::rlim_t::try_from(limit).unwrap_or(hard).min(hard);
+    Ok(setrlimit(Resource::RLIMIT_NPROC, limit, limit)?)
 }
 
 /// Extension trait for checking process counts before a command runs.

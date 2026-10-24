@@ -86,3 +86,32 @@ async fn exec_with_process_limits_is_refused_and_the_shell_lives_on() -> Result<
 
     Ok(())
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn exec_with_a_process_limit_is_refused_and_the_shell_lives_on() -> Result<()> {
+    let mut shell = shrub_core::Shell::builder()
+        .default_builtins(BuiltinSet::BashMode)
+        .do_not_inherit_env(true)
+        .skip_well_known_vars(true)
+        .build()
+        .await?;
+    shell.options_mut().spawn = SpawnOptions {
+        process_limit: Some(u64::MAX),
+        ..SpawnOptions::default()
+    };
+
+    // exec would replace this test process: were it not refused, the test
+    // run would end here with status 3.
+    let params = shell.default_exec_params();
+    let result = shell
+        .run_string(
+            "exec /bin/sh -c 'exit 3'",
+            &shrub_core::SourceInfo::default(),
+            &params,
+        )
+        .await?;
+
+    assert_eq!(u8::from(result.exit_code), 126);
+
+    Ok(())
+}

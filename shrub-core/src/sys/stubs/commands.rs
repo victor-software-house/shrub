@@ -134,6 +134,23 @@ impl CommandOpenFileLimitExt for std::process::Command {
     }
 }
 
+/// Extension trait for setting a command's process limit before it runs.
+pub trait CommandProcessLimitExt {
+    /// Fails: this platform has no resource limits to set.
+    ///
+    /// # Errors
+    ///
+    /// Always, so that no command runs with a limit other than the one it was
+    /// meant to have.
+    fn set_process_limit(&mut self, limit: u64) -> Result<(), error::Error>;
+}
+
+impl CommandProcessLimitExt for std::process::Command {
+    fn set_process_limit(&mut self, _limit: u64) -> Result<(), error::Error> {
+        Err(error::ErrorKind::NotSupportedOnThisPlatform("setting a process limit").into())
+    }
+}
+
 /// Extension trait for checking process counts before a command runs.
 pub trait CommandPidsLimitsExt {
     /// Fails: no child here can check a count before its program runs.
