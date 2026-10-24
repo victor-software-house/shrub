@@ -75,6 +75,21 @@ impl builtins::Command for ExecCommand {
             .into());
         }
 
+        // The shell's own process would set the embedder's process limit,
+        // soft and hard, before the exec, and would keep a hard limit it
+        // cannot raise again if the exec then failed, so the shell is not
+        // replaced while one is set either.
+        if context.shell.options().spawn.process_limit.is_some() {
+            return Err(ErrorKind::FailedToExecuteCommand(
+                self.args[0].clone(),
+                std::io::Error::new(
+                    std::io::ErrorKind::Unsupported,
+                    "exec cannot replace a shell that sets a process limit",
+                ),
+            )
+            .into());
+        }
+
         let mut argv0 = Cow::Borrowed(self.name_for_argv0.as_ref().unwrap_or(&self.args[0]));
 
         if self.exec_as_login {

@@ -8,7 +8,8 @@
 //! fork and before the program, and that a child that cannot write it never
 //! runs its program. `shrub-core` alone has no builtins, so every command in
 //! these scripts is an external program. The open-file limit tests read the
-//! child's limit with `ulimit -n`, and the process count tests use plain files
+//! child's limit with `ulimit -n`, the process limit tests read the child's
+//! `/proc/self/limits` on Linux, and the process count tests use plain files
 //! in place of `pids.current`.
 
 #![cfg(unix)]
@@ -307,6 +308,85 @@ async fn an_open_file_limit_above_the_hard_limit_sets_the_hard_limit() -> Result
     );
     #[cfg(not(target_os = "macos"))]
     assert_eq!(limit, hard);
+
+    Ok(())
+}
+
+/// A process limit for a test process whose own limit is unlimited: high
+/// enough for any machine's processes, so the child still forks.
+#[cfg(target_os = "linux")]
+const PROCESS_LIMIT: u64 = 1 << 20;
+
+/// The soft and hard "Max processes" of `/proc/self/limits` as a child with
+/// `process_limit` set to `limit` reads them.
+#[cfg(target_os = "linux")]
+async fn child_process_limits(limit: u64) -> Result<(String, String)> {
+    let dir = tempfile::tempdir()?;
+    let out = dir.path().join("out");
+    let mut shell = new_shell(SpawnOptions {
+        process_limit: Some(limit),
+        ..SpawnOptions::default()
+    })
+    .await?;
+
+    let script = format!("/bin/cat /proc/self/limits > {}", out.display());
+    let result = run(&mut shell, &script).await?;
+
+    assert!(result.is_success());
+    let limits = std::fs::read_to_string(&out)?;
+    let line = limits
+        .lines()
+        .find_map(|line| line.strip_prefix("Max processes"))
+        .expect("a Max processes line");
+    let mut fields = line.split_whitespace();
+    let soft = fields.next().expect("a soft limit").to_owned();
+    let hard = fields.next().expect("a hard limit").to_owned();
+    Ok((soft, hard))
+}
+
+#[cfg(target_os = "linux")]
+#[tokio::test(flavor = "multi_thread")]
+async fn each_child_gets_the_process_limit_as_its_soft_and_hard_limit() -> Result<()> {
+    let (soft, hard) = nix::sys::resource::getrlimit(Resource::RLIMIT_NPROC)?;
+    // Below this process's own limit, so the child's limits have changed.
+    let limit = if soft.min(hard) == RLIM_INFINITY {
+        PROCESS_LIMIT
+    } else {
+        limit_u64(soft.min(hard))? - 1
+    };
+
+    let limits = child_process_limits(limit).await?;
+
+    assert_eq!(limits, (limit.to_string(), limit.to_string()));
+
+    Ok(())
+}
+
+/// A child whose process limit is 1 cannot fork, since its user id already
+/// runs more processes than that. Root is not bound by the limit, so the test
+/// checks nothing there.
+#[cfg(target_os = "linux")]
+#[tokio::test(flavor = "multi_thread")]
+async fn a_child_at_its_process_limit_cannot_fork() -> Result<()> {
+    if nix::unistd::geteuid().is_root() {
+        return Ok(());
+    }
+    let dir = tempfile::tempdir()?;
+    let out = dir.path().join("out");
+    let mut shell = new_shell(SpawnOptions {
+        process_limit: Some(1),
+        ..SpawnOptions::default()
+    })
+    .await?;
+
+    let script = format!(
+        "/bin/sh -c '/bin/true && echo forked' > {} 2>/dev/null",
+        out.display()
+    );
+    let result = run(&mut shell, &script).await?;
+
+    assert!(!result.is_success(), "the child's shell forked");
+    assert_eq!(std::fs::read_to_string(&out)?, "");
 
     Ok(())
 }
