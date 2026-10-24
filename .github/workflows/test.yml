@@ -34,6 +34,12 @@ jobs:
           persist-credentials: false
       - name: Install locked toolchain
         uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2
+        # One tool at a time: on runner image 20261021.0445.8 (macOS), with
+        # 1.99.0 and the formatting nightly installing at once, rustup fails
+        # to rename 1.99.0's rust-std `.partial` download ("No such file or
+        # directory"). Only this step is serialized.
+        env:
+          MISE_JOBS: 1
         with:
           version: 2026.10.17
           cache: true
