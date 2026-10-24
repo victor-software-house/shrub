@@ -1,5 +1,11 @@
 # Changelog
 
+## shrub 0.5.0
+
+- `SpawnOptions::before_spawn` is called before each external command is spawned, and the shell holds the `SpawnGuard` it returns until `on_spawn` has returned, or until the spawn fails.
+An embedder that reaps processes it did not spawn, such as a child subreaper, holds a lock in the guard, so it never reaps a child that exited before `on_spawn` told it the child is the shell's.
+Breaking: `SpawnOptions` gains a public field, so a struct expression that names every field must add `before_spawn`; one that ends in `..SpawnOptions::default()` is unchanged ([#59](https://github.com/victor-software-house/shrub/pull/59)).
+
 ## shrub 0.4.0
 
 - `Shell::fork_state` returns a copy of the shell's state at the same level, not as a subshell: the copy keeps the shell's depth, so `$BASH_SUBSHELL` is unchanged and `exec` replaces the process instead of running as `command`.
