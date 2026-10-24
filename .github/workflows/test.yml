@@ -6,8 +6,9 @@ name: Test
 
 on:
   pull_request:
-  push:
-    branches: [main]
+  # The merge queue runs these on the commit that lands, so a push to main
+  # has already passed and runs nothing.
+  merge_group:
 
 permissions:
   contents: read
@@ -16,7 +17,7 @@ env:
   MISE_ENV: ci
 
 concurrency:
-  group: test-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}-${{ github.event.pull_request.base.sha || github.sha }}
+  group: test-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
