@@ -101,24 +101,27 @@ impl ShellTasks {
         sys::tasks::spawn_blocking(self.track(future)).map(TaskHandle::flatten_aborted)
     }
 
-    /// Aborts every task still running and every one started later, and
-    /// completes once each running one has ended: its future is dropped at
-    /// its next await, so it starts nothing more. A task inside a blocking
-    /// call ends when the call returns.
+    /// Aborts every task still running, whose future is dropped at its next
+    /// await, and every one started later, before it runs. It does not wait
+    /// for them: a task inside a blocking call ends when the call returns.
+    pub fn abort(&self) {
+        let mut state = self.inner.lock();
+        state.aborted = true;
+        for handle in state.running.values() {
+            handle.abort();
+        }
+    }
+
+    /// Aborts these tasks at once, as [`Self::abort`] does, and completes
+    /// once each running one has ended, so none starts anything more.
     pub fn abort_and_wait(&self) -> impl Future<Output = ()> + Send + 'static {
+        self.abort();
         let inner = Arc::clone(&self.inner);
         async move {
             loop {
                 let idle = inner.idle.notified();
-                {
-                    let mut state = inner.lock();
-                    state.aborted = true;
-                    if state.running.is_empty() {
-                        return;
-                    }
-                    for handle in state.running.values() {
-                        handle.abort();
-                    }
+                if inner.lock().running.is_empty() {
+                    return;
                 }
                 idle.await;
             }
@@ -226,6 +229,30 @@ mod tests {
             "the task ticked after the abort"
         );
         assert!(running.await.is_err(), "an aborted task yields an error");
+
+        let ran = Arc::new(AtomicU64::new(0));
+        let later = tasks.spawn({
+            let ran = Arc::clone(&ran);
+            async move {
+                ran.fetch_add(1, Ordering::SeqCst);
+            }
+        });
+        assert!(later.await.is_err(), "a task started after the abort ends");
+        assert_eq!(
+            ran.load(Ordering::SeqCst),
+            0,
+            "a task started after the abort never runs"
+        );
+    }
+
+    /// `abort` returns at once; the running task ends at its next await, and
+    /// a task started afterwards never runs.
+    #[tokio::test]
+    async fn abort_ends_running_tasks_without_waiting() {
+        let tasks = ShellTasks::default();
+        let running = tasks.spawn(std::future::pending::<()>());
+        tasks.abort();
+        assert!(running.await.is_err(), "the running task ends");
 
         let ran = Arc::new(AtomicU64::new(0));
         let later = tasks.spawn({
