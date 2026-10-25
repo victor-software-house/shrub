@@ -88,6 +88,10 @@ pub struct Shell<SE: extensions::ShellExtensions = extensions::DefaultShellExten
     #[cfg_attr(feature = "serde", serde(skip))]
     jobs: jobs::JobManager,
 
+    /// Every task this shell and its subshells start.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    tasks: crate::tasks::ShellTasks,
+
     /// Shell aliases.
     aliases: HashMap<String, String>,
 
@@ -172,9 +176,22 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
     /// Keeping the copy drops this shell's job table: `jobs`, `wait`, `fg`
     /// and `%n` in the kept shell see only the jobs the copy started. A
     /// caller that needs this shell's jobs afterwards must not replace it.
+    ///
+    /// The copy's tasks are its own too ([`Self::tasks`]), so aborting them
+    /// stops what a command run in the copy started and nothing of this
+    /// shell's.
     #[must_use]
     pub fn fork_state(&self) -> Self {
-        self.copy_at_depth(self.depth)
+        Self {
+            tasks: crate::tasks::ShellTasks::default(),
+            ..self.copy_at_depth(self.depth)
+        }
+    }
+
+    /// Returns every task this shell and its subshells start; an embedder
+    /// aborts them to stop a command's background jobs along with it.
+    pub const fn tasks(&self) -> &crate::tasks::ShellTasks {
+        &self.tasks
     }
 
     fn copy_at_depth(&self, depth: usize) -> Self {
@@ -187,6 +204,7 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
             funcs: self.funcs.clone(),
             options: self.options.clone(),
             jobs: jobs::JobManager::new(),
+            tasks: self.tasks.clone(),
             aliases: self.aliases.clone(),
             last_exit_status: self.last_exit_status,
             last_exit_status_change_count: self.last_exit_status_change_count,
@@ -656,6 +674,48 @@ mod tests {
         shell.restore_command_status(while_unset);
         assert_eq!(shell.env_str("_"), None);
 
+        Ok(())
+    }
+
+    /// A copy from `fork_state` has tasks of its own: once they are aborted,
+    /// a background job the copy starts never runs, and the shell it was
+    /// copied from runs its own as before.
+    #[tokio::test]
+    async fn an_aborted_copy_starts_no_background_job() -> Result<(), error::Error> {
+        let dir = tempfile::tempdir()?;
+        let mut shell = Shell::builder()
+            .profile(ProfileLoadBehavior::Skip)
+            .rc(RcLoadBehavior::Skip)
+            .working_dir(dir.path().to_path_buf())
+            .build()
+            .await?;
+        let mut copy = shell.fork_state();
+        copy.tasks().abort_and_wait().await;
+
+        // `touch` is an external command: shrub-core alone has no builtins.
+        let source = crate::SourceInfo::from("test");
+        let params = copy.default_exec_params();
+        copy.run_string("touch copy.txt &", &source, &params)
+            .await?;
+        let params = shell.default_exec_params();
+        shell
+            .run_string("touch shell.txt &", &source, &params)
+            .await?;
+
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        while !dir.path().join("shell.txt").exists() {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "the shell's own job did not run"
+            );
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+        // The copy's job, had it started, ran beside the shell's.
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        assert!(
+            !dir.path().join("copy.txt").exists(),
+            "the aborted copy's job ran"
+        );
         Ok(())
     }
 
