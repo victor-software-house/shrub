@@ -49,7 +49,7 @@ jobs:
   # visibility, and caches builds with mbx.
   verify:
     if: ${{ !github.event.pull_request.draft && github.event_name != 'schedule' }}
-    uses: victor-software-house/actions/.github/workflows/rust-ci.yml@19aa1c59bc8001e5df50ad52745b8c678474cdf7 # main, 2026-10-24
+    uses: victor-software-house/actions/.github/workflows/rust-ci.yml@8c851ba02cc6a303d4ea66c9577c3ca80d448ad1 # feat/rust-ci-parallel-checks, trial
     with:
       mise-version: 2026.10.17
       advisories: true
