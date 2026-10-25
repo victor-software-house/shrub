@@ -1,5 +1,9 @@
 # Changelog
 
+## shrub 0.6.2
+
+- `Shell::tasks` returns a handle to every task a shell and its subshells start: background jobs, coprocesses, pipeline stages, and command and process substitutions. `ShellTasks::abort` aborts them and every one started later, and `ShellTasks::abort_and_wait` also completes once each has ended, so an embedder that stops a command stops what the command started in the background too. A copy from `Shell::fork_state` has tasks of its own ([#73](https://github.com/victor-software-house/shrub/pull/73)).
+
 ## shrub 0.6.1
 
 - On macOS, an external command with no descriptor beyond standard input, output and error no longer registers an empty descriptor mapping, so when no other step needs to run between the fork and exec, the standard library starts it with `posix_spawn` instead of fork and exec ([#71](https://github.com/victor-software-house/shrub/pull/71)).
