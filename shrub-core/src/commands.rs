@@ -531,7 +531,8 @@ impl<'a, SE: extensions::ShellExtensions> SimpleCommand<'a, SE> {
         let last_arg = Self::take_last_arg(&args);
         // Builtins may block (e.g., reading input), so keep them from holding
         // up the rest of the pipeline.
-        let task = sys::tasks::spawn_blocking(async move {
+        let tasks = shell.tasks().clone();
+        let task = tasks.spawn_blocking(async move {
             let cmd_context = ExecutionContext {
                 shell: &mut shell,
                 command_name,
@@ -617,7 +618,8 @@ impl<'a, SE: extensions::ShellExtensions> SimpleCommand<'a, SE> {
         args: Vec<CommandArg>,
     ) -> impl Future<Output = ExecutionSpawnResult> + use<SE> {
         let last_arg = Self::take_last_arg(&args);
-        let task = sys::tasks::spawn_blocking(async move {
+        let tasks = shell.tasks().clone();
+        let task = tasks.spawn_blocking(async move {
             let cmd_context = ExecutionContext {
                 shell: &mut shell,
                 command_name,
@@ -953,7 +955,10 @@ pub(crate) async fn invoke_command_in_subshell_and_get_output(
 
     let mut async_reader = sys::async_pipe::AsyncPipeReader::new(reader)?;
 
-    let cmd_join_handle = sys::tasks::spawn(run_substitution_command(subshell, params, s));
+    // The subshell shares the shell's tasks. Taking them from the shell keeps
+    // the subshell from being borrowed, and so held across the awaits below.
+    let tasks = shell.tasks().clone();
+    let cmd_join_handle = tasks.spawn(run_substitution_command(subshell, params, s));
 
     let output_str = async_reader.read_to_string().await?;
 

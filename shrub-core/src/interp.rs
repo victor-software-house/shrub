@@ -295,7 +295,8 @@ fn spawn_async_ao_list_in_task<'a, SE: extensions::ShellExtensions>(
         cloned_params.set_fd(openfiles::OpenFiles::STDIN_FD, null);
     }
 
-    let join_handle = sys::tasks::spawn(async move {
+    let tasks = cloned_shell.tasks().clone();
+    let join_handle = tasks.spawn(async move {
         cloned_ao_list
             .execute(&mut cloned_shell, &cloned_params)
             .await
@@ -647,12 +648,17 @@ impl<SE: extensions::ShellExtensions> ExecuteInPipeline<SE> for ast::Command {
                     // An owned shell is a discarded clone, so this stage can run asynchronously.
                     // That lets the pipeline start readers before writers fill the pipe.
                     commands::ShellForCommand::OwnedShell { target, .. } => {
+                        // Taken through the box: a borrow of `shell` would keep
+                        // it in this future's state
+                        // across the await below.
+                        let tasks = target.tasks().clone();
                         let (mut shell, compound) = (*target, compound.clone());
                         Ok(ExecutionSpawnResult::StartedTask(
-                            sys::tasks::spawn_blocking(async move {
-                                compound.execute(&mut shell, &params).await
-                            })
-                            .await,
+                            tasks
+                                .spawn_blocking(async move {
+                                    compound.execute(&mut shell, &params).await
+                                })
+                                .await,
                         ))
                     }
                     commands::ShellForCommand::ParentShell(shell) => {
@@ -784,7 +790,10 @@ impl Execute for ast::CoprocessCommand {
             .set_fd(OpenFiles::STDOUT_FD, stdout_writer.into());
 
         let body = self.body.clone();
-        let join_handle = sys::tasks::spawn(async move {
+        // The copy shares the shell's tasks. Taking them from the shell keeps
+        // the copy from being borrowed, and so held in this future's state.
+        let tasks = shell.tasks().clone();
+        let join_handle = tasks.spawn(async move {
             let pipeline_context = PipelineExecutionContext {
                 shell: commands::ShellForCommand::ParentShell(&mut child_shell),
                 process_group_id: None,
@@ -2072,7 +2081,8 @@ fn setup_process_substitution(
     // Asynchronously spawn off the subshell; we intentionally don't block on
     // its completion.
     let subshell_cmd = subshell_cmd.to_owned();
-    sys::tasks::spawn(async move {
+    let tasks = subshell.tasks().clone();
+    tasks.spawn(async move {
         // Intentionally ignore the result of the subshell command.
         let _ = subshell_cmd
             .list

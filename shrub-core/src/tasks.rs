@@ -1,9 +1,15 @@
 //! Tasks the shell runs concurrently with itself.
 
+use std::collections::HashMap;
 use std::pin::Pin;
+use std::sync::{Arc, Mutex, PoisonError};
 use std::task::{Context, Poll};
 
-use crate::error;
+use futures::FutureExt as _;
+use futures::future::{AbortHandle, Abortable, Aborted};
+use tokio::sync::Notify;
+
+use crate::{error, sys};
 
 /// A future that yields a task's output when it finishes.
 type TaskFuture<T> = Pin<Box<dyn Future<Output = Result<T, error::Error>> + Send + Sync>>;
@@ -37,5 +43,242 @@ impl<T> Future for TaskHandle<T> {
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         self.future.as_mut().poll(cx)
+    }
+}
+
+/// Every task a shell and its subshells start.
+///
+/// The tasks are background jobs, coprocesses, pipeline stages, and command
+/// and process substitutions. An embedder that stops a command takes the
+/// handle before running it, then aborts its tasks and waits for them, so the
+/// command starts nothing more: dropping the command's future stops only its
+/// foreground part, and its tasks run on.
+///
+/// A subshell shares its parent's handle, so aborting it reaches nested
+/// tasks too; [`crate::Shell::fork_state`] gives the copy a handle of its own.
+#[derive(Clone, Default)]
+pub struct ShellTasks {
+    inner: Arc<TasksInner>,
+}
+
+#[derive(Default)]
+struct TasksInner {
+    state: Mutex<TasksState>,
+    idle: Notify,
+}
+
+#[derive(Default)]
+struct TasksState {
+    /// Set by [`ShellTasks::abort_and_wait`]: a task started afterwards ends
+    /// before it runs.
+    aborted: bool,
+    /// The abort handle of each task that has not ended, by id.
+    running: HashMap<u64, AbortHandle>,
+    next_id: u64,
+}
+
+impl ShellTasks {
+    /// Starts running `future` concurrently with the caller, as one of these
+    /// tasks.
+    pub(crate) fn spawn<F>(&self, future: F) -> TaskHandle<F::Output>
+    where
+        F: Future + Send + 'static,
+        F::Output: Send + 'static,
+    {
+        sys::tasks::spawn(self.track(future)).flatten_aborted()
+    }
+
+    /// Starts running `future`, which may block the thread it runs on, as one
+    /// of these tasks; see [`sys::tasks::spawn_blocking`].
+    pub(crate) fn spawn_blocking<F>(
+        &self,
+        future: F,
+    ) -> impl Future<Output = TaskHandle<F::Output>> + use<F>
+    where
+        F: Future + Send + 'static,
+        F::Output: Send + Sync + 'static,
+    {
+        sys::tasks::spawn_blocking(self.track(future)).map(TaskHandle::flatten_aborted)
+    }
+
+    /// Aborts every task still running, whose future is dropped at its next
+    /// await, and every one started later, before it runs. It does not wait
+    /// for them: a task inside a blocking call ends when the call returns.
+    ///
+    /// The abort is final, which is what keeps a stopped command from
+    /// starting anything more: a shell sharing these tasks can run no task
+    /// afterwards. Abort the tasks of a [`crate::Shell::fork_state`] copy.
+    pub fn abort(&self) {
+        let mut state = self.inner.lock();
+        state.aborted = true;
+        for handle in state.running.values() {
+            handle.abort();
+        }
+    }
+
+    /// Aborts these tasks at once, as [`Self::abort`] does, and completes
+    /// once each running one has ended, so none starts anything more.
+    pub fn abort_and_wait(&self) -> impl Future<Output = ()> + Send + 'static {
+        self.abort();
+        let inner = Arc::clone(&self.inner);
+        async move {
+            loop {
+                let idle = inner.idle.notified();
+                if inner.lock().running.is_empty() {
+                    return;
+                }
+                idle.await;
+            }
+        }
+    }
+
+    /// `future`, ended at once when these tasks are aborted, and counted as
+    /// running from now until it ends or is dropped.
+    fn track<F: Future>(
+        &self,
+        future: F,
+    ) -> impl Future<Output = Result<F::Output, Aborted>> + use<F> {
+        let (handle, registration) = AbortHandle::new_pair();
+        let id = {
+            let mut state = self.inner.lock();
+            if state.aborted {
+                handle.abort();
+            }
+            let id = state.next_id;
+            state.next_id += 1;
+            state.running.insert(id, handle);
+            id
+        };
+        let ended = Ended {
+            inner: Arc::clone(&self.inner),
+            id,
+        };
+        async move {
+            let _ended = ended;
+            Abortable::new(future, registration).await
+        }
+    }
+}
+
+impl TasksInner {
+    /// The state's lock. A task that panicked under it left the state as
+    /// it was, whole, so a poisoned lock is taken as it is.
+    fn lock(&self) -> std::sync::MutexGuard<'_, TasksState> {
+        self.state.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+}
+
+/// Removes a task from the running ones when its future ends or is dropped.
+struct Ended {
+    inner: Arc<TasksInner>,
+    id: u64,
+}
+
+impl Drop for Ended {
+    fn drop(&mut self) {
+        let mut state = self.inner.lock();
+        state.running.remove(&self.id);
+        if state.running.is_empty() {
+            self.inner.idle.notify_waiters();
+        }
+    }
+}
+
+impl<T> TaskHandle<Result<T, Aborted>> {
+    /// The task's output, with an abort as the task's error.
+    fn flatten_aborted(self) -> TaskHandle<T>
+    where
+        T: Send + 'static,
+    {
+        TaskHandle::from_future(self.map(|result| {
+            result.and_then(|output| {
+                output.map_err(|aborted| error::ErrorKind::TaskError(Box::new(aborted)).into())
+            })
+        }))
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::panic_in_result_fn, reason = "assertions in a fallible test")]
+mod tests {
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    use super::*;
+
+    /// A running task ends at its next await once its tasks are aborted, and
+    /// the abort completes only after it has; a task started afterwards
+    /// never runs.
+    #[tokio::test]
+    async fn abort_and_wait_ends_running_tasks_and_refuses_later_ones() {
+        let tasks = ShellTasks::default();
+        let ticks = Arc::new(AtomicU64::new(0));
+        let running = tasks.spawn({
+            let ticks = Arc::clone(&ticks);
+            async move {
+                while ticks.fetch_add(1, Ordering::SeqCst) < u64::MAX {
+                    tokio::task::yield_now().await;
+                }
+            }
+        });
+        while ticks.load(Ordering::SeqCst) == 0 {
+            tokio::task::yield_now().await;
+        }
+
+        tasks.abort_and_wait().await;
+        let seen = ticks.load(Ordering::SeqCst);
+        tokio::task::yield_now().await;
+        assert_eq!(
+            ticks.load(Ordering::SeqCst),
+            seen,
+            "the task ticked after the abort"
+        );
+        assert!(running.await.is_err(), "an aborted task yields an error");
+
+        let ran = Arc::new(AtomicU64::new(0));
+        let later = tasks.spawn({
+            let ran = Arc::clone(&ran);
+            async move {
+                ran.fetch_add(1, Ordering::SeqCst);
+            }
+        });
+        assert!(later.await.is_err(), "a task started after the abort ends");
+        assert_eq!(
+            ran.load(Ordering::SeqCst),
+            0,
+            "a task started after the abort never runs"
+        );
+    }
+
+    /// `abort` returns at once; the running task ends at its next await, and
+    /// a task started afterwards never runs.
+    #[tokio::test]
+    async fn abort_ends_running_tasks_without_waiting() {
+        let tasks = ShellTasks::default();
+        let running = tasks.spawn(std::future::pending::<()>());
+        tasks.abort();
+        assert!(running.await.is_err(), "the running task ends");
+
+        let ran = Arc::new(AtomicU64::new(0));
+        let later = tasks.spawn({
+            let ran = Arc::clone(&ran);
+            async move {
+                ran.fetch_add(1, Ordering::SeqCst);
+            }
+        });
+        assert!(later.await.is_err(), "a task started after the abort ends");
+        assert_eq!(
+            ran.load(Ordering::SeqCst),
+            0,
+            "a task started after the abort never runs"
+        );
+    }
+
+    /// Aborting tasks that are all done completes at once.
+    #[tokio::test]
+    async fn abort_and_wait_with_nothing_running_completes() -> Result<(), error::Error> {
+        let tasks = ShellTasks::default();
+        assert_eq!(tasks.spawn(async { 7 }).await?, 7);
+        tasks.abort_and_wait().await;
+        Ok(())
     }
 }
