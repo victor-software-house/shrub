@@ -104,6 +104,10 @@ impl ShellTasks {
     /// Aborts every task still running, whose future is dropped at its next
     /// await, and every one started later, before it runs. It does not wait
     /// for them: a task inside a blocking call ends when the call returns.
+    ///
+    /// The abort is final, which is what keeps a stopped command from
+    /// starting anything more: a shell sharing these tasks can run no task
+    /// afterwards. Abort the tasks of a [`crate::Shell::fork_state`] copy.
     pub fn abort(&self) {
         let mut state = self.inner.lock();
         state.aborted = true;

@@ -190,6 +190,10 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
 
     /// Returns every task this shell and its subshells start; an embedder
     /// aborts them to stop a command's background jobs along with it.
+    ///
+    /// An abort is final, so abort the tasks of a copy made with
+    /// [`Self::fork_state`] for the one command, never a shell that runs
+    /// more commands.
     pub const fn tasks(&self) -> &crate::tasks::ShellTasks {
         &self.tasks
     }
