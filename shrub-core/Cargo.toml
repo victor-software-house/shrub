@@ -25,6 +25,7 @@ experimental-parser = ["shrub-parser/winnow-parser"]
 async-recursion = "1.1.1"
 async-trait = "0.1.89"
 shrub-parser = { workspace = true }
+shrub-process = { workspace = true }
 bon = { workspace = true }
 cached = { workspace = true }
 cfg-if = { workspace = true }

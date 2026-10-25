@@ -4,6 +4,7 @@ members = [
   "shrub",
   "shrub-shell",
   "shrub-parser",
+  "shrub-process",
   "shrub-core",
   "shrub-builtins",
   "shrub-coreutils-builtins",
@@ -33,6 +34,7 @@ shrub-coreutils-builtins = { version = "=0.6.2", path = "shrub-coreutils-builtin
 shrub-experimental-builtins = { version = "=0.6.2", path = "shrub-experimental-builtins" }
 shrub-interactive = { version = "=0.6.2", path = "shrub-interactive" }
 shrub-parser = { version = "=0.6.2", path = "shrub-parser" }
+shrub-process = { version = "=0.6.2", path = "shrub-process" }
 shrub-shell = { version = "=0.6.2", path = "shrub-shell", default-features = false }
 shrub-test-harness = { path = "shrub-test-harness" }
 anyhow = "1.0.102"

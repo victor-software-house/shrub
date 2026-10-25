@@ -18,7 +18,7 @@ packages:
 patterns:
   internal:
     match: 'version = "={version}", path = "shrub-'
-    occurrences: { exactly: 7 }
+    occurrences: { exactly: 8 }
 
 pins:
   - file: Cargo.toml

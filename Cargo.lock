@@ -3695,6 +3695,7 @@ dependencies = [
  "rlimit",
  "shrub-core",
  "shrub-parser",
+ "shrub-process",
  "strum",
  "tempfile",
  "thiserror 2.0.21",
@@ -3734,6 +3735,7 @@ dependencies = [
  "rpds",
  "serde",
  "shrub-parser",
+ "shrub-process",
  "strum",
  "strum_macros",
  "tempfile",
@@ -3900,6 +3902,19 @@ dependencies = [
  "uuid",
  "winnow",
  "yaml_serde",
+]
+
+[[package]]
+name = "shrub-process"
+version = "0.6.2"
+dependencies = [
+ "anyhow",
+ "command-fds",
+ "libc",
+ "nix 0.31.3",
+ "proptest",
+ "thiserror 2.0.21",
+ "tokio",
 ]
 
 [[package]]

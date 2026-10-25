@@ -9,6 +9,7 @@ the answer should follow from here. If it doesn't, this document needs updating.
 | Crate | Published | Role |
 |---|---|---|
 | `shrub-parser` | yes | Tokenizes and parses shell syntax. Knows nothing about a running shell. |
+| `shrub-process` | yes | Process launch: one spawn request, and the child setup between `fork` and `exec` (cgroup join, resource limits, process counts, process group, terminal) behind safe functions. Knows nothing about a shell, so a program can launch processes as shrub does without the interpreter. |
 | `shrub-core` | yes | The shell itself: the `Shell` type, expansion, execution, jobs, variables, traps, and programmable completion. Has no line editor or UI of its own. |
 | `shrub-builtins` | yes | The standard builtins, registered on a `Shell` through `shrub-core`'s public API. |
 | `shrub-experimental-builtins` | yes | Builtins not ready to be standard. |
@@ -28,10 +29,11 @@ shrub-shell                  → shrub-interactive, shrub-builtins, shrub-core,
                                shrub-experimental-builtins (optional),
                                shrub-coreutils-builtins (optional)
 shrub-interactive            → shrub-core, shrub-parser
-shrub-builtins               → shrub-core, shrub-parser
+shrub-builtins               → shrub-core, shrub-parser, shrub-process (with `exec`)
 shrub-experimental-builtins  → shrub-core
-shrub-core                   → shrub-parser
+shrub-core                   → shrub-parser, shrub-process
 shrub-parser                 (none)
+shrub-process                (none)
 shrub-coreutils-builtins     (none)
 ```
 
@@ -45,6 +47,9 @@ without its front end. Keep that in mind when deciding what to export.
   behavior (today, how errors are formatted) at compile time.
 - Platform-specific code lives under the `sys` module, so the rest of the crate stays
   platform-neutral.
+- Every external command, and `exec`, is a `shrub_process::Spawn` composed by
+  `commands::compose_spawn`; the code that runs in a child before its program lives in
+  `shrub-process`, not here.
 - The `snapshot` module holds a copy of a shell's state as plain data:
   `Shell::snapshot` takes one between commands, and `Shell::restore_snapshot` applies
   it to a fresh shell through the public API, so an embedder can carry a shell across

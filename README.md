@@ -31,6 +31,7 @@ The [examples guide](docs/reference/examples.md) covers custom builtins, calling
 |:--|:--|
 | [`shrub-core`](shrub-core) | The shell runtime: expansion, execution, jobs, completion, and the `Shell` API |
 | [`shrub-parser`](shrub-parser) | Tokenizer and parser for Bash and POSIX shell syntax, with an optional `serde` syntax tree |
+| [`shrub-process`](shrub-process) | Process launch: one spawn request, with the child setup (cgroup join, resource limits, process counts, process group, terminal) behind safe functions |
 | [`shrub-builtins`](shrub-builtins) | The standard builtins |
 | [`shrub-interactive`](shrub-interactive) | Line editing, highlighting, suggestions and completion, built on [reedline](https://github.com/nushell/reedline) |
 | [`shrub-shell`](shrub-shell) | The command line of the `shrub` binary |

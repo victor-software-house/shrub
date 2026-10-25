@@ -1,0 +1,33 @@
+[package]
+name = "shrub-process"
+description = "Process launch for shrub and its embedders: one spawn request, the child setup a sandbox needs, and no unsafe code for the caller"
+version.workspace = true
+categories.workspace = true
+edition.workspace = true
+keywords.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+bench = false
+
+[dependencies]
+thiserror = { workspace = true }
+
+[target.'cfg(any(unix, windows))'.dependencies]
+tokio = { workspace = true, features = ["process"] }
+
+[target.'cfg(unix)'.dependencies]
+command-fds = "0.3.2"
+libc = { workspace = true }
+nix = { workspace = true, features = ["fs", "process", "resource"] }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+proptest = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt"] }
