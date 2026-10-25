@@ -1,5 +1,9 @@
 # Changelog
 
+## shrub 0.6.1
+
+- On macOS, an external command with no descriptor beyond standard input, output and error no longer registers an empty descriptor mapping, so when no other step needs to run between the fork and exec, the standard library starts it with `posix_spawn` instead of fork and exec ([#71](https://github.com/victor-software-house/shrub/pull/71)).
+
 ## shrub 0.6.0
 
 - `SpawnOptions::process_limit` sets each external command's soft and hard `RLIMIT_NPROC` after its fork and before its program runs, or keeps its hard limit when that is lower, so the kernel refuses a fork by the command or its descendants once the user id holds that many processes; root and a process with `CAP_SYS_RESOURCE` or `CAP_SYS_ADMIN` are not bound.
