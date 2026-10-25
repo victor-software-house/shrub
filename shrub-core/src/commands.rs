@@ -955,7 +955,9 @@ pub(crate) async fn invoke_command_in_subshell_and_get_output(
 
     let mut async_reader = sys::async_pipe::AsyncPipeReader::new(reader)?;
 
-    let tasks = subshell.tasks().clone();
+    // The subshell shares the shell's tasks. Taking them from the shell keeps
+    // the subshell from being borrowed, and so held across the awaits below.
+    let tasks = shell.tasks().clone();
     let cmd_join_handle = tasks.spawn(run_substitution_command(subshell, params, s));
 
     let output_str = async_reader.read_to_string().await?;

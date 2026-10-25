@@ -648,8 +648,11 @@ impl<SE: extensions::ShellExtensions> ExecuteInPipeline<SE> for ast::Command {
                     // An owned shell is a discarded clone, so this stage can run asynchronously.
                     // That lets the pipeline start readers before writers fill the pipe.
                     commands::ShellForCommand::OwnedShell { target, .. } => {
+                        // Taken through the box: a borrow of `shell` would keep
+                        // it in this future's state
+                        // across the await below.
+                        let tasks = target.tasks().clone();
                         let (mut shell, compound) = (*target, compound.clone());
-                        let tasks = shell.tasks().clone();
                         Ok(ExecutionSpawnResult::StartedTask(
                             tasks
                                 .spawn_blocking(async move {
@@ -787,7 +790,9 @@ impl Execute for ast::CoprocessCommand {
             .set_fd(OpenFiles::STDOUT_FD, stdout_writer.into());
 
         let body = self.body.clone();
-        let tasks = child_shell.tasks().clone();
+        // The copy shares the shell's tasks. Taking them from the shell keeps
+        // the copy from being borrowed, and so held in this future's state.
+        let tasks = shell.tasks().clone();
         let join_handle = tasks.spawn(async move {
             let pipeline_context = PipelineExecutionContext {
                 shell: commands::ShellForCommand::ParentShell(&mut child_shell),
