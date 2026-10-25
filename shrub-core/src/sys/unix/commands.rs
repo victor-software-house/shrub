@@ -69,6 +69,13 @@ impl CommandFdInjectionExt for std::process::Command {
             })
             .collect::<Result<Vec<_>, _>>()?;
 
+        // `fd_mappings` registers a `pre_exec` closure even for an empty
+        // list, and any closure makes the standard library fork and exec
+        // instead of calling `posix_spawn`.
+        if fd_mappings.is_empty() {
+            return Ok(());
+        }
+
         self.fd_mappings(fd_mappings)
             .map_err(|_e| error::ErrorKind::ChildCreationFailure)?;
 
