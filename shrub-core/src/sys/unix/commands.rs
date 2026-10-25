@@ -71,8 +71,10 @@ impl CommandFdInjectionExt for std::process::Command {
 
         // `fd_mappings` registers a `pre_exec` closure even for an empty
         // list, and any closure makes the standard library fork and exec
-        // instead of calling `posix_spawn`.
-        if fd_mappings.is_empty() {
+        // instead of calling `posix_spawn`. Only on macOS: there
+        // `posix_spawnp` runs a script without a `#!` line with `/bin/sh`,
+        // as `execvp` does, while glibc's fails it with `ENOEXEC`.
+        if cfg!(target_os = "macos") && fd_mappings.is_empty() {
             return Ok(());
         }
 
