@@ -1,17 +1,15 @@
 //! Command execution
 
 use std::borrow::Cow;
-use std::ffi::OsStr;
+use std::collections::BTreeMap;
+use std::ffi::{OsStr, OsString};
 use std::fmt::{Display, Write as _};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 
 use itertools::Itertools;
 use shrub_parser::ast;
-use sys::commands::{
-    CommandCgroupExt, CommandExt, CommandFdInjectionExt, CommandFgControlExt,
-    CommandOpenFileLimitExt, CommandPidsLimitsExt, CommandProcessLimitExt,
-};
+use shrub_process::{Group, Spawn, Spawned, Terminal};
 
 use crate::extensions::{self, ShellExtensions};
 use crate::interp::{self, Execute, ProcessGroupPolicy};
@@ -163,9 +161,9 @@ impl<SE: extensions::ShellExtensions> std::ops::DerefMut for ShellForCommand<'_,
     }
 }
 
-/// Composes a `std::process::Command` to execute the given command.
-/// Appropriately configures the command name and arguments, redirections,
-/// injected file descriptors, environment variables, etc.
+/// Composes the [`Spawn`] request that executes the given command: its name
+/// and arguments, redirections, the shell's other open file descriptors, its
+/// environment, and the shell's [`SpawnOptions`](crate::options::SpawnOptions).
 ///
 /// # Arguments
 ///
@@ -182,66 +180,60 @@ impl<SE: extensions::ShellExtensions> std::ops::DerefMut for ShellForCommand<'_,
 ///
 /// Returns [`error::ErrorKind::IoError`] if a redirected file descriptor cannot
 /// be duplicated into a `Stdio` for the child (for example under descriptor
-/// exhaustion), or an error if injecting the shell's other open file
-/// descriptors into the child fails, or, where the shell's
-/// [`SpawnOptions`](crate::options::SpawnOptions) name a `cgroup_procs` file,
-/// [`error::ErrorKind::NotSupportedOnThisPlatform`] on a platform that cannot
-/// join a cgroup, and likewise where they set an `open_file_limit`, a
-/// `process_limit` or `pids_limits` on a platform that cannot apply them.
-#[allow(unused_variables, reason = "argv0 is only used on unix platforms")]
-pub fn compose_std_command<S: AsRef<OsStr>, SE: extensions::ShellExtensions>(
+/// exhaustion), or an error if one of the shell's other open file descriptors
+/// cannot be duplicated, or, on a platform that cannot map descriptors into a
+/// child, [`error::ErrorKind::NotSupportedOnThisPlatform`] when there is one.
+/// A setup step the platform cannot take fails the spawn, in
+/// [`shrub_process::spawn`] or [`shrub_process::exec`].
+pub fn compose_spawn<S: AsRef<OsStr>, SE: extensions::ShellExtensions>(
     context: &ExecutionContext<'_, SE>,
     command_name: &str,
     argv0: &str,
     args: &[S],
     empty_env: bool,
-) -> Result<std::process::Command, error::Error> {
-    let mut cmd = std::process::Command::new(command_name);
-
-    // Override argv[0].
-    // NOTE: Not supported on all platforms.
-    cmd.arg0(argv0);
-
-    // Pass through args.
-    cmd.args(args);
-
-    // Use the shell's current working dir.
-    cmd.current_dir(context.shell.working_dir());
-
-    // Start with a clear environment.
-    cmd.env_clear();
-
-    // Add in exported variables.
+) -> Result<Spawn, error::Error> {
+    // The child gets exactly this environment.
+    let mut env = BTreeMap::new();
     if !empty_env {
         for (k, v) in context.shell.env().iter_exported() {
             // NOTE: To match bash behavior, we only include exported variables
             // that are set (i.e., have a value). This means a variable that
             // shows up in `declare -p` but has no *set* value will be omitted.
             if v.value().is_set() {
-                cmd.env(k.as_str(), v.value().to_cow_str(context.shell).as_ref());
+                env.insert(
+                    OsString::from(k.as_str()),
+                    OsString::from(v.value().to_cow_str(context.shell).as_ref()),
+                );
             }
         }
         // Set _ to the resolved command path for external commands.
-        cmd.env("_", command_name);
-    }
+        env.insert(OsString::from("_"), OsString::from(command_name));
 
-    // Add in exported functions.
-    if !empty_env {
+        // Add in exported functions.
         for (func_name, registration) in context.shell.funcs().iter() {
             if registration.is_exported() {
-                let var_name = std::format!("BASH_FUNC_{func_name}%%");
-                let value = std::format!("() {}", registration.definition().body);
-                cmd.env(var_name, value);
+                env.insert(
+                    OsString::from(std::format!("BASH_FUNC_{func_name}%%")),
+                    OsString::from(std::format!("() {}", registration.definition().body)),
+                );
             }
         }
     }
+
+    // A file with no `#!` line runs with `/bin/sh`, as bash runs it.
+    let mut spawn = Spawn::new(command_name)
+        .sh_fallback(true)
+        .arg0(argv0)
+        .args(args.iter().map(AsRef::as_ref))
+        .cwd(context.shell.working_dir())
+        .env(env);
 
     // Redirect stdin, if applicable.
     match context.try_fd(OpenFiles::STDIN_FD) {
         Some(OpenFile::Stdin(_)) | None => (),
         Some(stdin_file) => {
             let as_stdio: Stdio = stdin_file.try_into()?;
-            cmd.stdin(as_stdio);
+            spawn = spawn.stdin(as_stdio);
         }
     }
 
@@ -250,7 +242,7 @@ pub fn compose_std_command<S: AsRef<OsStr>, SE: extensions::ShellExtensions>(
         Some(OpenFile::Stdout(_)) | None => (),
         Some(stdout_file) => {
             let as_stdio: Stdio = stdout_file.try_into()?;
-            cmd.stdout(as_stdio);
+            spawn = spawn.stdout(as_stdio);
         }
     }
 
@@ -259,47 +251,34 @@ pub fn compose_std_command<S: AsRef<OsStr>, SE: extensions::ShellExtensions>(
         Some(OpenFile::Stderr(_)) | None => {}
         Some(stderr_file) => {
             let as_stdio: Stdio = stderr_file.try_into()?;
-            cmd.stderr(as_stdio);
+            spawn = spawn.stderr(as_stdio);
         }
     }
 
-    // Move the child into the embedder's cgroup before it runs anything. It
-    // is set here, where every spawn path and `exec` compose their command,
-    // so no program the shell starts runs outside the cgroup.
-    if let Some(cgroup_procs) = &context.shell.options().spawn.cgroup_procs {
-        cmd.join_cgroup(std::sync::Arc::clone(cgroup_procs))?;
-    }
-
-    // Registered after the cgroup join, so the child counts itself in the
-    // cgroup it moved into, and before the descriptors are injected, which
-    // could place a redirected file on a `pids.current` descriptor's number.
-    // A refusal then comes before every later step, which matters for
-    // `exec`, whose steps run in the shell's own process.
-    let pids_limits = &context.shell.options().spawn.pids_limits;
-    if !pids_limits.is_empty() {
-        cmd.check_pids_limits(std::sync::Arc::clone(pids_limits))?;
-    }
-
-    // Inject any other fds.
+    // Map in the shell's other open files.
     let other_files = context.iter_fds().filter(|(fd, _)| {
         *fd != OpenFiles::STDIN_FD && *fd != OpenFiles::STDOUT_FD && *fd != OpenFiles::STDERR_FD
     });
-    cmd.inject_fds(other_files)?;
+    spawn = sys::commands::map_fds(spawn, other_files)?;
 
-    // Every program the shell starts gets the open-file limit the embedder
-    // chose. Set last, so a lower limit cannot make dup2 refuse a descriptor
-    // number above it while the descriptors are injected.
-    if let Some(limit) = context.shell.options().spawn.open_file_limit {
-        cmd.set_open_file_limit(limit)?;
+    // The embedder's setup steps reach every program the shell starts, and
+    // every spawn path and `exec` compose their request here.
+    Ok(spawn.options(context.shell.options().spawn.clone()))
+}
+
+/// The error for a [`shrub_process`] spawn or exec of `command_name` that
+/// failed with `error`, where the cgroup or the working directory are not to
+/// blame.
+pub fn process_error(command_name: String, error: shrub_process::Error) -> error::Error {
+    match error {
+        shrub_process::Error::Unsupported(step) => {
+            error::ErrorKind::NotSupportedOnThisPlatform(step).into()
+        }
+        shrub_process::Error::FdMapping => error::ErrorKind::ChildCreationFailure.into(),
+        shrub_process::Error::Spawn(error) => {
+            error::ErrorKind::FailedToExecuteCommand(command_name, error).into()
+        }
     }
-
-    // Every program the shell starts gets the embedder's limit on the user
-    // id's processes; the fork of this child has already been counted.
-    if let Some(limit) = context.shell.options().spawn.process_limit {
-        cmd.set_process_limit(limit)?;
-    }
-
-    Ok(cmd)
 }
 
 pub(crate) async fn on_preexecute(
@@ -728,13 +707,11 @@ pub(crate) fn execute_external_command(
         ProcessGroupPolicy::NewProcessGroup
     );
 
-    // Compose the std::process::Command that encapsulates what we want to
-    // launch. argv[0] defaults to context.command_name (the user-facing
-    // name of the command) unless the caller specified an explicit
-    // override.
+    // Compose the request that encapsulates what we want to launch. argv[0]
+    // defaults to context.command_name (the user-facing name of the command)
+    // unless the caller specified an explicit override.
     let argv0 = argv0_override.unwrap_or(context.command_name.as_str());
-    #[allow(unused_mut, reason = "only mutated on unix platforms")]
-    let mut cmd = compose_std_command(
+    let spawn = compose_spawn(
         &context,
         executable_path,
         argv0,
@@ -743,67 +720,44 @@ pub(crate) fn execute_external_command(
     )?;
 
     // Set up process group state.
-    if new_pg {
-        // Check if we'll be doing terminal control setup (which includes
-        // setsid)
+    let (group, terminal) = if new_pg {
         if child_stdin_is_terminal && context.shell.options().external_cmd_leads_session {
-            // Don't set process_group(0) - setsid() in pre_exec will handle it
-            cmd.lead_session();
+            (Group::New, Terminal::LeadSession)
+        } else if child_stdin_is_terminal {
+            (Group::New, Terminal::TakeForeground)
         } else {
-            // Normal case: create new process group in current session
-            cmd.process_group(0);
-            if child_stdin_is_terminal {
-                cmd.take_foreground();
-            }
+            (Group::New, Terminal::Keep)
         }
-    } else {
+    } else if let Some(pgid) = process_group_id {
         // We need to join an established process group.
-        if let Some(pgid) = process_group_id {
-            cmd.process_group(pgid);
-        }
-    }
+        (Group::Join(pgid), Terminal::Keep)
+    } else {
+        (Group::Same, Terminal::Keep)
+    };
+    let spawn = spawn
+        .group(group)
+        .terminal(terminal)
+        .kill_on_drop(context.shell.options().kill_external_commands_on_drop);
 
     // When tracing is enabled, report.
     tracing::debug!(
         target: trace_categories::COMMANDS,
         "Spawning: cmd='{} {}'",
-        cmd.get_program().to_string_lossy().to_string(),
-        cmd.get_args()
-            .map(|a| a.to_string_lossy().to_string())
-            .join(" ")
+        spawn.program().to_string_lossy(),
+        spawn.arguments().map(OsStr::to_string_lossy).join(" ")
     );
 
-    // Held until `on_spawn` returns, or until the spawn fails.
-    let _guard = context
-        .shell
-        .options()
-        .spawn
-        .before_spawn
-        .as_ref()
-        .map(|before_spawn| before_spawn());
-    match sys::process::spawn(cmd, context.shell.options().kill_external_commands_on_drop) {
-        Ok(child) => {
-            // Retrieve the pid.
-            #[expect(clippy::cast_possible_wrap)]
-            let pid = child.id().map(|id| id as i32);
-            let mut actual_pgid = process_group_id;
-            if let Some(pid) = &pid {
-                if new_pg {
-                    actual_pgid = Some(*pid);
-                }
-            } else {
+    match shrub_process::spawn(spawn) {
+        Ok(Spawned {
+            child,
+            pid,
+            process_group,
+        }) => {
+            if pid.is_none() {
                 tracing::warn!("could not retrieve pid for child process");
             }
-
-            if let (Some(on_spawn), Some(pid)) = (&context.shell.options().spawn.on_spawn, pid) {
-                on_spawn(options::SpawnedProcess {
-                    pid,
-                    process_group: actual_pgid,
-                });
-            }
-
             Ok(ExecutionSpawnResult::StartedProcess(
-                processes::ChildProcess::new(child, pid, actual_pgid),
+                processes::ChildProcess::new(child, pid, process_group),
             ))
         }
         Err(spawn_err) => {
@@ -816,32 +770,28 @@ pub(crate) fn execute_external_command(
     }
 }
 
+/// Why a spawn or `exec` failed with a missing program, when the cause is a
+/// missing cgroup.
+///
 /// The error for a spawn or `exec` that failed with
 /// [`std::io::ErrorKind::NotFound`] because the cgroup that `options` name in
-/// [`options::SpawnOptions::cgroup_procs`] is gone, or `None` when it is not.
-///
-/// A child reports only an errno from before its program runs, so a cgroup
-/// file that is gone reads as a missing program; this tells them apart.
+/// [`options::SpawnOptions::cgroup_procs`] is gone, or `None` when it is not;
+/// see [`shrub_process::missing_cgroup`].
 pub fn missing_cgroup(options: &options::RuntimeOptions) -> Option<std::io::Error> {
-    let cgroup_procs = options.spawn.cgroup_procs.as_ref()?;
-    sys::commands::is_missing(cgroup_procs).then(|| {
-        std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            std::format!(
-                "cannot join the cgroup: {} is missing",
-                cgroup_procs.to_string_lossy()
-            ),
-        )
-    })
+    shrub_process::missing_cgroup(&options.spawn)
 }
 
 /// The error for an external command whose spawn failed with `spawn_err`.
 fn spawn_error(
     context: ExecutionContext<'_, impl extensions::ShellExtensions>,
-    spawn_err: std::io::Error,
+    spawn_err: shrub_process::Error,
 ) -> error::Error {
-    if spawn_err.kind() != std::io::ErrorKind::NotFound {
-        return error::ErrorKind::FailedToExecuteCommand(context.command_name, spawn_err).into();
+    let not_found = matches!(
+        &spawn_err,
+        shrub_process::Error::Spawn(error) if error.kind() == std::io::ErrorKind::NotFound
+    );
+    if !not_found {
+        return process_error(context.command_name, spawn_err);
     }
 
     if let Some(missing) = missing_cgroup(context.shell.options()) {

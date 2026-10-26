@@ -10,7 +10,7 @@ Read it before adding a crate, moving code between crates, or changing the shape
 
 ```text
 shrub-shell → shrub-interactive → shrub-core → shrub-parser
-            ↘ shrub-builtins ↗
+            ↘ shrub-builtins ↗      ↘ shrub-process
 ```
 
 - `shrub-core/src/shell.rs` holds the `Shell` struct; shells are created with `Shell::builder()`.

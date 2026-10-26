@@ -1,8 +1,5 @@
 //! Defines runtime options for the shell.
 
-use std::ffi::CString;
-use std::sync::Arc;
-
 use itertools::Itertools;
 
 use crate::{CreateOptions, extensions, namedoptions};
@@ -14,112 +11,10 @@ use crate::{CreateOptions, extensions, namedoptions};
 /// runs out of them.
 pub const DEFAULT_MAX_KEPT_DESCRIPTORS: usize = 64;
 
-/// What the shell does with each external process it spawns, for an embedder
-/// that confines or tracks the processes its commands start. The default does
-/// nothing.
-///
-/// The options are part of the shell's [`RuntimeOptions`], so they reach every
-/// external command the shell runs, pipelines, background jobs and subshells
-/// included, since those copy the shell they run in.
-///
-/// The `exec` builtin applies them in the shell's own process, with no fork,
-/// so an `exec` that fails leaves in place the steps that ran before the
-/// failure. The order is the cgroup join, the process counts, the shell's
-/// other descriptors, then the open-file limit; with process counts set, the
-/// builtin refuses before any step runs.
-#[derive(Clone, Default)]
-pub struct SpawnOptions {
-    /// A file each child writes `0` to after it is forked and before it runs
-    /// its program. For a cgroup v2's `cgroup.procs` file, the write moves
-    /// the child into that cgroup, so it cannot fork a process outside it;
-    /// only Linux has cgroups. When the child cannot open the file or write
-    /// to it, the command fails to execute and its program never runs.
-    pub cgroup_procs: Option<Arc<CString>>,
-    /// The soft limit on open files (`RLIMIT_NOFILE`) each child gets, set
-    /// after it is forked and before it runs its program, for an embedder
-    /// that raised its own soft limit and gives its children the one it
-    /// started with. A value above the hard limit sets the hard limit, and
-    /// on macOS a value it refuses is lowered to `OPEN_MAX` (10240). `None`
-    /// leaves the limit the child inherits; on a platform without resource
-    /// limits, setting it fails every external command.
-    pub open_file_limit: Option<u64>,
-    /// The limit on the processes of the user id (`RLIMIT_NPROC`) each
-    /// child gets, set after it is forked and before it runs its program:
-    /// both its soft and its hard limit become this value, or its hard limit
-    /// when that is lower, so neither the program nor its descendants can
-    /// raise it. The kernel then refuses a fork by the child or a descendant
-    /// while the user id has that many processes, except for root and a
-    /// process with `CAP_SYS_RESOURCE` or `CAP_SYS_ADMIN`, which it does not
-    /// bind. The `exec` builtin refuses to replace the shell while it is
-    /// set, because the shell's own process would set it, and would keep a
-    /// hard limit it cannot raise again if the exec failed; a subshell's
-    /// `exec` forks and is limited as usual. `None` leaves the limit the
-    /// child inherits. Only Linux sets it; on another platform, setting it
-    /// fails every external command.
-    pub process_limit: Option<u64>,
-    /// Process counts each child checks after it joins the cgroup in
-    /// `cgroup_procs` and before it runs its program. The kernel does not
-    /// apply a cgroup's `pids.max` to a process that moves into it, so the
-    /// child checks the count itself and fails its spawn, without running its
-    /// program, when a count is above its limit or cannot be read: the
-    /// command then fails to execute, with status 126, and `on_spawn` is not
-    /// called. The `exec` builtin refuses to replace the shell while the
-    /// list is non-empty, because in the shell's own process a count would
-    /// include every thread of the shell; a subshell's `exec` forks and is
-    /// checked as usual. Empty, the default, checks nothing; on a platform
-    /// without this check, a non-empty list fails every external command.
-    pub pids_limits: Arc<[PidsLimit]>,
-    /// Called before each child is spawned. The shell holds the value it
-    /// returns until `on_spawn` has returned for that child, or until the
-    /// spawn fails, then drops it. An embedder that reaps processes it did
-    /// not spawn, such as a child subreaper, holds a lock in it so that no
-    /// reap runs between the fork and `on_spawn`: a child that exits in that
-    /// window is a zombie the embedder does not yet know, and reaping it
-    /// would take the exit status the shell waits for. It runs on the
-    /// shell's task, so it should return quickly.
-    pub before_spawn: Option<Arc<dyn Fn() -> SpawnGuard + Send + Sync>>,
-    /// Called with each child once it has started, before the shell waits
-    /// for it. It runs on the shell's task, so it should return quickly.
-    pub on_spawn: Option<Arc<dyn Fn(SpawnedProcess) + Send + Sync>>,
-}
-
-/// What [`SpawnOptions::before_spawn`] returns, held across one spawn and
-/// dropped after it.
-pub type SpawnGuard = Box<dyn std::any::Any + Send>;
-
-impl std::fmt::Debug for SpawnOptions {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SpawnOptions")
-            .field("cgroup_procs", &self.cgroup_procs)
-            .field("open_file_limit", &self.open_file_limit)
-            .field("process_limit", &self.process_limit)
-            .field("pids_limits", &self.pids_limits)
-            .field("before_spawn", &self.before_spawn.as_ref().map(|_| "Fn"))
-            .field("on_spawn", &self.on_spawn.as_ref().map(|_| "Fn"))
-            .finish()
-    }
-}
-
-/// A process count that each child checks before its program runs; see
-/// [`SpawnOptions::pids_limits`].
-#[derive(Clone, Debug)]
-pub struct PidsLimit {
-    /// A cgroup's `pids.current` file, opened before the shell spawns, so the
-    /// child reads it without opening anything.
-    pub current: Arc<std::fs::File>,
-    /// The highest count, the child included, at which the child still runs
-    /// its program.
-    pub max: u64,
-}
-
-/// An external process the shell has started.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct SpawnedProcess {
-    /// The child's process ID.
-    pub pid: i32,
-    /// The process group the child was placed in, if the shell knows it.
-    pub process_group: Option<i32>,
-}
+/// What each external process the shell spawns does before its program runs,
+/// and the callbacks around each spawn; `shrub-process` defines them, and
+/// [`RuntimeOptions::spawn`] holds the shell's.
+pub use shrub_process::{PidsLimit, SpawnGuard, SpawnOptions, SpawnedProcess};
 
 /// Runtime changeable options for a shell instance.
 #[derive(Clone, Default)]
@@ -320,6 +215,13 @@ pub struct RuntimeOptions {
     pub kill_external_commands_on_drop: bool,
     /// What the shell does with each external process it spawns. Defaults to
     /// nothing; an embedder sets it before each command it runs.
+    ///
+    /// The options reach every external command the shell runs, pipelines,
+    /// background jobs and subshells included, since those copy the shell
+    /// they run in. The `exec` builtin applies them in the shell's own
+    /// process, with no fork, and refuses to replace the shell while
+    /// [`SpawnOptions::pids_limits`] is non-empty or
+    /// [`SpawnOptions::process_limit`] is set.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub spawn: SpawnOptions,
     /// Maximum function call depth.

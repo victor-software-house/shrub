@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::os::unix::process::CommandExt;
 
 use clap::Parser;
 use shrub_core::{ErrorKind, ExecutionExitCode, ExecutionResult, builtins, commands};
@@ -96,7 +95,7 @@ impl builtins::Command for ExecCommand {
             argv0 = Cow::Owned(std::format!("-{argv0}"));
         }
 
-        let mut cmd = commands::compose_std_command(
+        let spawn = commands::compose_spawn(
             &context,
             &self.args[0],
             argv0.as_str(),
@@ -104,7 +103,10 @@ impl builtins::Command for ExecCommand {
             self.empty_environment,
         )?;
 
-        let exec_error = cmd.exec();
+        let exec_error = match shrub_process::exec(spawn) {
+            shrub_process::Error::Spawn(error) => error,
+            other => return Err(commands::process_error(self.args[0].clone(), other)),
+        };
 
         if exec_error.kind() != std::io::ErrorKind::NotFound {
             Err(ErrorKind::from(exec_error).into())

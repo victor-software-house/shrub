@@ -89,7 +89,7 @@ default = [
 'builtin.echo' = []
 'builtin.enable' = []
 'builtin.eval' = []
-'builtin.exec' = ['builtin.command']
+'builtin.exec' = ['builtin.command', 'dep:shrub-process']
 'builtin.exit' = []
 'builtin.export' = []
 'builtin.false' = []
@@ -134,6 +134,7 @@ workspace = true
 [dependencies]
 shrub-core = { workspace = true }
 shrub-parser = { workspace = true }
+shrub-process = { workspace = true, optional = true }
 cfg-if = { workspace = true }
 chrono = { workspace = true }
 clap = { workspace = true, features = ["derive", "wrap_help"] }

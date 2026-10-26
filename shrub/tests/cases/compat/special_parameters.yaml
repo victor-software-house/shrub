@@ -236,7 +236,7 @@ cases:
       echo "[$_]"
 
   - name: "$_ - exec does not override _ in child env"
-    known_failure: true # exec builtin goes through compose_std_command which unconditionally sets _
+    known_failure: true # exec builtin goes through compose_spawn which unconditionally sets _
     stdin: |
       # bash does not set _ in the child's env for exec; the child inherits
       # the parent's _ value. shrub currently sets _ to the resolved command
