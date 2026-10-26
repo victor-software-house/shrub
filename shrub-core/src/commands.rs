@@ -220,7 +220,9 @@ pub fn compose_spawn<S: AsRef<OsStr>, SE: extensions::ShellExtensions>(
         }
     }
 
+    // A file with no `#!` line runs with `/bin/sh`, as bash runs it.
     let mut spawn = Spawn::new(command_name)
+        .sh_fallback(true)
         .arg0(argv0)
         .args(args.iter().map(AsRef::as_ref))
         .cwd(context.shell.working_dir())

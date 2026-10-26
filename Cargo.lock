@@ -3719,7 +3719,6 @@ dependencies = [
  "chrono",
  "clap",
  "color-print",
- "command-fds",
  "fancy-regex",
  "futures",
  "getrandom 0.4.3",
@@ -3730,7 +3729,6 @@ dependencies = [
  "nix 0.31.3",
  "normalize-path",
  "pretty_assertions",
- "proptest",
  "rand 0.10.3",
  "rpds",
  "serde",
@@ -3913,6 +3911,7 @@ dependencies = [
  "libc",
  "nix 0.31.3",
  "proptest",
+ "tempfile",
  "thiserror 2.0.21",
  "tokio",
 ]

@@ -3,7 +3,8 @@ shrub: minor
 ---
 
 A new crate, `shrub-process`, launches processes for shrub and for programs that embed it: one spawn request, `Spawn`, started by `spawn` or `exec`, with the child setup that runs between the fork and exec (the cgroup join, the open-file and process limits, the process counts, the descriptor map, the process group and the terminal) behind safe functions.
-`shrub-core` now runs every external command through it, so a program that embeds shrub launches its own processes exactly as the shell does, without the interpreter and without unsafe code of its own.
+A request with no setup step and no extra descriptor starts with `posix_spawn`, Linux included; `Spawn::sh_fallback` asks for the shell's rule, a file with no `#!` line run with `/bin/sh`, which on Linux needs a fork and exec.
+`shrub-core` now runs every external command through it, with that fallback, so a program that embeds shrub launches its own processes exactly as the shell does, without the interpreter and without unsafe code of its own.
 
 Breaking changes in `shrub-core`, each caller updated here:
 

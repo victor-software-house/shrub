@@ -13,6 +13,10 @@ rust-version.workspace = true
 [lints]
 workspace = true
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cap-lints", "warn"]
+
 [lib]
 bench = false
 
@@ -30,4 +34,5 @@ nix = { workspace = true, features = ["fs", "process", "resource"] }
 [dev-dependencies]
 anyhow = { workspace = true }
 proptest = { workspace = true }
+tempfile = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt"] }

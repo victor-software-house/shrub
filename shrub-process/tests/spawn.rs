@@ -164,3 +164,42 @@ async fn a_process_limit_is_refused_before_anything_is_called() -> anyhow::Resul
     );
     Ok(())
 }
+
+/// Writes an executable file with no `#!` line that prints `ran`.
+fn script_without_shebang(dir: &std::path::Path) -> anyhow::Result<std::path::PathBuf> {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let path = dir.join("plain-script");
+    std::fs::write(&path, "printf ran\n")?;
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))?;
+    Ok(path)
+}
+
+#[tokio::test]
+async fn the_sh_fallback_runs_a_file_with_no_shebang() -> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
+    let script = script_without_shebang(dir.path())?;
+
+    let seen = stdout_of(Spawn::new(&script).sh_fallback(true)).await?;
+
+    assert_eq!(seen, "ran");
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+#[tokio::test]
+async fn without_the_fallback_linux_spawns_with_posix_spawn() -> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
+    let script = script_without_shebang(dir.path())?;
+
+    // glibc's `posix_spawnp` refuses a file with no `#!` line, where a fork
+    // and `execvp` would run it with `/bin/sh`.
+    let result = spawn(Spawn::new(&script).stdout(Stdio::null()));
+
+    let enoexec = Some(nix::errno::Errno::ENOEXEC as i32);
+    assert!(
+        matches!(&result, Err(Error::Spawn(error)) if error.raw_os_error() == enoexec),
+        "{result:?}"
+    );
+    Ok(())
+}

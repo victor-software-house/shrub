@@ -66,7 +66,6 @@ check_elevation = "0.3.0"
 whoami = "2.1.1"
 
 [target.'cfg(unix)'.dependencies]
-command-fds = "0.3.2"
 libc = { workspace = true }
 nix = { workspace = true, features = [
   "fs",
@@ -88,7 +87,6 @@ uuid = { workspace = true, features = ["js"] }
 [dev-dependencies]
 anyhow = { workspace = true }
 pretty_assertions = { workspace = true, features = ["unstable"] }
-proptest = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["time"] }
 

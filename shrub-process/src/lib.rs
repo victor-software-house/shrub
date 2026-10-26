@@ -69,6 +69,8 @@ pub struct Spawn {
     terminal: Terminal,
     options: SpawnOptions,
     kill_on_drop: bool,
+    #[cfg_attr(not(unix), expect(dead_code, reason = "only Unix has the fallback"))]
+    sh_fallback: bool,
 }
 
 /// The process group a child is placed in.
@@ -116,6 +118,7 @@ impl Spawn {
             terminal: Terminal::Keep,
             options: SpawnOptions::default(),
             kill_on_drop: false,
+            sh_fallback: false,
         }
     }
 
@@ -197,6 +200,21 @@ impl Spawn {
     #[must_use]
     pub fn options(mut self, options: SpawnOptions) -> Self {
         self.options = options;
+        self
+    }
+
+    /// Whether a program file that is neither a binary the system can load
+    /// nor a script with a `#!` line runs with `/bin/sh`, as `execvp` and a
+    /// POSIX shell run it. The default, `false`, leaves such a file to fail.
+    ///
+    /// On Linux the fallback makes the spawn fork and exec, because glibc's
+    /// `posix_spawnp` fails such a file with `ENOEXEC`; without it, a request
+    /// with no setup step and no extra descriptor uses `posix_spawn`. macOS's
+    /// `posix_spawnp` falls back to `/bin/sh` itself, so there it changes
+    /// nothing.
+    #[must_use]
+    pub const fn sh_fallback(mut self, fallback: bool) -> Self {
+        self.sh_fallback = fallback;
         self
     }
 
@@ -351,10 +369,10 @@ pub struct SpawnedProcess {
 
 /// A started child and what is known of it.
 ///
-/// On Unix and Windows the child runs under tokio's process driver, which is
-/// the only listener for `SIGCHLD` this crate installs and which reaps only
-/// the children tokio spawned; a caller waits through [`Spawned::child`] and
-/// never reaps a process it did not start.
+/// On Unix the child runs under tokio's process driver, which is the only
+/// listener for `SIGCHLD` this crate installs and which reaps only the
+/// children tokio spawned; a caller waits through [`Spawned::child`] and never
+/// reaps a process it did not start.
 #[derive(Debug)]
 pub struct Spawned {
     /// The child, to wait for or kill.
@@ -393,6 +411,11 @@ pub enum Error {
 /// cannot take, before `before_spawn` is called; [`Error::FdMapping`] when
 /// the descriptor map cannot be applied; [`Error::Spawn`] when the spawn
 /// fails or a setup step fails in the child.
+///
+/// # Panics
+///
+/// On Unix and Windows, when called outside a tokio runtime: the child is
+/// registered with tokio's process driver.
 pub fn spawn(mut request: Spawn) -> Result<Spawned, Error> {
     let command = sys::command(&mut request)?;
     // Held until `on_spawn` returns, or until the spawn fails.
