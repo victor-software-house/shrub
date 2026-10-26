@@ -1,5 +1,18 @@
 # Changelog
 
+## shrub 0.7.0
+
+- A new crate, `shrub-process`, launches processes for shrub and for programs that embed it: one spawn request, `Spawn`, started by `spawn` or `exec`, with the child setup that runs between the fork and exec (the cgroup join, the open-file and process limits, the process counts, the descriptor map, the process group and the terminal) behind safe functions.
+A request with no setup step and no extra descriptor starts with `posix_spawn`, Linux included; `Spawn::sh_fallback` asks for the shell's rule, a file with no `#!` line run with `/bin/sh`, which on Linux needs a fork and exec.
+`shrub-core` now runs every external command through it, with that fallback, so a program that embeds shrub launches its own processes exactly as the shell does, without the interpreter and without unsafe code of its own.
+
+Breaking changes in `shrub-core`, each caller updated here:
+
+- `commands::compose_std_command`, which returned a `std::process::Command`, is now `commands::compose_spawn`, which returns a `shrub_process::Spawn`. Its callers, the external command path in `shrub-core` and the `exec` builtin in `shrub-builtins`, use it.
+- `SpawnOptions`, `PidsLimit`, `SpawnedProcess` and `SpawnGuard` are defined in `shrub-process`; `shrub_core::options` re-exports them under the same names.
+- The `sys::commands` extension traits `CommandFdInjectionExt`, `CommandFgControlExt`, `CommandCgroupExt`, `CommandOpenFileLimitExt`, `CommandProcessLimitExt` and `CommandPidsLimitsExt` are gone; their steps are `shrub-process`'s. `commands::process_error` maps a `shrub_process::Error` to a shell error.
+- A setup step the platform cannot take now fails the spawn, in `shrub_process::spawn` or `exec`, rather than the composition ([#77](https://github.com/victor-software-house/shrub/pull/77)).
+
 ## shrub 0.6.2
 
 - `Shell::tasks` returns a handle to every task a shell and its subshells start: background jobs, coprocesses, pipeline stages, and command and process substitutions. `ShellTasks::abort` aborts them and every one started later, and `ShellTasks::abort_and_wait` also completes once each has ended, so an embedder that stops a command stops what the command started in the background too. A copy from `Shell::fork_state` has tasks of its own ([#73](https://github.com/victor-software-house/shrub/pull/73)).
