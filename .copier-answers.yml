@@ -52,7 +52,7 @@ pieces_extra:
 project: rust-crate
 published: true
 repository_visibility: public
-rust_nightly: nightly-2026-11-01
+rust_nightly: nightly-2026-09-29
 rust_version: 1.99.1
 tokio: true
 verify_timeout: 30

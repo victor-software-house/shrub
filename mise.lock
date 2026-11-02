@@ -239,9 +239,9 @@ components = "clippy"
 profile = "minimal"
 
 [[tools.rust]]
-version = "nightly-2026-11-01"
+version = "nightly-2026-09-29"
 backend = "core:rust"
-specifiers = ["nightly-2026-11-01"]
+specifiers = ["nightly-2026-09-29"]
 
 [tools.rust.options]
 components = "rustfmt"
