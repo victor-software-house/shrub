@@ -756,8 +756,8 @@ impl Spec {
         for action in &self.actions {
             let c = &mut candidates;
             match action {
-                // Aliases and functions are stored unordered; bash enumerates
-                // them sorted by name.
+                // Aliases and functions are stored unordered; bash enumerates them sorted
+                // by name.
                 CompleteAction::Alias => {
                     extend_matching(c, shell.aliases().keys().sorted(), prefix);
                 }

@@ -34,24 +34,21 @@ pub(crate) fn needs_more_input(
 #[allow(dead_code)]
 fn needs_more_input_locked(shell: &Shell<impl shrub_core::ShellExtensions>, input: &str) -> bool {
     match shell.parse_string(input) {
-        // Mid-token: unclosed quotes, unterminated here documents, and the
-        // like.
+        // Mid-token: unclosed quotes, unterminated here documents, and the like.
         Err(shrub_parser::ParseError::Tokenizing { inner, position: _ })
             if inner.is_incomplete() =>
         {
             true
         }
-        // Ran out of tokens partway through a construct; more input may
-        // complete it.
+        // Ran out of tokens partway through a construct; more input may complete it.
         Err(shrub_parser::ParseError::ParsingAtEndOfInput) => true,
-        // A bad token at a specific position stays bad no matter what follows
-        // it.
+        // A bad token at a specific position stays bad no matter what follows it.
         Err(_) => false,
         // Parsed cleanly. One catch: a trailing backslash-newline is a line
-        // continuation, which the tokenizer drops silently at end of input. Ask
-        // again with the newline removed; that leaves the input incomplete
-        // (e.g., an unterminated escape, or a here-document body not yet ended)
-        // only if that backslash was really escaping the newline.
+        // continuation, which the tokenizer drops silently at end of input. Ask again
+        // with the newline removed; that leaves the input incomplete (e.g., an
+        // unterminated escape, or a here-document body not yet ended) only if that
+        // backslash was really escaping the newline.
         Ok(_) => ends_with_line_continuation(shell, input),
     }
 }

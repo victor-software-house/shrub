@@ -269,9 +269,8 @@ impl ShellVariable {
 
         if append {
             match (&self.value, &value) {
-                // If we're appending an array to a declared-but-unset variable
-                // (or appending anything to a declared-but-unset array), then
-                // fill it out first.
+                // If we're appending an array to a declared-but-unset variable (or appending
+                // anything to a declared-but-unset array), then fill it out first.
                 (ShellValue::Unset(_), ShellValueLiteral::Array(_))
                 | (
                     ShellValue::Unset(
@@ -281,15 +280,14 @@ impl ShellVariable {
                 ) => {
                     self.assign(ShellValueLiteral::Array(ArrayLiteral(vec![])), false)?;
                 }
-                // If we're appending a scalar to a declared-but-unset variable,
-                // then start with the empty string. This will result in the
-                // right thing happening, even in treat-as-integer cases.
+                // If we're appending a scalar to a declared-but-unset variable, then
+                // start with the empty string. This will result in the right thing happening,
+                // even in treat-as-integer cases.
                 (ShellValue::Unset(_), ShellValueLiteral::Scalar(_)) => {
                     self.assign(ShellValueLiteral::Scalar(String::new()), false)?;
                 }
-                // If we're trying to append an array to a string, we first
-                // promote the string to be an array with the string being
-                // present at index 0.
+                // If we're trying to append an array to a string, we first promote the string to be
+                // an array with the string being present at index 0.
                 (ShellValue::String(_), ShellValueLiteral::Array(_)) => {
                     self.convert_to_indexed_array()?;
                 }
@@ -344,8 +342,8 @@ impl ShellVariable {
             }
         } else {
             match (&self.value, value) {
-                // If we're updating an array value with a string, then treat it
-                // as an update to just the "0"-indexed element of the array.
+                // If we're updating an array value with a string, then treat it as an update to
+                // just the "0"-indexed element of the array.
                 (
                     ShellValue::IndexedArray(_)
                     | ShellValue::AssociativeArray(_)
@@ -355,10 +353,9 @@ impl ShellVariable {
                     ShellValueLiteral::Scalar(s),
                 ) => self.assign_at_index(String::from("0"), s, false),
 
-                // If we're updating an indexed array value with an array, then
-                // preserve the array type. We also default to using an indexed
-                // array if we are assigning an array to a previously
-                // string-holding variable.
+                // If we're updating an indexed array value with an array, then preserve the array
+                // type. We also default to using an indexed array if we are
+                // assigning an array to a previously string-holding variable.
                 (
                     ShellValue::IndexedArray(_)
                     | ShellValue::Unset(
@@ -372,8 +369,8 @@ impl ShellVariable {
                     Ok(())
                 }
 
-                // If we're updating an associative array value with an array,
-                // then preserve the array type.
+                // If we're updating an associative array value with an array, then preserve the
+                // array type.
                 (
                     ShellValue::AssociativeArray(_)
                     | ShellValue::Unset(ShellValueUnsetType::AssociativeArray),
@@ -387,8 +384,7 @@ impl ShellVariable {
                 // TODO(dynamic): Allow updates to dynamic values
                 (ShellValue::Dynamic { .. }, _) => Ok(()),
 
-                // Assign a scalar value to a scalar or unset (and untyped)
-                // variable.
+                // Assign a scalar value to a scalar or unset (and untyped) variable.
                 (ShellValue::String(_) | ShellValue::Unset(_), ShellValueLiteral::Scalar(s)) => {
                     self.value = ShellValue::String(s);
                     Ok(())

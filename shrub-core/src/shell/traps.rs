@@ -93,10 +93,9 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
                 self.options()
                     .shell_functions_inherit_debug_and_return_traps
             }
-            // EXIT and system signals are always inherited — i.e. their
-            // visibility is not gated by errtrace/functrace options. (The
-            // actual trap *state* for subshells is managed separately via
-            // `Shell::clone`.)
+            // EXIT and system signals are always inherited — i.e. their visibility is
+            // not gated by errtrace/functrace options. (The actual trap *state* for
+            // subshells is managed separately via `Shell::clone`.)
             TrapSignal::Exit | TrapSignal::Signal(_) => true,
         }
     }

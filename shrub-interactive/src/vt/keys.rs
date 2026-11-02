@@ -157,8 +157,8 @@ fn decode(bytes: &[u8], more_coming: bool) -> Option<(Option<KeyStroke>, usize)>
         b'\r' => Key::Enter.into(),
         b'\t' => Key::Tab.into(),
         0x7f => Key::Backspace.into(),
-        // Ctrl-A through Ctrl-Z (including Ctrl-H, Ctrl-J, and so on, which
-        // readline binds as such).
+        // Ctrl-A through Ctrl-Z (including Ctrl-H, Ctrl-J, and so on, which readline
+        // binds as such).
         0x01..=0x1a => ctrl(char::from(first - 1 + b'a')),
         // Ctrl-@, Ctrl-\, Ctrl-], Ctrl-^, and Ctrl-_.
         0x00..=0x1f => ctrl(char::from(first + 0x40)),

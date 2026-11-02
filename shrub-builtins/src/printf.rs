@@ -63,8 +63,8 @@ fn format(format_and_args: &[String], writer: impl Write) -> Result<(), shrub_co
     match format_and_args {
         // Handle format string with arguments using uucore
         [fmt, args @ ..] => format_via_uucore(fmt, args.iter(), writer),
-        // Handle case with no format string (we shouldn't be able to get here
-        // since clap will fail parsing when the format string is missing)
+        // Handle case with no format string (we shouldn't be able to get here since clap will
+        // fail parsing when the format string is missing)
         [] => Err(ErrorKind::PrintfInvalidUsage("missing operand".into()).into()),
     }
 }
@@ -113,8 +113,7 @@ fn format_via_uucore(
             let control_flow = item
                 .write(&mut writer, &mut format_args_wrapper)
                 .map_err(|e| match e {
-                    // Propagate I/O errors directly so they can be handled
-                    // appropriately
+                    // Propagate I/O errors directly so they can be handled appropriately
                     format::FormatError::IoError(io_err) => Error::from(io_err),
                     // Wrap other format errors
                     other => Error::from(ErrorKind::PrintfInvalidUsage(std::format!(
@@ -166,8 +165,8 @@ fn parse_format_string(format_string: &str) -> Result<Vec<ParsedFormatItem>, shr
                 Ok((item, true))
             }
             Ok(item) => Ok((item, false)),
-            // Fixed q/Q modifiers are deliberately ignored; dynamic modifiers
-            // remain unsupported until uucore exposes quoted-string metadata.
+            // Fixed q/Q modifiers are deliberately ignored; dynamic modifiers remain unsupported
+            // until uucore exposes quoted-string metadata.
             Err(format::FormatError::SpecError(spec, span))
                 if matches!(spec.last(), Some(b'q' | b'Q'))
                     && !spec.contains(&b'*')

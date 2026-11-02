@@ -1005,8 +1005,7 @@ async fn file_and_directory_actions_complete_file_names() -> Result<()> {
     for (line, expected, file_names) in [
         ("filecmd a", "a b", true),
         ("dircmd di", "dir x", true),
-        // Even with no file names found, `-f` makes the other candidates file
-        // names...
+        // Even with no file names found, `-f` makes the other candidates file names...
         ("wfilecmd q", "q r", true),
         // ...but `-d` doesn't, if it finds no directories.
         ("wdircmd q", "q r", false),

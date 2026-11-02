@@ -133,8 +133,8 @@ impl ExpansionKind {
     /// for anything at or past this point.
     fn offset_limit(&self, len: i64) -> i64 {
         match self {
-            // An offset of exactly the length is in range for a string, and for
-            // elements addressed by position; it just selects an empty slice.
+            // An offset of exactly the length is in range for a string, and for elements
+            // addressed by position; it just selects an empty slice.
             Self::String | Self::ScalarAsArray | Self::ElementList => len + 1,
             // An indexed array runs out just past its highest subscript.
             Self::IndexedArray(_) => self.offset_space(len),
@@ -2059,20 +2059,17 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                         fields,
                         concatenate: *concatenate,
                         kind: match value {
-                            // Slicing addresses an indexed array by subscript,
-                            // so it needs the subscripts themselves and not
-                            // just the element count.
+                            // Slicing addresses an indexed array by subscript, so it needs
+                            // the subscripts themselves and not just the element count.
                             ShellValue::IndexedArray(array) => {
                                 ExpansionKind::IndexedArray(array.keys().copied().collect())
                             }
-                            // A scalar written `${x[@]}`: bash slices it as a
-                            // string.
+                            // A scalar written `${x[@]}`: bash slices it as a string.
                             ShellValue::String(_) => ExpansionKind::ScalarAsArray,
-                            // Associative arrays land here. bash documents
-                            // substring expansion of one as producing undefined
-                            // results -- it selects from an offset of 1 rather
-                            // than 0 -- so we deliberately address them like
-                            // any other element list.
+                            // Associative arrays land here. bash documents substring
+                            // expansion of one as producing undefined results -- it
+                            // selects from an offset of 1 rather than 0 -- so we
+                            // deliberately address them like any other element list.
                             _ => ExpansionKind::ElementList,
                         },
                         undefined: false,

@@ -227,10 +227,9 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
                 cs
             },
             directory_stack: self.directory_stack.clone(),
-            // A subshell of a completion function (e.g. `$(compgen ...)`) is in
-            // that completion too. Like a forked subshell in bash, it changes
-            // only its own copy (e.g. with `compopt`), which its parent doesn't
-            // see.
+            // A subshell of a completion function (e.g. `$(compgen ...)`) is in that
+            // completion too. Like a forked subshell in bash, it changes only its own copy
+            // (e.g. with `compopt`), which its parent doesn't see.
             completion: self.completion.clone(),
             builtins: self.builtins.clone(),
             program_location_cache: self.program_location_cache.clone(),
@@ -391,9 +390,8 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
         self.last_exit_status_change_count = saved.exit_status_change_count;
         match saved.last_arg {
             Some(last_arg) => self.update_last_arg_variable(Some(last_arg)),
-            // `_` was unset when the snapshot was taken, so put it back that
-            // way. Unsetting a readonly `_` fails; ignore that, as
-            // `update_last_arg_variable` does.
+            // `_` was unset when the snapshot was taken, so put it back that way. Unsetting
+            // a readonly `_` fails; ignore that, as `update_last_arg_variable` does.
             None => _ = self.env.unset("_"),
         }
     }

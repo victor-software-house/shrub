@@ -203,8 +203,8 @@ fn compare(seq: &KeySequence, keys: &[Keypress]) -> Comparison {
             }
         }
         // `bind` records a sequence it can't interpret as keys as the bytes the
-        // terminal sends for it (not necessarily grouped by key), so match
-        // those as a whole.
+        // terminal sends for it (not necessarily grouped by key), so match those as
+        // a whole.
         KeySequence::Bytes(bytes) => {
             let expected = bytes.concat();
             let typed: Vec<u8> = keys

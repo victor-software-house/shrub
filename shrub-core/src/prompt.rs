@@ -100,13 +100,11 @@ fn format_prompt_piece(
                 "$".to_owned()
             }
         }
-        // NOTE: We mimic bash and convert \[ into \001, a.k.a.
-        // RL_PROMPT_START_IGNORE. It will need to get removed before it's
-        // actually displayed. While present it also has the important
-        // (compatible) side effect of ensuring the text on either side of it is
-        // not concatenated together, potentially resulting in incompatible
-        // variable expansions. Also, we *only* do this if the shell is
-        // interactive.
+        // NOTE: We mimic bash and convert \[ into \001, a.k.a. RL_PROMPT_START_IGNORE.
+        // It will need to get removed before it's actually displayed. While present it
+        // also has the important (compatible) side effect of ensuring the text on either
+        // side of it is not concatenated together, potentially resulting in incompatible
+        // variable expansions. Also, we *only* do this if the shell is interactive.
         shrub_parser::prompt::PromptPiece::EndNonPrintingSequence => {
             if shell.options().interactive {
                 "\x02".to_owned()

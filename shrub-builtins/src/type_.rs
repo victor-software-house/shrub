@@ -87,8 +87,7 @@ impl builtins::Command for TypeCommand {
                     }
                 } else {
                     match &resolved_type {
-                        // When we're displaying all locations, we don't show
-                        // hashed paths.
+                        // When we're displaying all locations, we don't show hashed paths.
                         Resolved::File { hashed: true, .. }
                             if self.all_locations && !self.force_path_search => {}
                         Resolved::File { path, .. }

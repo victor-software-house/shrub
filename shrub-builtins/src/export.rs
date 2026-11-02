@@ -24,8 +24,7 @@ pub(crate) struct ExportCommand {
     //
     // Declarations
     //
-    // N.B. These are skipped by clap, but filled in by the
-    // BuiltinDeclarationCommand trait.
+    // N.B. These are skipped by clap, but filled in by the BuiltinDeclarationCommand trait.
     #[clap(skip)]
     declarations: Vec<shrub_core::CommandArg>,
 }

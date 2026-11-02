@@ -12,15 +12,14 @@ fn main() {
     let feature = |name: &str| std::env::var_os(format!("CARGO_FEATURE_{name}")).is_some();
 
     let backends = [
-        // reedline draws through crossterm, which builds only for Unix and
-        // Windows (as shrub-interactive's own build script also decides).
+        // reedline draws through crossterm, which builds only for Unix and Windows
+        // (as shrub-interactive's own build script also decides).
         ("reedline_backend", feature("REEDLINE") && (unix || windows)),
         // The shell's VT and basic backends edit on the process's own terminal
         // (`StdTerminal`), which can switch it to raw mode only on Unix: the
         // Windows console sends keys as bytes only in a mode shrub doesn't set,
-        // and WASI has no API for raw mode. (shrub-interactive's
-        // `VtInputBackend` itself builds for every target, for hosts that
-        // supply a `Terminal`.)
+        // and WASI has no API for raw mode. (shrub-interactive's `VtInputBackend`
+        // itself builds for every target, for hosts that supply a `Terminal`.)
         ("vt_backend", feature("VT") && unix),
         ("basic_backend", feature("BASIC") && unix),
         ("minimal_backend", feature("MINIMAL")),

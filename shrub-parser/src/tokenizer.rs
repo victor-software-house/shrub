@@ -1073,8 +1073,7 @@ impl<'a, R: ?Sized + std::io::BufRead> Tokenizer<'a, R> {
             let result = self.next_token()?;
 
             match result.reason {
-                // The bodies set aside go after the rest of the line holding
-                // their tags.
+                // The bodies set aside go after the rest of the line holding their tags.
                 TokenEndReason::UnescapedNewLine => state.append_str(&std::mem::take(&mut bodies)),
                 TokenEndReason::ExpansionClosingChar => {
                     // The closing char comes next; consume it too.
@@ -1216,8 +1215,7 @@ impl<'a, R: ?Sized + std::io::BufRead> Tokenizer<'a, R> {
 
                     self.consume_nested_expansion(state, NestedExpansion::ParameterExpansion)?;
                 }
-                // `$$` is a parameter of its own; whatever follows it starts
-                // nothing.
+                // `$$` is a parameter of its own; whatever follows it starts nothing.
                 Some('$') => {
                     self.consume_char()?;
                     state.append_str("$$");
@@ -1657,9 +1655,8 @@ impl<'a, R: ?Sized + std::io::BufRead> Tokenizer<'a, R> {
                     state.append_char(extglob_char);
 
                     match extglob_char {
-                        // Take the escaped char as-is. If the input ends
-                        // instead, the next iteration reports the unterminated
-                        // extglob.
+                        // Take the escaped char as-is. If the input ends instead, the next
+                        // iteration reports the unterminated extglob.
                         '\\' if quote.is_none_or(|(_, escapes)| escapes) => {
                             if let Some(escaped_char) = self.next_char()? {
                                 state.append_char(escaped_char);
@@ -1921,8 +1918,8 @@ const fn does_char_newly_affect_quoting(state: &TokenParseState, c: char) -> boo
         }
         // When we're in a single quote, nothing affects quoting.
         QuoteMode::Single(_) => false,
-        // When we're not already in a quote, then we can straightforwardly look
-        // for a quote mark or backslash.
+        // When we're not already in a quote, then we can straightforwardly look for a
+        // quote mark or backslash.
         QuoteMode::None => is_quoting_char(c),
     }
 }
@@ -2018,8 +2015,7 @@ bc"
             ("a&\\\n&b", &["a", "&&", "b"][..]),
             ("a|\\\n&b", &["a", "|&", "b"]),
             ("a&&\\\n", &["a", "&&"]),
-            // At the end of input, it's as though the input ended right at the
-            // operator.
+            // At the end of input, it's as though the input ended right at the operator.
             ("a <<\\\n", &["a", "<<"]),
             ("a&&\\b", &["a", "&&", "\\b"]),
             ("a<\\\n<b\nx\nb\n", &["a", "<<", "b", "x\n", "b", "\n"]),
@@ -2032,15 +2028,13 @@ bc"
             ),
             ("\"a\\\nb\" `'a\\\nb'`", &["\"ab\"", "`'ab'`"]),
             ("@(a\\\nb|\"a\\\nb\")", &["@(ab|\"ab\")"]),
-            // Kept after an escaping backslash, in single quotes, and in a
-            // comment.
+            // Kept after an escaping backslash, in single quotes, and in a comment.
             ("a\\\\\n", &["a\\\\", "\n"]),
             ("'a\\\nb' $'a\\\nb'", &["'a\\\nb'", "$'a\\\nb'"]),
             ("`\\\\\n`", &["`\\\\\n`"]),
             ("@('a\\\nb')", &["@('a\\\nb')"]),
             ("a #b\\\nc", &["a", "\n", "c"]),
-            // In a here-document's body, they're kept only if its tag is
-            // quoted.
+            // In a here-document's body, they're kept only if its tag is quoted.
             (
                 "<<a\nb\\\nc\\\\\nd\na\n",
                 &["<<", "a", "bc\\\\\nd\n", "a", "\n"],
@@ -2296,14 +2290,13 @@ SOMETHING
         for word in [
             // Extglob-like text inside `${...}` is just text.
             "${u:-a@(}",
-            // `$$` is a parameter; neither a `{` nor a `'` after it starts
-            // anything.
+            // `$$` is a parameter; neither a `{` nor a `'` after it starts anything.
             "$${u",
             "$$'a\\'x",
             // Nor does a `'` after an escaped `$`.
             "\\$'a\\'x",
-            // Brackets nest in `$[...]`, as in array subscripts, but not those
-            // in quotes or nested expansions.
+            // Brackets nest in `$[...]`, as in array subscripts, but not those in quotes or
+            // nested expansions.
             "$[ a[1] + 1 ]",
             "$[ a[ a[0] ] ]",
             "$[ ${a[1]} + 1 ]",
@@ -2642,29 +2635,24 @@ HERE2
             // Escaped quote outside quotes doesn't start quoting.
             (r#"@(\") y"#, [r#"@(\")"#, "y"]),
             (r"@(\)) y", [r"@(\))", "y"]),
-            // Backslash escapes a quote inside ANSI-C quotes, but not inside
-            // `\$'...'`.
+            // Backslash escapes a quote inside ANSI-C quotes, but not inside `\$'...'`.
             (r"@($'\'')x y", [r"@($'\'')x", "y"]),
             (r"@($'a\')'|b) y", [r"@($'a\')'|b)", "y"]),
             (r"@(\$'a\')x y", [r"@(\$'a\')x", "y"]),
-            // `$$` is a parameter, so a quote after it is ANSI-C only if a
-            // third `$` follows.
+            // `$$` is a parameter, so a quote after it is ANSI-C only if a third `$` follows.
             (r"@($$'a\')x y", [r"@($$'a\')x", "y"]),
             (r"@($$$'\'')x y", [r"@($$$'\'')x", "y"]),
-            // Backquotes are a region of their own: quotes inside them don't
-            // nest.
+            // Backquotes are a region of their own: quotes inside them don't nest.
             (r"@(}`'`)x y", [r"@(}`'`)x", "y"]),
             (r#"@(`echo \\"`)x y"#, [r#"@(`echo \\"`)x"#, "y"]),
             (r"@(`$'\'`)x y", [r"@(`$'\'`)x", "y"]),
             (r#"@(`echo ")"`)x y"#, [r#"@(`echo ")"`)x"#, "y"]),
-            // Inside double quotes, `$(...)` and backquotes are nested
-            // constructs.
+            // Inside double quotes, `$(...)` and backquotes are nested constructs.
             (r#"@("$(echo ")")")x y"#, [r#"@("$(echo ")")")x"#, "y"]),
             (r#"@("`echo "\)"`")x y"#, [r#"@("`echo "\)"`")x"#, "y"]),
             (r#"@("${u:-"}"}")x y"#, [r#"@("${u:-"}"}")x"#, "y"]),
             (r#"@($")")x y"#, [r#"@($")")x"#, "y"]),
-            // Nesting still counts unquoted parens; each quote kind hides the
-            // other.
+            // Nesting still counts unquoted parens; each quote kind hides the other.
             (r#"+(a|@(b|")")|'"') y"#, [r#"+(a|@(b|")")|'"')"#, "y"]),
         ] {
             let tokens = tokenize_str(input)?;

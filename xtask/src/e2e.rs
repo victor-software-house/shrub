@@ -322,8 +322,7 @@ fn render_markdown_details(md: &mut String, report: &AdapterReport) {
     if let Some(summary) = &report.summary {
         let list = format!("e2e/{app}/xfail-list.txt");
         for (open, heading, entries) in [
-            // A report-only suite's failures are its expected state, and can
-            // run to hundreds.
+            // A report-only suite's failures are its expected state, and can run to hundreds.
             (
                 !report.report_only,
                 format!("❌ {app} · {} failed", summary.failures.len()),
@@ -535,8 +534,7 @@ impl AdapterReport {
             Ok(summary) => Some(summary),
             Err(report_error) => {
                 error = Some(match error {
-                    // When the adapter never ran, its missing report is a
-                    // consequence, not news.
+                    // When the adapter never ran, its missing report is a consequence, not news.
                     Some(error) if fatal => error,
                     Some(error) => format!("{error}; {report_error:#}"),
                     None => format!("{report_error:#}"),
@@ -638,8 +636,7 @@ impl AdapterReport {
         let mut lines = Vec::new();
         for (names, label) in [
             (&summary.failures, "failed"),
-            // Both of these mean the xfail list no longer matches reality, so
-            // say what to do.
+            // Both of these mean the xfail list no longer matches reality, so say what to do.
             (
                 &summary.unexpected_passes,
                 "passed unexpectedly; remove from xfail-list.txt",

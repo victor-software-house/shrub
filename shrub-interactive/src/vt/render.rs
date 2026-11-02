@@ -267,8 +267,8 @@ impl BackspaceRenderer {
         // Where to rewrite from, as a byte offset in `text`, and how many cells
         // of the old line from there on are to be overwritten.
         let (from, old_cells) = match &self.shown {
-            // Same prompt: rewrite from where the line changed, moving there
-            // from the cursor.
+            // Same prompt: rewrite from where the line changed, moving there from
+            // the cursor.
             Some(shown) if shown.prompt == prompt => {
                 let from = unchanged_prefix(&shown.text, text);
                 let (shown_cursor, from_cells) =
@@ -280,8 +280,7 @@ impl BackspaceRenderer {
                 }
                 (from, cells(&shown.text[from..]))
             }
-            // A different prompt (e.g., searching history): rewrite the whole
-            // row.
+            // A different prompt (e.g., searching history): rewrite the whole row.
             Some(shown) => {
                 seq.push('\r');
                 seq.push_str(&printable(prompt));
@@ -449,8 +448,7 @@ fn visible_text(s: &str) -> String {
     let mut chars = s.chars().peekable();
     while let Some(c) = chars.next() {
         match c {
-            // Explicitly non-printing text, as marked in prompts with `\[` and
-            // `\]`.
+            // Explicitly non-printing text, as marked in prompts with `\[` and `\]`.
             '\x01' => {
                 for c in chars.by_ref() {
                     if c == '\x02' {
@@ -459,8 +457,7 @@ fn visible_text(s: &str) -> String {
                 }
             }
             '\x1b' => match chars.next() {
-                // A control sequence: parameters and intermediates, then a
-                // final byte.
+                // A control sequence: parameters and intermediates, then a final byte.
                 Some('[') => {
                     for c in chars.by_ref() {
                         if ('\x40'..='\x7e').contains(&c) {
@@ -468,8 +465,8 @@ fn visible_text(s: &str) -> String {
                         }
                     }
                 }
-                // An operating system command (e.g., a window title), ended by
-                // BEL or ST (`ESC \`).
+                // An operating system command (e.g., a window title), ended by BEL or
+                // ST (`ESC \`).
                 Some(']') => {
                     while let Some(c) = chars.next() {
                         if c == '\x07' || (c == '\x1b' && chars.next_if_eq(&'\\').is_some()) {

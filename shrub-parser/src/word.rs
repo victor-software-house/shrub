@@ -1519,8 +1519,7 @@ mod tests {
             (r"`printf \\2`", r"printf \2"),
             (r"`printf \\\\2`", r"printf \\2"),
             (r#"`echo \$x \` \" \a`"#, r#"echo $x ` \" \a"#),
-            // A backslash left ending the command is escaped to keep it
-            // literal.
+            // A backslash left ending the command is escaped to keep it literal.
             (r"`printf \\`", r"printf \\"),
             (r"`printf \\\\`", r"printf \\"),
             (r"`printf \\\\\\`", r"printf \\\\"),
