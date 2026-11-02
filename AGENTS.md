@@ -67,5 +67,5 @@ Exported items carry rustdoc; internal docs are best effort.
 
 ## Releases
 
-A change to a published crate adds a `.changeset/<slug>.md` fragment naming `shrub`; [docs/how-to/release.md](docs/how-to/release.md) describes the verctl flow.
+A change to a published crate adds a `.changeset/<slug>.md` fragment naming `shrub`; [docs/how-to/release.md](docs/how-to/release.md) describes the verctl flow. Only the operator merges the Version PR.
 Commits follow Conventional Commits, checked by `committed`.

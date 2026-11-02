@@ -3,7 +3,7 @@ name: Release
 # verctl's reusable release workflow, on every push to main and on demand.
 # It plans every version commit not yet fully released and publishes each at
 # that commit, whatever main's HEAD is now, then opens or updates the Version
-# PR with auto-merge, so it merges once its required checks pass. A run
+# PR. Only the operator merges the Version PR. A run
 # stopped by the crates.io rate limit resumes on the next push or dispatch,
 # since each crate crates.io already lists is skipped.
 on:
@@ -23,7 +23,6 @@ jobs:
     with:
       mise-version: 2026.10.25
       mise-env: ci,release
-      auto-merge: true
       crates-io-trusted-publishing: true
     # The App token opens the Version PR so that its CI starts; a PR opened
     # with GITHUB_TOKEN starts no workflow.
