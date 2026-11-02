@@ -359,14 +359,17 @@ mod tests {
             (vec!["-i"], true),
             (vec!["-c", "echo hi"], false),
             (vec!["-c", "echo hi", "name"], false),
-            // `-i` forces an interactive shell, but `-c` still supplies the commands.
+            // `-i` forces an interactive shell, but `-c` still supplies the
+            // commands.
             (vec!["-i", "-c", "echo hi"], false),
-            // `-c` is a plain flag; the command string is the first non-option argument.
+            // `-c` is a plain flag; the command string is the first non-option
+            // argument.
             (vec!["-cl", "echo hi"], false),
             (vec!["-c", "-l", "echo hi"], false),
             (vec!["script.sh"], false),
             (vec!["-i", "script.sh"], false),
-            // `-s` claims the script slot, so trailing words are positional parameters.
+            // `-s` claims the script slot, so trailing words are positional
+            // parameters.
             (vec!["-s"], true),
             (vec!["-s", "myarg"], true),
             (vec!["-i", "-s", "myarg"], true),

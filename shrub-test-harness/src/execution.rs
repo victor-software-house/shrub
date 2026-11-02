@@ -167,7 +167,8 @@ impl TestCase {
                         Some(target_dir),
                     )
                 }
-                // Launcher only applies to the shell under test; the oracle is invoked directly.
+                // Launcher only applies to the shell under test; the oracle is
+                // invoked directly.
                 WhichShell::NamedShell(name) => (Self::new_shell_command(name, None), None),
             },
             ShellInvocation::ExecScript(_) => unimplemented!("exec script test"),

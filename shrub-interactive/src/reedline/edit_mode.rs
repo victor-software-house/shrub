@@ -251,9 +251,10 @@ impl UpdatableBindings {
         target: KeySequence,
     ) -> Result<(), std::io::Error> {
         match target {
-            // TODO(input): We acknowledge that this implementation eagerly resolves the macro
-            // and what it will do. Subsequent changes to other key binding might invalidate
-            // this. We also are *extremely* limited in what we support here.
+            // TODO(input): We acknowledge that this implementation eagerly
+            // resolves the macro and what it will do. Subsequent changes to
+            // other key binding might invalidate this. We also are *extremely*
+            // limited in what we support here.
             interfaces::KeySequence::Strokes(key_strokes) => {
                 if key_strokes.is_empty() {
                     // Empty macro target - unbind any existing binding for this
