@@ -16,6 +16,8 @@ bench = false
 [features]
 default = ['builtin.save']
 'builtin.save' = ["shrub-core/serde", "dep:serde_json"]
+'builtin.ls' = []
+'builtin.tree' = []
 
 [package.metadata.docs.rs]
 all-features = true
@@ -28,3 +30,8 @@ workspace = true
 shrub-core = { workspace = true }
 clap = { workspace = true, features = ["derive", "wrap_help"] }
 serde_json = { workspace = true, optional = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

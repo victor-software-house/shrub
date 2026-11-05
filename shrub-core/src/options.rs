@@ -224,6 +224,11 @@ pub struct RuntimeOptions {
     /// [`SpawnOptions::process_limit`] is set.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub spawn: SpawnOptions,
+    /// The directories the embedder lists itself, which the builtins that list
+    /// directories ask first; `None` lists every directory from the file
+    /// system.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub directory_lister: Option<std::sync::Arc<dyn crate::listing::DirectoryLister>>,
     /// Maximum function call depth.
     pub max_function_call_depth: Option<usize>,
     /// The most file descriptors above standard error that the shell keeps
