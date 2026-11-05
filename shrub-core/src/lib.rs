@@ -93,6 +93,7 @@ mod interp;
 mod ioutils;
 pub mod jobs;
 mod keywords;
+pub mod listing;
 pub mod namedoptions;
 pub mod openfiles;
 pub mod options;

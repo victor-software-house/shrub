@@ -5,8 +5,15 @@
 //! change or be removed. The `shrub` binary registers them only when it is
 //! built with its `experimental-builtins` feature.
 //!
-//! Today the crate has one builtin, `save`, which writes the shell's state to
-//! standard output as JSON.
+//! It has three builtins, each behind its own feature:
+//!
+//! - `save` writes the shell's state to standard output as JSON.
+//! - `ls` lists a directory the embedder lists itself through the
+//!   [`DirectoryLister`](shrub_core::listing::DirectoryLister) in the shell's
+//!   runtime options, one line per entry as the embedder writes it, and hands
+//!   any other path to the `ls` program in `PATH`.
+//! - `tree` prints a directory tree, asking the same lister first and reading
+//!   any directory it does not answer for from the file system.
 //!
 //! ## Quick start
 //!
@@ -64,6 +71,8 @@
 //! |---|---|
 //! | `default` | Enables `builtin.save`. |
 //! | `builtin.save` | Compiles in `save`, with the serialization support it needs in `shrub-core` and `serde_json`. |
+//! | `builtin.ls` | Compiles in `ls`. |
+//! | `builtin.tree` | Compiles in `tree`. |
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 // See the equivalent note in `shrub-builtins`: `shrub_core::builtins::Command::execute` is async
@@ -75,8 +84,12 @@
     reason = "builtins implement a trait whose `execute` is async by contract"
 )]
 
+#[cfg(feature = "builtin.ls")]
+mod ls;
 #[cfg(feature = "builtin.save")]
 mod save;
+#[cfg(feature = "builtin.tree")]
+mod tree;
 
 #[allow(unused_imports, reason = "not all builtins are used in all configs")]
 use shrub_core::builtins::{self, builtin, decl_builtin, raw_arg_builtin, simple_builtin};
@@ -88,6 +101,10 @@ pub fn experimental_builtins<SE: shrub_core::extensions::ShellExtensions>()
 
     #[cfg(feature = "builtin.save")]
     m.insert("save".into(), builtin::<save::SaveCommand, SE>());
+    #[cfg(feature = "builtin.ls")]
+    m.insert("ls".into(), builtin::<ls::LsCommand, SE>());
+    #[cfg(feature = "builtin.tree")]
+    m.insert("tree".into(), builtin::<tree::TreeCommand, SE>());
 
     m
 }
