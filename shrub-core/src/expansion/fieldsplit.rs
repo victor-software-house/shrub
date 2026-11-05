@@ -73,11 +73,12 @@ pub(super) fn split_fields(ifs: &str, expansion: Expansion) -> Vec<WordField> {
         for piece in existing_field.0 {
             match piece {
                 ExpansionPiece::EmptyListElement { .. } => {}
-                // An empty word contributes nothing (unlike a quoted empty string).
+                // An empty word contributes nothing (unlike a quoted empty
+                // string).
                 ExpansionPiece::UnquotedLiteral(s) if s.is_empty() => {}
-                // Quoted text and the word's own literal text go into the current field
-                // untouched, opening one if needed. That is what keeps `""` alive as an
-                // empty argument.
+                // Quoted text and the word's own literal text go into the
+                // current field untouched, opening one if needed. That is what
+                // keeps `""` alive as an empty argument.
                 ExpansionPiece::Unsplittable(_) | ExpansionPiece::UnquotedLiteral(_) => {
                     current_field.0.push(piece);
                     state = SplitState::InField;
@@ -103,8 +104,9 @@ pub(super) fn split_fields(ifs: &str, expansion: Expansion) -> Vec<WordField> {
                         // soft (whitespace) or hard,
                         // and on where the last field ended.
                         state = match (state, is_ifs_whitespace(c)) {
-                            // Either kind closes an open field. The kind decides whether
-                            // the run that follows can still absorb a hard delimiter.
+                            // Either kind closes an open field. The kind
+                            // decides whether the run that follows can still
+                            // absorb a hard delimiter.
                             (SplitState::InField, whitespace) => {
                                 fields.push(std::mem::take(&mut current_field));
                                 if whitespace {
@@ -113,16 +115,19 @@ pub(super) fn split_fields(ifs: &str, expansion: Expansion) -> Vec<WordField> {
                                     SplitState::AfterDelimiter
                                 }
                             }
-                            // The run's one hard delimiter: absorbed, nothing emitted.
+                            // The run's one hard delimiter: absorbed, nothing
+                            // emitted.
                             (SplitState::AfterWhitespace, false) => SplitState::AfterDelimiter,
-                            // A second hard delimiter, or one at the very start: it
-                            // closes a field that never got any content.
+                            // A second hard delimiter, or one at the very
+                            // start: it closes a field that never got any
+                            // content.
                             (SplitState::AfterDelimiter, false) => {
                                 fields.push(WordField::new());
                                 SplitState::AfterDelimiter
                             }
-                            // Whitespace between fields is skipped, whatever came
-                            // before it; leading whitespace is dropped the same way.
+                            // Whitespace between fields is skipped, whatever
+                            // came before it; leading whitespace is dropped the
+                            // same way.
                             (state, true) => state,
                         };
                     }
@@ -194,7 +199,8 @@ mod tests {
                 vec![vec![s("a::b")]],
                 vec![vec![s("a")], vec![], vec![s("b")]],
             ),
-            // A leading delimiter leaves an empty field; a trailing one does not.
+            // A leading delimiter leaves an empty field; a trailing one does
+            // not.
             (":", vec![vec![s(":a")]], vec![vec![], vec![s("a")]]),
             (":", vec![vec![s("a:")]], vec![vec![s("a")]]),
             (":", vec![vec![s(":")]], vec![vec![]]),
@@ -218,8 +224,9 @@ mod tests {
                 vec![vec![], vec![], vec![s("a")]],
             ),
             (": ", vec![vec![s("a: ")]], vec![vec![s("a")]]),
-            // The word's own literal text is never split; it joins whatever field is
-            // open, and a delimiter that closed the previous field keeps it out.
+            // The word's own literal text is never split; it joins whatever
+            // field is open, and a delimiter that closed the previous field
+            // keeps it out.
             (":", vec![vec![l("a:b")]], vec![vec![l("a:b")]]),
             (
                 ":",
@@ -270,7 +277,8 @@ mod tests {
             (":", vec![vec![s("")]], vec![]),
             // Empty IFS disables splitting.
             ("", vec![vec![s("a b")]], vec![vec![s("a b")]]),
-            // The C-locale whitespace set is honored; Unicode spaces are ordinary delimiters.
+            // The C-locale whitespace set is honored; Unicode spaces are
+            // ordinary delimiters.
             (
                 "\r",
                 vec![vec![s("a\rb\r\rc")]],

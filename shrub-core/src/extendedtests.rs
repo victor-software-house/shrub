@@ -225,9 +225,10 @@ async fn apply_binary_predicate(
             let (matches, captures) = match regex.matches(s.as_str()) {
                 Ok(Some(captures)) => (true, captures),
                 Ok(None) => (false, vec![]),
-                // If we can't compile the regex, don't abort the whole operation but make sure to
-                // report it.
-                // TODO(test): Docs indicate we should yield 2 on an invalid regex (not 1).
+                // If we can't compile the regex, don't abort the whole
+                // operation but make sure to report it.
+                // TODO(test): Docs indicate we should yield 2 on an invalid
+                // regex (not 1).
                 Err(e) => {
                     tracing::warn!("error using regex: {}", e);
                     (false, vec![])
@@ -435,11 +436,11 @@ async fn apply_binary_predicate(
 
             Ok(left >= right)
         }
-        // N.B. The "=", "==", and "!=" operators don't compare 2 strings; they check
-        // for whether the lefthand operand (a string) is matched by the righthand
-        // operand (treated as a shell pattern).
-        // TODO(test): implement case-insensitive matching if relevant via shopt options
-        // (nocasematch).
+        // N.B. The "=", "==", and "!=" operators don't compare 2 strings; they
+        // check for whether the lefthand operand (a string) is matched by the
+        // righthand operand (treated as a shell pattern).
+        // TODO(test): implement case-insensitive matching if relevant via shopt
+        // options (nocasematch).
         ast::BinaryPredicate::StringExactlyMatchesPattern => {
             let s = expansion::basic_expand_word(shell, params, left).await?;
             let pattern = expansion::basic_expand_pattern(shell, params, right)

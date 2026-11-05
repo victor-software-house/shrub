@@ -229,6 +229,11 @@ pub struct RuntimeOptions {
     /// system.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub directory_lister: Option<std::sync::Arc<dyn crate::listing::DirectoryLister>>,
+    /// The files the embedder serves from a later first byte, which the
+    /// builtins that read files ask first; `None` reads every file from its
+    /// start.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub read_window: Option<std::sync::Arc<dyn crate::window::ReadWindow>>,
     /// Maximum function call depth.
     pub max_function_call_depth: Option<usize>,
     /// The most file descriptors above standard error that the shell keeps

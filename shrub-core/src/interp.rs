@@ -645,8 +645,9 @@ impl<SE: extensions::ShellExtensions> ExecuteInPipeline<SE> for ast::Command {
                 }
 
                 match pipeline_context.shell {
-                    // An owned shell is a discarded clone, so this stage can run asynchronously.
-                    // That lets the pipeline start readers before writers fill the pipe.
+                    // An owned shell is a discarded clone, so this stage can
+                    // run asynchronously. That lets the pipeline start readers
+                    // before writers fill the pipe.
                     commands::ShellForCommand::OwnedShell { target, .. } => {
                         // Taken through the box: a borrow of `shell` would keep
                         // it in this future's state

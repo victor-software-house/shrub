@@ -166,7 +166,8 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
                 crate::callstack::FrameType::Function(..) => return &frame.args,
                 // Executed scripts always shadow positional parameters.
                 _ if frame.frame_type.is_run_script() => return &frame.args,
-                // Sourced scripts shadow positional parameters if they have arguments.
+                // Sourced scripts shadow positional parameters if they have
+                // arguments.
                 _ if frame.frame_type.is_sourced_script() && !frame.args.is_empty() => {
                     return &frame.args;
                 }
@@ -186,7 +187,8 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
                 crate::callstack::FrameType::Function(..) => return &mut frame.args,
                 // Executed scripts always shadow positional parameters.
                 _ if frame.frame_type.is_run_script() => return &mut frame.args,
-                // Sourced scripts shadow positional parameters if they have arguments.
+                // Sourced scripts shadow positional parameters if they have
+                // arguments.
                 _ if frame.frame_type.is_sourced_script() && !frame.args.is_empty() => {
                     return &mut frame.args;
                 }
