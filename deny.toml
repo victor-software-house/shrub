@@ -5,7 +5,12 @@ all-features = true
 yanked = "deny"
 unmaintained = "all"
 # RUSTSEC ids and yanked crates that cannot be upgraded yet. Not a lint-level downgrade.
-ignore = []
+ignore = [
+  # pin-utils is unmaintained (archived 2026-10-01) and reaches shrub only in
+  # tests: expectrl 0.9.0 -> nix 0.26 -> pin-utils. expectrl 0.9.0 is its latest
+  # release. Remove this entry when expectrl releases without nix 0.26.
+  { id = "RUSTSEC-2026-0441", reason = "test-only, via expectrl 0.9.0's nix 0.26; no expectrl release without it" },
+]
 
 [licenses]
 allow = [
