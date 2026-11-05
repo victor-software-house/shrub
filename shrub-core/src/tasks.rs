@@ -89,8 +89,10 @@ impl ShellTasks {
     }
 
     /// Starts running `future`, which may block the thread it runs on, as one
-    /// of these tasks; see [`sys::tasks::spawn_blocking`].
-    pub(crate) fn spawn_blocking<F>(
+    /// of these tasks, on a thread of its own so the caller's thread stays
+    /// free; a builtin that walks a file system runs its walk here. Like every
+    /// task, it is aborted with the others.
+    pub fn spawn_blocking<F>(
         &self,
         future: F,
     ) -> impl Future<Output = TaskHandle<F::Output>> + use<F>

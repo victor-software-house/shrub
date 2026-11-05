@@ -33,12 +33,25 @@ impl ReadWindow for Fake {
 /// system programs in `PATH`, and returns the lines it wrote to standard
 /// output.
 async fn output(file: &Path, start: u64, command: &str) -> Result<Vec<String>> {
+    output_in(None, file, start, command).await
+}
+
+/// [`output`], in the working directory `dir` when one is given.
+async fn output_in(
+    dir: Option<&Path>,
+    file: &Path,
+    start: u64,
+    command: &str,
+) -> Result<Vec<String>> {
     let mut shell = shrub_core::Shell::builder()
         .experimental_builtins()
         .do_not_inherit_env(true)
         .skip_well_known_vars(true)
         .build()
         .await?;
+    if let Some(dir) = dir {
+        shell.set_working_dir(dir)?;
+    }
     shell.options_mut().read_window = Some(Arc::new(Fake {
         file: file.to_owned(),
         start,
@@ -100,5 +113,35 @@ async fn a_file_the_window_does_not_answer_for_reads_whole() -> Result<()> {
     let (_, plain) = file(dir.path(), "plain", "all\nof it\n")?;
     let lines = output(&path, 5, &format!("cat {plain}")).await?;
     assert_eq!(lines, ["all", "of it"]);
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn cat_numbers_lines_across_a_windowed_and_a_plain_file() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let (path, windowed) = file(dir.path(), "out", "gone\none\n")?;
+    let (_, plain) = file(dir.path(), "plain", "two\n")?;
+    let lines = output(&path, 5, &format!("cat -n {windowed} {plain}")).await?;
+    assert_eq!(lines, ["     1\tone", "     2\ttwo"]);
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn head_quiet_prints_no_headers() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let (path, windowed) = file(dir.path(), "out", "gone\none\n")?;
+    let (_, plain) = file(dir.path(), "plain", "two\n")?;
+    let lines = output(&path, 5, &format!("head -q -n 1 {windowed} {plain}")).await?;
+    assert_eq!(lines, ["one", "two"]);
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_path_after_double_dash_that_starts_with_a_dash_stays_a_path() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let (path, _) = file(dir.path(), "out", "gone\none\n")?;
+    file(dir.path(), "-odd", "odd\n")?;
+    let lines = output_in(Some(dir.path()), &path, 5, "head -n 1 out -- -odd").await?;
+    assert_eq!(lines, ["==> out <==", "one", "", "==> -odd <==", "odd"]);
     Ok(())
 }

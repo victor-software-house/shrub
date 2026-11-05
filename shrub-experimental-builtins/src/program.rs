@@ -11,7 +11,7 @@ pub(crate) async fn run_program(
     context: &mut shrub_core::ExecutionContext<'_, impl shrub_core::ShellExtensions>,
     name: &str,
     args: &[String],
-    stdin: Option<std::fs::File>,
+    stdin: Option<OpenFile>,
 ) -> Result<ExecutionResult, shrub_core::Error> {
     let Some(program) = context.shell.find_first_executable_in_path(name) else {
         writeln!(context.stderr(), "{name}: command not found")?;
@@ -25,7 +25,7 @@ pub(crate) async fn run_program(
         .map(shrub_core::CommandArg::from);
     let mut params = context.params.clone();
     if let Some(stdin) = stdin {
-        params.set_fd(OpenFiles::STDIN_FD, OpenFile::from(stdin));
+        params.set_fd(OpenFiles::STDIN_FD, stdin);
     }
     let mut command = commands::SimpleCommand::new(
         commands::ShellForCommand::ParentShell(&mut *context.shell),

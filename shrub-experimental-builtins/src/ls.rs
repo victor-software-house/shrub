@@ -8,7 +8,8 @@ use crate::program::{run_program, split_args};
 
 /// (*EXPERIMENTAL*) Lists a directory. A directory the embedder lists itself
 /// shows one line per entry, as the embedder writes it; any other path is
-/// listed by the `ls` program found in `PATH`, with the same arguments.
+/// listed by the `ls` program found in `PATH`, with the same options. With
+/// several operands, each is listed in the order given under its own header.
 #[derive(Parser)]
 #[command(disable_help_flag = true)]
 pub(crate) struct LsCommand {
@@ -17,6 +18,11 @@ pub(crate) struct LsCommand {
     args: Vec<String>,
 }
 
+/// The options of GNU `ls` that take the next word as their value. BSD `ls`
+/// has none, and reads `-I` and `-w` as flags, so on BSD a path right after
+/// one of them is taken as its value.
+const WITH_VALUE: &[&str] = &["-I", "-T", "-w"];
+
 impl builtins::Command for LsCommand {
     type Error = shrub_core::Error;
 
@@ -24,50 +30,52 @@ impl builtins::Command for LsCommand {
         &self,
         mut context: shrub_core::ExecutionContext<'_, SE>,
     ) -> Result<ExecutionResult, Self::Error> {
-        let (options, paths) = split_args(&self.args, &[]);
+        let (options, paths) = split_args(&self.args, WITH_VALUE);
         let lister = context.shell.options().directory_lister.clone();
         let operands: Vec<&str> = if paths.is_empty() {
             vec!["."]
         } else {
             paths.clone()
         };
-        let mut listed: Vec<(&str, Vec<ListedEntry>)> = Vec::new();
-        let mut others: Vec<&str> = Vec::new();
-        for &operand in &operands {
-            let entries = lister
-                .as_ref()
-                .and_then(|lister| lister.list(&context.shell.absolute_path(operand)));
-            match entries {
-                Some(entries) => listed.push((operand, entries)),
-                None => others.push(operand),
-            }
-        }
-        if listed.is_empty() {
+        let listed: Vec<Option<Vec<ListedEntry>>> = operands
+            .iter()
+            .map(|operand| {
+                lister
+                    .as_ref()
+                    .and_then(|lister| lister.list(&context.shell.absolute_path(operand)))
+            })
+            .collect();
+        if listed.iter().all(Option::is_none) {
             return run_program(&mut context, "ls", &self.args, None).await;
         }
         let headed = operands.len() > 1;
-        for (index, (operand, entries)) in listed.iter().enumerate() {
+        let mut failed = None;
+        for (index, (operand, entries)) in operands.iter().zip(listed).enumerate() {
             if headed {
                 if index > 0 {
                     writeln!(context.stdout())?;
                 }
                 writeln!(context.stdout(), "{operand}:")?;
             }
-            for entry in entries {
-                writeln!(context.stdout(), "{}", entry.line)?;
+            if let Some(entries) = entries {
+                for entry in entries {
+                    writeln!(context.stdout(), "{}", entry.line)?;
+                }
+                continue;
+            }
+            // `ls` given one operand prints no header, and `--` keeps a path
+            // that starts with `-` a path.
+            let args: Vec<String> = options
+                .iter()
+                .copied()
+                .chain(["--", operand])
+                .map(str::to_owned)
+                .collect();
+            let result = run_program(&mut context, "ls", &args, None).await?;
+            if failed.is_none() && !result.is_success() {
+                failed = Some(result);
             }
         }
-        if others.is_empty() {
-            return Ok(ExecutionResult::success());
-        }
-        if headed {
-            writeln!(context.stdout())?;
-        }
-        let rest: Vec<String> = options
-            .into_iter()
-            .chain(others)
-            .map(str::to_owned)
-            .collect();
-        run_program(&mut context, "ls", &rest, None).await
+        Ok(failed.unwrap_or_else(ExecutionResult::success))
     }
 }
