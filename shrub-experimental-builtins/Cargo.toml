@@ -18,6 +18,9 @@ default = ['builtin.save']
 'builtin.save' = ["shrub-core/serde", "dep:serde_json"]
 'builtin.ls' = []
 'builtin.tree' = []
+'builtin.cat' = []
+'builtin.head' = []
+'builtin.tail' = []
 
 [package.metadata.docs.rs]
 all-features = true

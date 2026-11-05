@@ -116,6 +116,7 @@ pub mod trace_categories;
 pub mod traps;
 pub mod variables;
 mod wellknownvars;
+pub mod window;
 
 /// Re-export parser types used in core definitions.
 pub mod parser {
