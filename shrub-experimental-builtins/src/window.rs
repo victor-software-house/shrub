@@ -63,8 +63,8 @@ impl builtins::Command for WindowCommand {
         // The builtin prints the headers itself, so the program, which reads
         // one operand at a time, is not asked for any; BSD `head` has no
         // `-q` or `-v` at all.
-        let (quiet, verbose, options) = take_header_flags(options);
-        let headed = !quiet && (verbose || operands.len() > 1);
+        let (headers, options) = take_header_flags(options);
+        let headed = headers.unwrap_or(operands.len() > 1);
         let mut failed = None;
         for (index, operand) in operands.into_iter().enumerate() {
             if headed {
@@ -99,26 +99,27 @@ impl builtins::Command for WindowCommand {
     }
 }
 
-/// `options` without the header options of `head` and `tail`, and whether
-/// they asked for no headers (`-q`, `--quiet`, `--silent`) or for headers
-/// always (`-v`, `--verbose`). A group of short options, such as `-qn3`, is
+/// `options` without the header options of `head` and `tail`, and what the
+/// last of them asked for: no headers (`-q`, `--quiet`, `--silent`), headers
+/// always (`-v`, `--verbose`), or `None` when none was given, as GNU `head`
+/// and `tail` let the last win. A group of short options, such as `-qn3`, is
 /// read letter by letter up to `n` or `c`, whose value is the rest of the
 /// group.
-fn take_header_flags(options: Vec<String>) -> (bool, bool, Vec<String>) {
-    let (mut quiet, mut verbose) = (false, false);
+fn take_header_flags(options: Vec<String>) -> (Option<bool>, Vec<String>) {
+    let mut headers = None;
     let mut kept = Vec::new();
     for option in options {
         match option.as_str() {
-            "--quiet" | "--silent" => quiet = true,
-            "--verbose" => verbose = true,
+            "--quiet" | "--silent" => headers = Some(false),
+            "--verbose" => headers = Some(true),
             word if word.starts_with("--") || !word.starts_with('-') => kept.push(option),
             word => {
                 let mut rest = String::from("-");
                 let mut letters = word.chars().skip(1);
                 while let Some(letter) = letters.next() {
                     match letter {
-                        'q' => quiet = true,
-                        'v' => verbose = true,
+                        'q' => headers = Some(false),
+                        'v' => headers = Some(true),
                         'n' | 'c' => {
                             rest.push(letter);
                             rest.extend(letters.by_ref());
@@ -132,7 +133,7 @@ fn take_header_flags(options: Vec<String>) -> (bool, bool, Vec<String>) {
             }
         }
     }
-    (quiet, verbose, kept)
+    (headers, kept)
 }
 
 /// One path operand: the word as given, its absolute path, and the first
@@ -207,19 +208,26 @@ mod tests {
     fn header_options_are_taken_out_of_groups_and_long_forms() {
         assert_eq!(
             take_header_flags(words(&["-qn3"])),
-            (true, false, words(&["-n3"]))
+            (Some(false), words(&["-n3"]))
         );
         assert_eq!(
             take_header_flags(words(&["-v", "-n", "5"])),
-            (false, true, words(&["-n", "5"]))
+            (Some(true), words(&["-n", "5"]))
         );
         assert_eq!(
             take_header_flags(words(&["--silent", "-c10", "-q"])),
-            (true, false, words(&["-c10"]))
+            (Some(false), words(&["-c10"]))
         );
         assert_eq!(
             take_header_flags(words(&["-n", "-5"])),
-            (false, false, words(&["-n", "-5"]))
+            (None, words(&["-n", "-5"]))
         );
+    }
+
+    #[test]
+    fn the_last_header_option_wins() {
+        assert_eq!(take_header_flags(words(&["-q", "-v"])).0, Some(true));
+        assert_eq!(take_header_flags(words(&["-v", "--quiet"])).0, Some(false));
+        assert_eq!(take_header_flags(words(&["-vq"])).0, Some(false));
     }
 }
