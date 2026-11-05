@@ -60,25 +60,11 @@ impl builtins::Command for WindowCommand {
         if name == "cat" {
             return cat(&mut context, &options, operands).await;
         }
-        let quiet = options
-            .iter()
-            .any(|option| matches!(option.as_str(), "-q" | "--quiet" | "--silent"));
-        let verbose = options
-            .iter()
-            .any(|option| matches!(option.as_str(), "-v" | "--verbose"));
-        let headed = !quiet && (verbose || operands.len() > 1);
         // The builtin prints the headers itself, so the program, which reads
         // one operand at a time, is not asked for any; BSD `head` has no
         // `-q` or `-v` at all.
-        let options: Vec<String> = options
-            .into_iter()
-            .filter(|option| {
-                !matches!(
-                    option.as_str(),
-                    "-q" | "--quiet" | "--silent" | "-v" | "--verbose"
-                )
-            })
-            .collect();
+        let (quiet, verbose, options) = take_header_flags(options);
+        let headed = !quiet && (verbose || operands.len() > 1);
         let mut failed = None;
         for (index, operand) in operands.into_iter().enumerate() {
             if headed {
@@ -111,6 +97,42 @@ impl builtins::Command for WindowCommand {
         }
         Ok(failed.unwrap_or_else(ExecutionResult::success))
     }
+}
+
+/// `options` without the header options of `head` and `tail`, and whether
+/// they asked for no headers (`-q`, `--quiet`, `--silent`) or for headers
+/// always (`-v`, `--verbose`). A group of short options, such as `-qn3`, is
+/// read letter by letter up to `n` or `c`, whose value is the rest of the
+/// group.
+fn take_header_flags(options: Vec<String>) -> (bool, bool, Vec<String>) {
+    let (mut quiet, mut verbose) = (false, false);
+    let mut kept = Vec::new();
+    for option in options {
+        match option.as_str() {
+            "--quiet" | "--silent" => quiet = true,
+            "--verbose" => verbose = true,
+            word if word.starts_with("--") || !word.starts_with('-') => kept.push(option),
+            word => {
+                let mut rest = String::from("-");
+                let mut letters = word.chars().skip(1);
+                while let Some(letter) = letters.next() {
+                    match letter {
+                        'q' => quiet = true,
+                        'v' => verbose = true,
+                        'n' | 'c' => {
+                            rest.push(letter);
+                            rest.extend(letters.by_ref());
+                        }
+                        other => rest.push(other),
+                    }
+                }
+                if rest != "-" {
+                    kept.push(rest);
+                }
+            }
+        }
+    }
+    (quiet, verbose, kept)
 }
 
 /// One path operand: the word as given, its absolute path, and the first
@@ -171,4 +193,33 @@ fn open_at(path: &Path, start: u64) -> io::Result<std::fs::File> {
     let mut file = std::fs::File::open(path)?;
     file.seek(SeekFrom::Start(start))?;
     Ok(file)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn words(options: &[&str]) -> Vec<String> {
+        options.iter().map(|option| (*option).to_owned()).collect()
+    }
+
+    #[test]
+    fn header_options_are_taken_out_of_groups_and_long_forms() {
+        assert_eq!(
+            take_header_flags(words(&["-qn3"])),
+            (true, false, words(&["-n3"]))
+        );
+        assert_eq!(
+            take_header_flags(words(&["-v", "-n", "5"])),
+            (false, true, words(&["-n", "5"]))
+        );
+        assert_eq!(
+            take_header_flags(words(&["--silent", "-c10", "-q"])),
+            (true, false, words(&["-c10"]))
+        );
+        assert_eq!(
+            take_header_flags(words(&["-n", "-5"])),
+            (false, false, words(&["-n", "-5"]))
+        );
+    }
 }
