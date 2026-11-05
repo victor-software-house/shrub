@@ -145,3 +145,12 @@ async fn a_path_after_double_dash_that_starts_with_a_dash_stays_a_path() -> Resu
     assert_eq!(lines, ["==> out <==", "one", "", "==> -odd <==", "odd"]);
     Ok(())
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn cat_reads_dash_from_its_standard_input() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let (path, windowed) = file(dir.path(), "out", "gone\none\n")?;
+    let lines = output(&path, 5, &format!("echo piped | cat {windowed} -")).await?;
+    assert_eq!(lines, ["one", "piped"]);
+    Ok(())
+}

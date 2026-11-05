@@ -67,6 +67,18 @@ impl builtins::Command for WindowCommand {
             .iter()
             .any(|option| matches!(option.as_str(), "-v" | "--verbose"));
         let headed = !quiet && (verbose || operands.len() > 1);
+        // The builtin prints the headers itself, so the program, which reads
+        // one operand at a time, is not asked for any; BSD `head` has no
+        // `-q` or `-v` at all.
+        let options: Vec<String> = options
+            .into_iter()
+            .filter(|option| {
+                !matches!(
+                    option.as_str(),
+                    "-q" | "--quiet" | "--silent" | "-v" | "--verbose"
+                )
+            })
+            .collect();
         let mut failed = None;
         for (index, operand) in operands.into_iter().enumerate() {
             if headed {
@@ -118,11 +130,17 @@ async fn cat(
     operands: Vec<Operand>,
 ) -> Result<ExecutionResult, shrub_core::Error> {
     let (reader, mut writer) = io::pipe()?;
+    // `-` names the builtin's own standard input, as it does for `cat`.
+    let mut stdin = context.stdin();
     let feeder = std::thread::spawn(move || {
         let mut errors = Vec::new();
         for operand in operands {
-            let copied = open_at(&operand.path, operand.start.unwrap_or(0))
-                .and_then(|mut file| io::copy(&mut file, &mut writer));
+            let copied = if operand.word == "-" && operand.start.is_none() {
+                io::copy(&mut stdin, &mut writer)
+            } else {
+                open_at(&operand.path, operand.start.unwrap_or(0))
+                    .and_then(|mut file| io::copy(&mut file, &mut writer))
+            };
             match copied {
                 Ok(_) => {}
                 // The program ended first and closed the pipe: nothing more
