@@ -3840,9 +3840,12 @@ dependencies = [
 name = "shrub-experimental-builtins"
 version = "0.7.0"
 dependencies = [
+ "anyhow",
  "clap",
  "serde_json",
  "shrub-core",
+ "tempfile",
+ "tokio",
 ]
 
 [[package]]
