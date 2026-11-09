@@ -90,3 +90,29 @@ async fn tree_prints_the_listers_lines_and_a_count() -> Result<()> {
     );
     Ok(())
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn ls_lists_mixed_operands_in_order_each_under_its_header() -> Result<()> {
+    let listed = tempfile::tempdir()?;
+    let other = tempfile::tempdir()?;
+    std::fs::write(other.path().join("plain.txt"), "")?;
+    let command = format!(
+        "PATH=/bin:/usr/bin; ls '{}' '{}'",
+        other.path().display(),
+        listed.path().display()
+    );
+    let lines = output(listed.path(), &command).await?;
+    let first = format!("{}:", other.path().display());
+    let second = format!("{}:", listed.path().display());
+    assert_eq!(
+        lines,
+        [
+            first.as_str(),
+            "plain.txt",
+            "",
+            second.as_str(),
+            "412.md  user  \"fix the login\""
+        ]
+    );
+    Ok(())
+}
