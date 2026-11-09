@@ -123,8 +123,8 @@ impl Clone for OpenFile {
             Self::Stdin(_) => std::io::stdin().into(),
             Self::Stdout(_) => std::io::stdout().into(),
             Self::Stderr(_) => std::io::stderr().into(),
-            // File and pipe handles are shared by reference count; cloning never issues a
-            // syscall and so cannot fail.
+            // File and pipe handles are shared by reference count; cloning
+            // never issues a syscall and so cannot fail.
             Self::File(f) => Self::File(Arc::clone(f)),
             Self::PipeReader(r) => Self::PipeReader(Arc::clone(r)),
             Self::PipeWriter(w) => Self::PipeWriter(Arc::clone(w)),
@@ -277,8 +277,8 @@ impl std::io::Read for OpenFile {
             Self::Stderr(_) => Err(std::io::Error::other(
                 error::ErrorKind::OpenFileNotReadable("stderr"),
             )),
-            // The handle is shared behind an `Arc`; read through a shared reference (`&File`
-            // and `&PipeReader` both implement `Read`).
+            // The handle is shared behind an `Arc`; read through a shared
+            // reference (`&File` and `&PipeReader` both implement `Read`).
             Self::File(f) => f.as_ref().read(buf),
             Self::PipeReader(reader) => reader.as_ref().read(buf),
             Self::PipeWriter(_) => Err(std::io::Error::other(
@@ -297,8 +297,8 @@ impl std::io::Write for OpenFile {
             )),
             Self::Stdout(f) => f.write(buf),
             Self::Stderr(f) => f.write(buf),
-            // The handle is shared behind an `Arc`; write through a shared reference (`&File`
-            // and `&PipeWriter` both implement `Write`).
+            // The handle is shared behind an `Arc`; write through a shared
+            // reference (`&File` and `&PipeWriter` both implement `Write`).
             Self::File(f) => f.as_ref().write(buf),
             Self::PipeReader(_) => Err(std::io::Error::other(
                 error::ErrorKind::OpenFileNotWritable("pipe reader"),

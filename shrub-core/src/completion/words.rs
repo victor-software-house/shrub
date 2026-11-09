@@ -327,8 +327,8 @@ mod tests {
                 expected(&[("one", 0), ("two", 4), (":", 7), ("three", 8)]),
             ),
             ("one'two", "'", expected(&[("one'two", 0)])),
-            // Like bash, a quote opens anywhere, even after a word-break char, and ends a
-            // run of them.
+            // Like bash, a quote opens anywhere, even after a word-break char,
+            // and ends a run of them.
             (
                 "a'b c' x=\"d e",
                 " =\"'",

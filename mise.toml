@@ -91,9 +91,10 @@ includes = [
 # `schema` adds only the derive that the committed-schema test needs. nextest
 # runs each compatibility case as its own test, so .config/nextest.toml
 # retries only the terminal cases that time out on a loaded runner.
-# `builtin.ls` and `builtin.tree` are off by default, so their tests run only
-# with these features.
+# `builtin.ls`, `builtin.tree`, `builtin.cat`, `builtin.head` and
+# `builtin.tail` are off by default, so their tests run only with these
+# features.
 [tasks.test]
-description = "Unit, integration and compatibility tests with the default features and the listing builtins"
-run = "cargo nextest run --locked --workspace --features shrub-shell/schema,shrub-experimental-builtins/builtin.ls,shrub-experimental-builtins/builtin.tree"
+description = "Unit, integration and compatibility tests with the default features and the listing and read-window builtins"
+run = "cargo nextest run --locked --workspace --features shrub-shell/schema,shrub-experimental-builtins/builtin.ls,shrub-experimental-builtins/builtin.tree,shrub-experimental-builtins/builtin.cat,shrub-experimental-builtins/builtin.head,shrub-experimental-builtins/builtin.tail"
 timeout = "30m"

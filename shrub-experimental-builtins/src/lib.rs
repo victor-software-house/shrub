@@ -5,7 +5,7 @@
 //! change or be removed. The `shrub` binary registers them only when it is
 //! built with its `experimental-builtins` feature.
 //!
-//! It has three builtins, each behind its own feature:
+//! It has these builtins, each behind its own feature:
 //!
 //! - `save` writes the shell's state to standard output as JSON.
 //! - `ls` lists a directory the embedder lists itself through the
@@ -14,6 +14,10 @@
 //!   any other path to the `ls` program in `PATH`.
 //! - `tree` prints a directory tree, asking the same lister first and reading
 //!   any directory it does not answer for from the file system.
+//! - `cat`, `head` and `tail` run the program of their name in `PATH`; a file
+//!   the [`ReadWindow`](shrub_core::window::ReadWindow) in the runtime options
+//!   answers for is opened at the first byte it names and given to the program
+//!   on its standard input.
 //!
 //! ## Quick start
 //!
@@ -73,6 +77,7 @@
 //! | `builtin.save` | Compiles in `save`, with the serialization support it needs in `shrub-core` and `serde_json`. |
 //! | `builtin.ls` | Compiles in `ls`. |
 //! | `builtin.tree` | Compiles in `tree`. |
+//! | `builtin.cat`, `builtin.head`, `builtin.tail` | Compile in `cat`, `head` and `tail`. |
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 // See the equivalent note in `shrub-builtins`: `shrub_core::builtins::Command::execute` is async
@@ -86,10 +91,23 @@
 
 #[cfg(feature = "builtin.ls")]
 mod ls;
+#[cfg(any(
+    feature = "builtin.ls",
+    feature = "builtin.cat",
+    feature = "builtin.head",
+    feature = "builtin.tail"
+))]
+mod program;
 #[cfg(feature = "builtin.save")]
 mod save;
 #[cfg(feature = "builtin.tree")]
 mod tree;
+#[cfg(any(
+    feature = "builtin.cat",
+    feature = "builtin.head",
+    feature = "builtin.tail"
+))]
+mod window;
 
 #[allow(unused_imports, reason = "not all builtins are used in all configs")]
 use shrub_core::builtins::{self, builtin, decl_builtin, raw_arg_builtin, simple_builtin};
@@ -105,6 +123,12 @@ pub fn experimental_builtins<SE: shrub_core::extensions::ShellExtensions>()
     m.insert("ls".into(), builtin::<ls::LsCommand, SE>());
     #[cfg(feature = "builtin.tree")]
     m.insert("tree".into(), builtin::<tree::TreeCommand, SE>());
+    #[cfg(feature = "builtin.cat")]
+    m.insert("cat".into(), builtin::<window::WindowCommand, SE>());
+    #[cfg(feature = "builtin.head")]
+    m.insert("head".into(), builtin::<window::WindowCommand, SE>());
+    #[cfg(feature = "builtin.tail")]
+    m.insert("tail".into(), builtin::<window::WindowCommand, SE>());
 
     m
 }
