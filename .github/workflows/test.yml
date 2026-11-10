@@ -48,6 +48,9 @@ jobs:
   test:
     if: ${{ !github.event.pull_request.draft && github.event_name != 'schedule' }}
     name: Test (${{ matrix.os }})
+    # A run takes about 8 minutes; a cold cache and the bash install add a
+    # few more.
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
