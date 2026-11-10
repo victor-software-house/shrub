@@ -9,12 +9,15 @@ on:
     - cron: "37 8 * * *"
   workflow_dispatch:
 
+# The shared Verify job reads this run and the runs that replaced it.
 permissions:
+  actions: read
   contents: read
   pull-requests: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref_name }}
+  # A draft run gets a group of its own, so it never cancels the ready run.
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref_name }}${{ github.event.pull_request.draft && '-draft' || '' }}
   cancel-in-progress: true
 
 jobs:
@@ -37,7 +40,14 @@ jobs:
 
   verify:
     if: ${{ !github.event.pull_request.draft && github.event_name != 'schedule' }}
-    uses: victor-software-house/actions/.github/workflows/rust-ci.yml@6e9dd33a97807e6e7437cb06b9c0310d674534ea # main, 2026-11-02
+    # The shared jobs that install tools trade the job's OIDC token for a
+    # release mirror session token.
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      pull-requests: read
+    uses: victor-software-house/actions/.github/workflows/rust-ci.yml@d6ce82bb1fe3a3bac6c68619c603993c08990d64 # main, 2026-11-09
     with:
       mise-version: 2026.10.25
       advisories: true
