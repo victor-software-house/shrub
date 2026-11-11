@@ -1,8 +1,12 @@
 # The latest stable mise is the floor; CI pins the same version.
-min_version = "2026.10.25"
+min_version = "2026.11.6"
 
 [settings]
-# mise loads git:: task includes only in experimental mode.
+# Every tool, whether a config file, a task or the command line asks for it,
+# comes from the locks; one with no entry fails instead of being looked up.
+locked = true
+# mise loads git:: task includes, and runs [deps] providers, only in
+# experimental mode.
 experimental = true
 lockfile = true
 # The platforms CI and contributors use, from the platforms answer. Without
@@ -71,10 +75,10 @@ includes = [
   # run. Bump the ref together with the verctl pin in mise.release.toml and
   # the workflow's pin.
   "git::https://github.com/victor-software-house/verctl.git//tasks/ver?ref=v0.7.2",
-  # The shared Rust tasks, at actions main, 2026-11-09.
-  "git::https://github.com/victor-software-house/actions.git//tasks/rust.toml?ref=d6ce82bb1fe3a3bac6c68619c603993c08990d64",
-  # template:check, template:off, and template:on, at actions main, 2026-11-09.
-  "git::https://github.com/victor-software-house/actions.git//tasks/template.toml?ref=d6ce82bb1fe3a3bac6c68619c603993c08990d64",
+  # The shared Rust tasks, at actions main, 2026-11-11.
+  "git::https://github.com/victor-software-house/actions.git//tasks/rust.toml?ref=4168002fe58fd0b310bd2b65f9db2262fc0e21d3",
+  # template:check, template:off, and template:on, at actions main, 2026-11-11.
+  "git::https://github.com/victor-software-house/actions.git//tasks/template.toml?ref=4168002fe58fd0b310bd2b65f9db2262fc0e21d3",
 ]
 
 # Replaces ctl-core's test, which runs cargo test with --all-features; a

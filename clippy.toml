@@ -8,6 +8,8 @@ allow-expect-in-tests = true
 # static strings with concat!.
 # No await-holding-invalid-types: shrub-interactive holds the shell's tokio
 # Mutex across awaits by design, which tokio's async Mutex exists to allow.
-disallowed-methods = [
-    { path = "tokio::sync::mpsc::unbounded_channel", reason = "no backpressure; use a bounded channel" },
-]
+
+[[disallowed-methods]]
+path = "tokio::sync::mpsc::unbounded_channel"
+allow-invalid = true
+reason = "no backpressure; use a bounded channel"
