@@ -167,17 +167,18 @@ while read -r ref lsha _ rsha; do
   run_checks
   [ "$planned" = 1 ] || continue
   tree=""
+  # git runs pre-push with GIT_DIR set in a linked worktree, and a caller can
+  # also export GIT_WORK_TREE or GIT_INDEX_FILE. A check that runs git, such
+  # as the workflow policy's conftest pull, must find the repository from its
+  # own directory, so neither launch passes them on.
   if same "${reads[@]}"; then
     where=.
-    launch=(env)
+    launch=(env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE)
   else
     tree="$scratch/$tip"
     git -c core.hooksPath=/dev/null worktree add --quiet --detach "$tree" "$tip" </dev/null ||
       { echo "✘ git worktree add failed for $ref; see its error above"; status=1; continue; }
     where=$tree
-    # git runs pre-push with GIT_DIR set in a linked worktree, and a caller
-    # can also export GIT_WORK_TREE or GIT_INDEX_FILE. Each names the pusher's
-    # checkout, so git in the worktree would read the pusher's index.
     launch=(env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE
       MISE_ENV=hooks MISE_CONFIG_DIR="$scratch/config" MISE_SYSTEM_CONFIG_DIR="$scratch/config"
       MISE_TRUSTED_CONFIG_PATHS="$tree")
