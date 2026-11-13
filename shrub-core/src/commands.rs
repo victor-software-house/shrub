@@ -3,9 +3,12 @@
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::ffi::{OsStr, OsString};
-use std::fmt::{Display, Write as _};
+use std::fmt::{Display, Formatter, Write as _};
+use std::io::{Read, Write};
+use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
+use std::{fmt, io};
 
 use itertools::Itertools;
 use shrub_parser::ast;
@@ -41,17 +44,17 @@ pub struct ExecutionContext<'a, SE: ShellExtensions = extensions::DefaultShellEx
 
 impl<SE: ShellExtensions> ExecutionContext<'_, SE> {
     /// Returns the standard input file; usable with `write!` et al.
-    pub fn stdin(&self) -> impl std::io::Read + 'static {
+    pub fn stdin(&self) -> impl Read + 'static {
         self.params.stdin(self.shell)
     }
 
     /// Returns the standard output file; usable with `write!` et al.
-    pub fn stdout(&self) -> impl std::io::Write + 'static {
+    pub fn stdout(&self) -> impl Write + 'static {
         self.params.stdout(self.shell)
     }
 
     /// Returns the standard error file; usable with `write!` et al.
-    pub fn stderr(&self) -> impl std::io::Write + 'static {
+    pub fn stderr(&self) -> impl Write + 'static {
         self.params.stderr(self.shell)
     }
 
@@ -82,7 +85,7 @@ pub enum CommandArg {
 }
 
 impl Display for CommandArg {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::String(s) => f.write_str(s),
             Self::Assignment(a) => write!(f, "{a}"),
@@ -141,7 +144,7 @@ pub enum ShellForCommand<'a, SE: extensions::ShellExtensions> {
     },
 }
 
-impl<SE: extensions::ShellExtensions> std::ops::Deref for ShellForCommand<'_, SE> {
+impl<SE: extensions::ShellExtensions> Deref for ShellForCommand<'_, SE> {
     type Target = Shell<SE>;
 
     fn deref(&self) -> &Self::Target {
@@ -152,7 +155,7 @@ impl<SE: extensions::ShellExtensions> std::ops::Deref for ShellForCommand<'_, SE
     }
 }
 
-impl<SE: extensions::ShellExtensions> std::ops::DerefMut for ShellForCommand<'_, SE> {
+impl<SE: extensions::ShellExtensions> DerefMut for ShellForCommand<'_, SE> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
             ShellForCommand::ParentShell(shell) => shell,
@@ -777,7 +780,7 @@ pub(crate) fn execute_external_command(
 /// [`std::io::ErrorKind::NotFound`] because the cgroup that `options` name in
 /// [`options::SpawnOptions::cgroup_procs`] is gone, or `None` when it is not;
 /// see [`shrub_process::missing_cgroup`].
-pub fn missing_cgroup(options: &options::RuntimeOptions) -> Option<std::io::Error> {
+pub fn missing_cgroup(options: &options::RuntimeOptions) -> Option<io::Error> {
     shrub_process::missing_cgroup(&options.spawn)
 }
 
@@ -788,7 +791,7 @@ fn spawn_error(
 ) -> error::Error {
     let not_found = matches!(
         &spawn_err,
-        shrub_process::Error::Spawn(error) if error.kind() == std::io::ErrorKind::NotFound
+        shrub_process::Error::Spawn(error) if error.kind() == io::ErrorKind::NotFound
     );
     if !not_found {
         return process_error(context.command_name, spawn_err);
@@ -818,7 +821,7 @@ async fn execute_builtin_command<SE: extensions::ShellExtensions>(
             // Broken pipe errors should silently return the appropriate exit
             // code
             if let Some(io_err) = e.as_io_error() {
-                if io_err.kind() == std::io::ErrorKind::BrokenPipe {
+                if io_err.kind() == io::ErrorKind::BrokenPipe {
                     return Ok(ExecutionExitCode::from(io_err).into());
                 }
             }
@@ -939,7 +942,7 @@ async fn run_substitution_command(
     if let Ok(program) = &parse_result {
         if let Some(redir) = try_unwrap_bare_input_redir_program(program) {
             interp::setup_redirect(&mut shell, &mut params, redir).await?;
-            std::io::copy(&mut params.stdin(&shell), &mut params.stdout(&shell))?;
+            io::copy(&mut params.stdin(&shell), &mut params.stdout(&shell))?;
             return Ok(ExecutionResult::new(0));
         }
     }

@@ -1,5 +1,10 @@
 //! Utility functions for the test harness.
 
+use std::env;
+use std::io::Write;
+use std::path::Path;
+use std::process::Command;
+
 use anyhow::Result;
 use descape::UnescapeExt;
 
@@ -63,12 +68,7 @@ pub fn make_expectrl_output_readable<S: AsRef<str>>(output: S) -> String {
 /// # Errors
 ///
 /// Returns an error when writing to `writer` fails.
-pub fn write_diff(
-    writer: &mut impl std::io::Write,
-    indent: usize,
-    left: &str,
-    right: &str,
-) -> Result<()> {
+pub fn write_diff(writer: &mut impl Write, indent: usize, left: &str, right: &str) -> Result<()> {
     use colored::Colorize;
 
     let indent_str = " ".repeat(indent);
@@ -102,12 +102,12 @@ pub fn resolve_launcher_path(tokens: &mut [String]) -> Result<()> {
     let Some(first) = tokens.first() else {
         return Ok(());
     };
-    if std::path::Path::new(first.as_str()).is_absolute() {
+    if Path::new(first.as_str()).is_absolute() {
         return Ok(());
     }
-    let resolved = std::env::var_os("PATH")
+    let resolved = env::var_os("PATH")
         .into_iter()
-        .flat_map(|p| std::env::split_paths(&p).collect::<Vec<_>>())
+        .flat_map(|p| env::split_paths(&p).collect::<Vec<_>>())
         .map(|d| d.join(first.as_str()))
         .find(|p| p.is_file())
         .ok_or_else(|| anyhow::anyhow!("could not resolve launcher binary '{first}' in PATH"))?;
@@ -121,10 +121,10 @@ pub fn resolve_launcher_path(tokens: &mut [String]) -> Result<()> {
 ///
 /// Returns an error when the bash binary cannot be run, or when its output is
 /// not valid UTF-8.
-pub fn get_bash_version_str(bash_path: &std::path::Path) -> Result<String> {
+pub fn get_bash_version_str(bash_path: &Path) -> Result<String> {
     use anyhow::Context;
 
-    let output = std::process::Command::new(bash_path)
+    let output = Command::new(bash_path)
         .arg("--norc")
         .arg("--noprofile")
         .arg("-c")

@@ -1,6 +1,8 @@
 use clap::Parser;
 use shrub_core::{ExecutionResult, builtins};
 
+use crate::dirs::{DirError, DirsCommand};
+
 /// Pop a path from the current directory stack.
 #[derive(Parser)]
 pub(crate) struct PopdCommand {
@@ -12,7 +14,7 @@ pub(crate) struct PopdCommand {
 }
 
 impl builtins::Command for PopdCommand {
-    type Error = crate::dirs::DirError;
+    type Error = DirError;
 
     async fn execute<SE: shrub_core::ShellExtensions>(
         &self,
@@ -24,12 +26,12 @@ impl builtins::Command for PopdCommand {
             }
 
             // Display dirs.
-            let dirs_cmd = crate::dirs::DirsCommand::default();
+            let dirs_cmd = DirsCommand::default();
             dirs_cmd.execute(context).await?;
 
             Ok(ExecutionResult::success())
         } else {
-            Err(crate::dirs::DirError::DirStackEmpty)
+            Err(DirError::DirStackEmpty)
         }
     }
 }

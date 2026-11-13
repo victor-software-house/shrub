@@ -79,9 +79,11 @@ fn ends_with_line_continuation(
 
 #[cfg(test)]
 mod tests {
+    use shrub_core::extensions::DefaultShellExtensions;
+
     use super::*;
 
-    async fn test_shell() -> Shell<shrub_core::extensions::DefaultShellExtensions> {
+    async fn test_shell() -> Shell<DefaultShellExtensions> {
         shrub_core::Shell::builder().build().await.unwrap()
     }
 

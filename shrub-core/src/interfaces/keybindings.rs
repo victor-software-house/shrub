@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
+use std::io;
 
 /// Represents an action that can be taken in response to a key sequence.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -401,7 +402,7 @@ pub trait KeyBindings: Send {
     ///
     /// Returns an I/O error if the implementation cannot record or apply the
     /// binding, such as when the underlying input backend rejects it.
-    fn bind(&mut self, seq: KeySequence, action: KeyAction) -> Result<(), std::io::Error>;
+    fn bind(&mut self, seq: KeySequence, action: KeyAction) -> Result<(), io::Error>;
 
     /// Unbinds a key sequence. Returns true if a binding was removed.
     ///
@@ -421,8 +422,7 @@ pub trait KeyBindings: Send {
     ///
     /// Returns an I/O error if the implementation cannot record or apply the
     /// macro.
-    fn define_macro(&mut self, seq: KeySequence, target: KeySequence)
-    -> Result<(), std::io::Error>;
+    fn define_macro(&mut self, seq: KeySequence, target: KeySequence) -> Result<(), io::Error>;
 
     /// Retrieves all defined macros.
     fn get_macros(&self) -> HashMap<KeySequence, KeySequence>;

@@ -1,9 +1,17 @@
+use std::fmt::Debug;
+use std::io::BufRead;
+#[cfg(feature = "winnow-parser")]
+use std::io::Read;
 use std::path::PathBuf;
 
+use ::peg::error::ParseError as PegParseError;
 use bon::bon;
 
-use crate::ast;
+use crate::error::ParseError;
+#[cfg(feature = "winnow-parser")]
+use crate::tokenizer::TokenizerError;
 use crate::tokenizer::{Token, TokenEndReason, Tokenizer, TokenizerOptions, Tokens};
+use crate::{ast, error};
 
 pub mod peg;
 #[cfg(feature = "winnow-parser")]
@@ -79,7 +87,7 @@ impl From<PathBuf> for SourceInfo {
 }
 
 /// Implements parsing for shell programs.
-pub struct Parser<R: std::io::BufRead> {
+pub struct Parser<R: BufRead> {
     /// The reader to use for input
     reader: R,
     /// Parsing options
@@ -87,7 +95,7 @@ pub struct Parser<R: std::io::BufRead> {
 }
 
 #[bon]
-impl<R: std::io::BufRead> Parser<R> {
+impl<R: BufRead> Parser<R> {
     ///
     /// # Arguments
     ///
@@ -157,7 +165,7 @@ impl<R: std::io::BufRead> Parser<R> {
     ///
     /// Panics if the parser was built with the `winnow` implementation (the
     /// `winnow-parser` feature), because that parser is not yet implemented.
-    pub fn parse_program(&mut self) -> Result<ast::Program, crate::error::ParseError> {
+    pub fn parse_program(&mut self) -> Result<ast::Program, ParseError> {
         //
         // References:
         //   * https://www.gnu.org/software/bash/manual/bash.html#Shell-Syntax
@@ -174,9 +182,9 @@ impl<R: std::io::BufRead> Parser<R> {
             ParserImpl::Winnow => {
                 // Read entire input to string for winnow_str parser
                 let mut input_str = String::new();
-                std::io::Read::read_to_string(&mut self.reader, &mut input_str).map_err(|e| {
-                    crate::error::ParseError::Tokenizing {
-                        inner: crate::tokenizer::TokenizerError::from(e),
+                Read::read_to_string(&mut self.reader, &mut input_str).map_err(|e| {
+                    ParseError::Tokenizing {
+                        inner: TokenizerError::from(e),
                         position: None,
                     }
                 })?;
@@ -185,7 +193,7 @@ impl<R: std::io::BufRead> Parser<R> {
                     .map_err(|_e| {
                         // Convert winnow error to ParseError
                         // TODO: Extract position information from winnow error
-                        crate::error::ParseError::ParsingAtEndOfInput
+                        ParseError::ParsingAtEndOfInput
                     })
             }
         }
@@ -202,16 +210,14 @@ impl<R: std::io::BufRead> Parser<R> {
     ///   error; it carries the position of the offending token.
     /// - [`crate::ParseError::ParsingAtEndOfInput`] if the input ends before
     ///   the program is complete.
-    pub fn parse_function_parens_and_body(
-        &mut self,
-    ) -> Result<ast::FunctionBody, crate::error::ParseError> {
+    pub fn parse_function_parens_and_body(&mut self) -> Result<ast::FunctionBody, ParseError> {
         let tokens = self.tokenize()?;
         let parse_result =
             peg::token_parser::function_parens_and_body(&Tokens { tokens: &tokens }, &self.options);
         parse_result_to_error(parse_result, &tokens)
     }
 
-    fn tokenize(&mut self) -> Result<Vec<Token>, crate::error::ParseError> {
+    fn tokenize(&mut self) -> Result<Vec<Token>, ParseError> {
         // First we tokenize the input, according to the policy implied by
         // provided options.
         let mut tokenizer = Tokenizer::new(&mut self.reader, &self.options.tokenizer_options());
@@ -223,7 +229,7 @@ impl<R: std::io::BufRead> Parser<R> {
             let result = match tokenizer.next_token() {
                 Ok(result) => result,
                 Err(e) => {
-                    return Err(crate::error::ParseError::Tokenizing {
+                    return Err(ParseError::Tokenizing {
                         inner: e,
                         position: tokenizer.current_location(),
                     });
@@ -261,10 +267,7 @@ impl<R: std::io::BufRead> Parser<R> {
 ///   it carries the position of the offending token.
 /// - [`crate::ParseError::ParsingAtEndOfInput`] if the tokens end before the
 ///   program is complete.
-pub fn parse_tokens(
-    tokens: &[Token],
-    options: &ParserOptions,
-) -> Result<ast::Program, crate::error::ParseError> {
+pub fn parse_tokens(tokens: &[Token], options: &ParserOptions) -> Result<ast::Program, ParseError> {
     let parse_result = peg::token_parser::program(&Tokens { tokens }, options);
     parse_result_to_error(parse_result, tokens)
 }
@@ -289,11 +292,11 @@ pub(crate) fn parse_compound_assignment_value(
 }
 
 fn parse_result_to_error<R>(
-    parse_result: Result<R, ::peg::error::ParseError<usize>>,
+    parse_result: Result<R, PegParseError<usize>>,
     tokens: &[Token],
-) -> Result<R, crate::error::ParseError>
+) -> Result<R, ParseError>
 where
-    R: std::fmt::Debug,
+    R: Debug,
 {
     match parse_result {
         Ok(program) => {
@@ -302,7 +305,7 @@ where
         }
         Err(parse_error) => {
             tracing::debug!(target: "parse", "Parse error: {:?}", parse_error);
-            Err(crate::error::convert_peg_parse_error(&parse_error, tokens))
+            Err(error::convert_peg_parse_error(&parse_error, tokens))
         }
     }
 }

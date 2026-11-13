@@ -11,15 +11,21 @@
 //! 3. The unsafe operation is that `pre_exec` registration, in
 //!    `run_command_with_stdin`.
 
+use std::io::Cursor;
 #[cfg(pty)]
 use std::os::unix::process::ExitStatusExt;
 #[cfg(unix)]
 use std::os::unix::{fs::PermissionsExt, process::CommandExt};
-use std::path::PathBuf;
-use std::process::ExitStatus;
+use std::path::{Path, PathBuf};
+use std::process::{Command, ExitStatus};
+use std::time::{Duration, Instant};
+use std::{env, fs};
 
 use anyhow::{Context, Result};
 use assert_fs::fixture::{FileWriteStr, PathChild};
+use expectrl::process::unix::{Signal, WaitStatus};
+use expectrl::session;
+use nix::unistd;
 
 use crate::config::{ShellConfig, WhichShell};
 use crate::testcase::{ShellInvocation, TestCase, TestCaseSet, TestFile};
@@ -37,7 +43,7 @@ pub struct RunResult {
     /// Standard error.
     pub stderr: String,
     /// Duration of the command.
-    pub duration: std::time::Duration,
+    pub duration: Duration,
 }
 
 impl TestCase {
@@ -90,7 +96,7 @@ impl TestCase {
     fn create_test_file(
         temp_dir: &assert_fs::TempDir,
         test_file: &TestFile,
-        source_dir: &std::path::Path,
+        source_dir: &Path,
     ) -> Result<()> {
         let test_file_path = temp_dir.child(test_file.path.as_path());
 
@@ -111,7 +117,7 @@ impl TestCase {
 
             let abs_source_path = source_dir.join(source_path);
 
-            let source_contents = std::fs::read_to_string(&abs_source_path)
+            let source_contents = fs::read_to_string(&abs_source_path)
                 .with_context(|| format!("reading {}", abs_source_path.to_string_lossy()))?;
 
             test_file_path.write_str(source_contents.as_str())?;
@@ -124,7 +130,7 @@ impl TestCase {
             // chmod u+x
             let mut perms = test_file_path.metadata()?.permissions();
             perms.set_mode(perms.mode() | 0o100);
-            std::fs::set_permissions(test_file_path, perms)?;
+            fs::set_permissions(test_file_path, perms)?;
         }
 
         Ok(())
@@ -135,17 +141,14 @@ impl TestCase {
     /// launcher is provided, the first element becomes the program to execute
     /// and the rest are passed as leading arguments before the shell binary
     /// path.
-    fn new_shell_command(
-        shell_path: &std::path::Path,
-        launcher: Option<&[String]>,
-    ) -> std::process::Command {
+    fn new_shell_command(shell_path: &Path, launcher: Option<&[String]>) -> Command {
         if let Some([program, leading_args @ ..]) = launcher {
-            let mut cmd = std::process::Command::new(program);
+            let mut cmd = Command::new(program);
             cmd.args(leading_args);
             cmd.arg(shell_path);
             cmd
         } else {
-            std::process::Command::new(shell_path)
+            Command::new(shell_path)
         }
     }
 
@@ -153,13 +156,13 @@ impl TestCase {
         &self,
         shell_config: &ShellConfig,
         working_dir: &assert_fs::TempDir,
-    ) -> std::process::Command {
+    ) -> Command {
         let (mut test_cmd, coverage_target_dir) = match self.invocation {
             ShellInvocation::ExecShellBinary => match &shell_config.which {
                 WhichShell::ShellUnderTest(name) => {
                     let cli_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
                     let default_target_dir = || cli_dir.parent().unwrap().join("target");
-                    let target_dir = std::env::var("CARGO_TARGET_DIR")
+                    let target_dir = env::var("CARGO_TARGET_DIR")
                         .ok()
                         .map_or_else(default_target_dir, PathBuf::from);
                     (
@@ -235,20 +238,20 @@ impl TestCase {
     }
 
     #[cfg(pty)]
-    fn run_command_with_pty(&self, cmd: std::process::Command) -> Result<RunResult> {
+    fn run_command_with_pty(&self, cmd: Command) -> Result<RunResult> {
         use expectrl::Expect;
         use expectrl::process::Termios as _;
 
         use crate::util::{make_expectrl_output_readable, read_expectrl_log};
 
         let mut log = Vec::new();
-        let writer = std::io::Cursor::new(&mut log);
+        let writer = Cursor::new(&mut log);
 
-        let start_time = std::time::Instant::now();
-        let mut p = expectrl::session::log(expectrl::Session::spawn(cmd)?, writer)?;
+        let start_time = Instant::now();
+        let mut p = session::log(expectrl::Session::spawn(cmd)?, writer)?;
         p.set_echo(true)?;
         if let Some(timeout) = self.timeout_in_seconds {
-            p.set_expect_timeout(Some(std::time::Duration::from_secs(timeout)));
+            p.set_expect_timeout(Some(Duration::from_secs(timeout)));
         }
 
         if let Some(stdin) = &self.stdin {
@@ -295,10 +298,9 @@ impl TestCase {
 
         let mut wait_status = p.get_process().status()?;
 
-        if matches!(wait_status, expectrl::process::unix::WaitStatus::StillAlive) {
+        if matches!(wait_status, WaitStatus::StillAlive) {
             // Try to terminate it safely.
-            p.get_process_mut()
-                .kill(expectrl::process::unix::Signal::SIGTERM)?;
+            p.get_process_mut().kill(Signal::SIGTERM)?;
             wait_status = p.get_process().wait()?;
         }
 
@@ -307,15 +309,13 @@ impl TestCase {
         let cleaned = make_expectrl_output_readable(output);
 
         match wait_status {
-            expectrl::process::unix::WaitStatus::Exited(_, code) => Ok(RunResult {
+            WaitStatus::Exited(_, code) => Ok(RunResult {
                 exit_status: ExitStatus::from_raw(code),
                 stdout: cleaned,
                 stderr: String::new(),
                 duration,
             }),
-            expectrl::process::unix::WaitStatus::Signaled(_, _, _) => {
-                Err(anyhow::anyhow!("process was signaled"))
-            }
+            WaitStatus::Signaled(_, _, _) => Err(anyhow::anyhow!("process was signaled")),
             _ => Err(anyhow::anyhow!(
                 "unexpected status for process: {wait_status:?}"
             )),
@@ -323,7 +323,7 @@ impl TestCase {
     }
 
     #[allow(unused_mut, reason = "only mutated on some platforms")]
-    fn run_command_with_stdin(&self, mut cmd: std::process::Command) -> Result<RunResult> {
+    fn run_command_with_stdin(&self, mut cmd: Command) -> Result<RunResult> {
         // SAFETY: `pre_exec` requires a closure that is safe to run in a
         // forked child of a process that may have other threads: no
         // allocation, no lock, no `std::env`. The closure calls only
@@ -332,14 +332,14 @@ impl TestCase {
         #[cfg(unix)]
         unsafe {
             cmd.pre_exec(|| {
-                let _ = nix::unistd::setsid();
+                let _ = unistd::setsid();
                 Ok(())
             })
         };
 
         let mut test_cmd = assert_cmd::Command::from_std(cmd);
 
-        test_cmd.timeout(std::time::Duration::from_secs(
+        test_cmd.timeout(Duration::from_secs(
             self.timeout_in_seconds
                 .unwrap_or(DEFAULT_TIMEOUT_IN_SECONDS),
         ));
@@ -348,7 +348,7 @@ impl TestCase {
             test_cmd.write_stdin(stdin.as_bytes());
         }
 
-        let start_time = std::time::Instant::now();
+        let start_time = Instant::now();
         let cmd_result = test_cmd.output()?;
         let duration = start_time.elapsed();
 

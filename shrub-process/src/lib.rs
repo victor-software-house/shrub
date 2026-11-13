@@ -28,11 +28,17 @@
 //! # }
 //! ```
 
+use std::any::Any;
 use std::collections::BTreeMap;
-use std::ffi::{CString, OsString};
+use std::ffi::{CString, OsStr, OsString};
+use std::fmt::{Debug, Formatter};
+use std::fs::File;
+use std::io::ErrorKind;
+use std::os::fd::{OwnedFd, RawFd};
 use std::path::PathBuf;
-use std::process::Stdio;
+use std::process::{Command, Stdio};
 use std::sync::Arc;
+use std::{fmt, io};
 
 #[cfg(unix)]
 mod unix;
@@ -64,7 +70,7 @@ pub struct Spawn {
     stdout: Option<Stdio>,
     stderr: Option<Stdio>,
     #[cfg(unix)]
-    fds: Vec<(std::os::fd::RawFd, std::os::fd::OwnedFd)>,
+    fds: Vec<(RawFd, OwnedFd)>,
     group: Group,
     terminal: Terminal,
     options: SpawnOptions,
@@ -177,7 +183,7 @@ impl Spawn {
     /// spawn with [`Error::FdMapping`].
     #[cfg(unix)]
     #[must_use]
-    pub fn fd(mut self, child: std::os::fd::RawFd, parent: std::os::fd::OwnedFd) -> Self {
+    pub fn fd(mut self, child: RawFd, parent: OwnedFd) -> Self {
         self.fds.push((child, parent));
         self
     }
@@ -226,12 +232,12 @@ impl Spawn {
     }
 
     /// The program the request runs.
-    pub fn program(&self) -> &std::ffi::OsStr {
+    pub fn program(&self) -> &OsStr {
         &self.program
     }
 
     /// The arguments after `argv[0]`.
-    pub fn arguments(&self) -> impl Iterator<Item = &std::ffi::OsStr> {
+    pub fn arguments(&self) -> impl Iterator<Item = &OsStr> {
         self.args.iter().map(OsString::as_os_str)
     }
 
@@ -245,8 +251,8 @@ impl Spawn {
     }
 
     /// The [`std::process::Command`] with everything but the setup steps.
-    fn base_command(&mut self) -> std::process::Command {
-        let mut command = std::process::Command::new(&self.program);
+    fn base_command(&mut self) -> Command {
+        let mut command = Command::new(&self.program);
         command.args(&self.args);
         if let Some(env) = &self.env {
             command.env_clear().envs(env);
@@ -331,10 +337,10 @@ pub struct SpawnOptions {
 
 /// What [`SpawnOptions::before_spawn`] returns, held across one spawn and
 /// dropped after it.
-pub type SpawnGuard = Box<dyn std::any::Any + Send>;
+pub type SpawnGuard = Box<dyn Any + Send>;
 
-impl std::fmt::Debug for SpawnOptions {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Debug for SpawnOptions {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("SpawnOptions")
             .field("cgroup_procs", &self.cgroup_procs)
             .field("open_file_limit", &self.open_file_limit)
@@ -352,7 +358,7 @@ impl std::fmt::Debug for SpawnOptions {
 pub struct PidsLimit {
     /// A cgroup's `pids.current` file, opened before the spawn, so the child
     /// reads it without opening anything.
-    pub current: Arc<std::fs::File>,
+    pub current: Arc<File>,
     /// The highest count, the child included, at which the child still runs
     /// its program.
     pub max: u64,
@@ -396,7 +402,7 @@ pub enum Error {
     /// The operating system refused the spawn or the exec, or a setup step
     /// failed in the child; a step reports only its errno.
     #[error(transparent)]
-    Spawn(std::io::Error),
+    Spawn(io::Error),
 }
 
 /// Starts `request` and returns its child.
@@ -458,11 +464,11 @@ pub fn exec(mut request: Spawn) -> Error {
 ///
 /// A child reports only an errno from before its program runs, so a cgroup
 /// file that is gone reads as a missing program; this tells them apart.
-pub fn missing_cgroup(options: &SpawnOptions) -> Option<std::io::Error> {
+pub fn missing_cgroup(options: &SpawnOptions) -> Option<io::Error> {
     let cgroup_procs = options.cgroup_procs.as_ref()?;
     sys::is_missing(cgroup_procs).then(|| {
-        std::io::Error::new(
-            std::io::ErrorKind::NotFound,
+        io::Error::new(
+            ErrorKind::NotFound,
             format!(
                 "cannot join the cgroup: {} is missing",
                 cgroup_procs.to_string_lossy()

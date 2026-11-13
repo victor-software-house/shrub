@@ -1,12 +1,16 @@
 //! Module defining the builder for creating shell instances.
 
 use std::collections::HashMap;
+use std::mem;
 use std::path::PathBuf;
+use std::time::SystemTime;
 
 pub use shell_builder::State as ShellBuilderState;
 
 use super::Shell;
+use crate::parser::ParserImpl;
 use crate::shell::KeyBindingsHelper;
+use crate::tasks::ShellTasks;
 use crate::{
     ProfileLoadBehavior, RcLoadBehavior, ShellFd, ShellVariable, builtins, callstack, completion,
     env, error, extensions, functions, jobs, openfiles, options, pathcache, traps,
@@ -27,8 +31,8 @@ impl<SE: extensions::ShellExtensions, S: shell_builder::IsComplete> ShellBuilder
     pub async fn build(self) -> Result<Shell<SE>, error::Error> {
         let mut options = self.build_settings();
 
-        let profile = std::mem::take(&mut options.profile);
-        let rc = std::mem::take(&mut options.rc);
+        let profile = mem::take(&mut options.profile);
+        let rc = mem::take(&mut options.rc);
 
         // Construct the shell.
         let mut shell = Shell::new(options)?;
@@ -238,7 +242,7 @@ pub struct CreateOptions<SE: extensions::ShellExtensions = extensions::DefaultSh
     pub verbose: bool,
     /// Parser implementation to use.
     #[builder(default)]
-    pub parser: crate::parser::ParserImpl,
+    pub parser: ParserImpl,
     /// Whether the shell is in command string mode (-c).
     #[builder(default)]
     pub command_string_mode: bool,
@@ -266,7 +270,7 @@ impl<SE: extensions::ShellExtensions> Default for Shell<SE> {
             funcs: functions::FunctionEnv::default(),
             options: options::RuntimeOptions::default(),
             jobs: jobs::JobManager::default(),
-            tasks: crate::tasks::ShellTasks::default(),
+            tasks: ShellTasks::default(),
             aliases: HashMap::default(),
             last_exit_status: 0,
             last_exit_status_change_count: 0,
@@ -281,9 +285,9 @@ impl<SE: extensions::ShellExtensions> Default for Shell<SE> {
             completion: completion::State::default(),
             builtins: HashMap::default(),
             program_location_cache: pathcache::PathCache::default(),
-            last_stopwatch_time: std::time::SystemTime::now(),
+            last_stopwatch_time: SystemTime::now(),
             last_stopwatch_offset: 0,
-            parser_impl: crate::parser::ParserImpl::default(),
+            parser_impl: ParserImpl::default(),
             key_bindings: None,
             history: None,
         }

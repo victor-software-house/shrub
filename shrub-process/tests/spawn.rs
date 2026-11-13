@@ -8,11 +8,15 @@
 
 use std::collections::BTreeMap;
 use std::ffi::OsString;
+use std::fs::Permissions;
 use std::io::Read as _;
 use std::os::fd::OwnedFd;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::{Arc, Mutex};
+use std::{fs, io};
 
+use nix::errno::Errno;
 use shrub_process::{Error, Group, Spawn, SpawnOptions, SpawnedProcess, spawn};
 
 fn sh(script: &str) -> Spawn {
@@ -50,7 +54,7 @@ async fn the_child_gets_exactly_the_environment_and_arguments_given() -> anyhow:
 
 #[tokio::test]
 async fn a_mapped_descriptor_reaches_the_child_at_its_number() -> anyhow::Result<()> {
-    let (mut reader, writer) = std::io::pipe()?;
+    let (mut reader, writer) = io::pipe()?;
 
     let started = spawn(sh("printf mapped >&7").fd(7, OwnedFd::from(writer)))?;
     let status = started.child.wait_with_output().await?.status;
@@ -125,8 +129,8 @@ async fn the_guard_is_held_until_on_spawn_has_seen_the_child() -> anyhow::Result
 
 #[tokio::test]
 async fn two_descriptors_on_one_number_fail_the_spawn() -> anyhow::Result<()> {
-    let (_first_reader, first) = std::io::pipe()?;
-    let (_second_reader, second) = std::io::pipe()?;
+    let (_first_reader, first) = io::pipe()?;
+    let (_second_reader, second) = io::pipe()?;
 
     let result = spawn(
         sh("exit 0")
@@ -166,12 +170,12 @@ async fn a_process_limit_is_refused_before_anything_is_called() -> anyhow::Resul
 }
 
 /// Writes an executable file with no `#!` line that prints `ran`.
-fn script_without_shebang(dir: &std::path::Path) -> anyhow::Result<std::path::PathBuf> {
+fn script_without_shebang(dir: &Path) -> anyhow::Result<PathBuf> {
     use std::os::unix::fs::PermissionsExt as _;
 
     let path = dir.join("plain-script");
-    std::fs::write(&path, "printf ran\n")?;
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))?;
+    fs::write(&path, "printf ran\n")?;
+    fs::set_permissions(&path, Permissions::from_mode(0o755))?;
     Ok(path)
 }
 
@@ -196,7 +200,7 @@ async fn without_the_fallback_linux_spawns_with_posix_spawn() -> anyhow::Result<
     // and `execvp` would run it with `/bin/sh`.
     let result = spawn(Spawn::new(&script).stdout(Stdio::null()));
 
-    let enoexec = Some(nix::errno::Errno::ENOEXEC as i32);
+    let enoexec = Some(Errno::ENOEXEC as i32);
     assert!(
         matches!(&result, Err(Error::Spawn(error)) if error.raw_os_error() == enoexec),
         "{result:?}"

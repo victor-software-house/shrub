@@ -1,7 +1,13 @@
 use std::io::{IsTerminal as _, Write as _};
 use std::ops::ControlFlow;
+use std::{env, io};
 
-use crate::{InputBackend, InteractivePrompt, ReadResult, ShellError};
+use shrub_core::results::ExecutionControlFlow;
+use shrub_core::terminal::TerminalControl;
+
+use crate::term_detection::TerminalEnvironment;
+use crate::term_integration::TerminalIntegration;
+use crate::{InputBackend, InteractivePrompt, ReadResult, ShellError, term_detection, zsh_hooks};
 
 /// Result of an interactive execution.
 pub enum InteractiveExecutionResult {
@@ -61,9 +67,9 @@ pub struct InteractiveShell<'a, IB: InputBackend, SE: shrub_core::ShellExtension
     input: &'a mut IB,
     /// Terminal integration utility; inert if integration is off or
     /// unsupported.
-    terminal_integration: crate::term_integration::TerminalIntegration,
+    terminal_integration: TerminalIntegration,
     /// Terminal-control guard, held for the lifetime of the interactive shell.
-    _terminal_control: Option<shrub_core::terminal::TerminalControl>,
+    _terminal_control: Option<TerminalControl>,
     /// Options.
     options: InteractiveOptions,
 }
@@ -88,11 +94,11 @@ impl<'a, IB: InputBackend, SE: shrub_core::ShellExtensions> InteractiveShell<'a,
         input: &'a mut IB,
         options: &InteractiveOptions,
     ) -> Result<Self, ShellError> {
-        let stdin_is_terminal = std::io::stdin().is_terminal();
+        let stdin_is_terminal = io::stdin().is_terminal();
 
         // Acquire terminal control if stdin is a terminal.
         let terminal_control = if stdin_is_terminal {
-            Some(shrub_core::terminal::TerminalControl::acquire()?)
+            Some(TerminalControl::acquire()?)
         } else {
             None
         };
@@ -101,10 +107,10 @@ impl<'a, IB: InputBackend, SE: shrub_core::ShellExtensions> InteractiveShell<'a,
         // Otherwise a switched-off one, which every call site below can
         // report events to unconditionally.
         let terminal_integration = if options.terminal_shell_integration && stdin_is_terminal {
-            let terminfo = crate::term_detection::get_terminal_info(&HostEnvironment);
-            crate::term_integration::TerminalIntegration::init(terminfo)?
+            let terminfo = term_detection::get_terminal_info(&HostEnvironment);
+            TerminalIntegration::init(terminfo)?
         } else {
-            crate::term_integration::TerminalIntegration::disabled()
+            TerminalIntegration::disabled()
         };
 
         Ok(Self {
@@ -148,8 +154,7 @@ impl<'a, IB: InputBackend, SE: shrub_core::ShellExtensions> InteractiveShell<'a,
                     break Ok(());
                 }
                 InteractiveExecutionResult::Executed(shrub_core::ExecutionResult {
-                    next_control_flow:
-                        shrub_core::results::ExecutionControlFlow::ReturnFromFunctionOrScript,
+                    next_control_flow: ExecutionControlFlow::ReturnFromFunctionOrScript,
                     ..
                 }) => {
                     tracing::error!("return from non-function/script");
@@ -259,7 +264,7 @@ impl<'a, IB: InputBackend, SE: shrub_core::ShellExtensions> InteractiveShell<'a,
 
     async fn compose_prompt(
         shell: &mut shrub_core::Shell<SE>,
-        terminal_integration: &crate::term_integration::TerminalIntegration,
+        terminal_integration: &TerminalIntegration,
     ) -> Result<InteractivePrompt, ShellError> {
         // Now that we've done that, compose the prompt.
         let mut prompt = InteractivePrompt {
@@ -364,7 +369,7 @@ impl<'a, IB: InputBackend, SE: shrub_core::ShellExtensions> InteractiveShell<'a,
     ) -> Result<ControlFlow<shrub_core::ExecutionResult>, ShellError> {
         // precmd hooks first: bash-preexec prepends its dispatcher to
         // PROMPT_COMMAND.
-        if let ControlFlow::Break(exit) = crate::zsh_hooks::run_precmd(shell, options).await? {
+        if let ControlFlow::Break(exit) = zsh_hooks::run_precmd(shell, options).await? {
             return Ok(ControlFlow::Break(exit));
         }
 
@@ -400,7 +405,7 @@ impl<'a, IB: InputBackend, SE: shrub_core::ShellExtensions> InteractiveShell<'a,
             let precmd_prompt = shell.compose_precmd_prompt().await?;
             if !precmd_prompt.is_empty() {
                 eprint!("{precmd_prompt}");
-                std::io::stderr().flush()?;
+                io::stderr().flush()?;
             }
         }
 
@@ -409,7 +414,7 @@ impl<'a, IB: InputBackend, SE: shrub_core::ShellExtensions> InteractiveShell<'a,
 
         // preexec hooks get the line as entered; they are the last thing before
         // it runs, so their break is this function's.
-        crate::zsh_hooks::run_preexec(shell, options, command_line).await
+        zsh_hooks::run_preexec(shell, options, command_line).await
     }
 
     /// Runs one `PROMPT_COMMAND` entry. Breaks with its result if it exited the
@@ -438,7 +443,7 @@ impl<'a, IB: InputBackend, SE: shrub_core::ShellExtensions> InteractiveShell<'a,
 /// with the `TerminalEnvironment` trait.
 struct HostEnvironment;
 
-impl crate::term_detection::TerminalEnvironment for HostEnvironment {
+impl TerminalEnvironment for HostEnvironment {
     /// Gets the value of the given environment variable from the host process's
     /// OS environment variables. Returns `None` if the variable is not set.
     ///
@@ -446,13 +451,18 @@ impl crate::term_detection::TerminalEnvironment for HostEnvironment {
     ///
     /// * `name` - The name of the environment variable to get.
     fn get_env_var(&self, name: &str) -> Option<String> {
-        std::env::var(name).ok()
+        env::var(name).ok()
     }
 }
 
 #[cfg(test)]
 #[allow(clippy::panic_in_result_fn, reason = "assertions in a fallible test")]
 mod tests {
+    use std::io;
+    use std::sync::Arc;
+
+    use tokio::sync::Mutex;
+
     use super::*;
 
     /// An input backend whose every read fails.
@@ -465,7 +475,7 @@ mod tests {
             _shell: &crate::ShellRef<impl shrub_core::ShellExtensions>,
             _prompt: InteractivePrompt,
         ) -> Result<ReadResult, ShellError> {
-            Err(std::io::Error::other("input failed").into())
+            Err(io::Error::other("input failed").into())
         }
     }
 
@@ -478,7 +488,7 @@ mod tests {
             .rc(shrub_core::RcLoadBehavior::Skip)
             .build()
             .await?;
-        let shell = std::sync::Arc::new(tokio::sync::Mutex::new(shell));
+        let shell = Arc::new(Mutex::new(shell));
         let mut input = FailingInput;
         let mut interactive =
             InteractiveShell::new(&shell, &mut input, &InteractiveOptions::default())?;

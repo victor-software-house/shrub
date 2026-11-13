@@ -1,7 +1,11 @@
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::io::Write;
 
 use clap::Parser;
+use shrub_core::builtins::try_parse_known;
+use shrub_core::env::{EnvironmentLookup, EnvironmentScope};
+use shrub_core::int_utils::parse;
 use shrub_core::{ExecutionResult, builtins, env, variables};
 
 /// Parse command options.
@@ -69,7 +73,7 @@ fn parse_option_spec(spec: &str) -> OptionSpec {
             continue;
         }
 
-        if let std::collections::hash_map::Entry::Vacant(e) = defs.entry(c) {
+        if let Entry::Vacant(e) = defs.entry(c) {
             e.insert(false);
             last_char = Some(c);
         } else {
@@ -97,7 +101,7 @@ impl builtins::Command for GetOptsCommand {
     where
         I: IntoIterator<Item = String>,
     {
-        let (mut this, rest_args) = shrub_core::builtins::try_parse_known::<Self>(args)?;
+        let (mut this, rest_args) = try_parse_known::<Self>(args)?;
         if let Some(args) = rest_args {
             this.args.extend(args);
         }
@@ -125,7 +129,7 @@ impl builtins::Command for GetOptsCommand {
         let next_index_signed = context
             .shell
             .env_str("OPTIND")
-            .and_then(|s| shrub_core::int_utils::parse::<i32>(s.as_ref(), 10).ok())
+            .and_then(|s| parse::<i32>(s.as_ref(), 10).ok())
             .unwrap_or(1);
 
         // Detect external OPTIND modifications (e.g., `OPTIND=1` to restart
@@ -267,8 +271,8 @@ fn parse_next_option<SE: shrub_core::ShellExtensions>(
                 v.hide_from_enumeration();
                 Ok(())
             },
-            shrub_core::env::EnvironmentLookup::Anywhere,
-            shrub_core::env::EnvironmentScope::Global,
+            EnvironmentLookup::Anywhere,
+            EnvironmentScope::Global,
         )?;
         next_index
     };
@@ -358,8 +362,8 @@ fn update_variables<SE: shrub_core::ShellExtensions>(
         variable_name,
         variables::ShellValueLiteral::Scalar(result.variable_value),
         |_| Ok(()),
-        shrub_core::env::EnvironmentLookup::Anywhere,
-        shrub_core::env::EnvironmentScope::Global,
+        EnvironmentLookup::Anywhere,
+        EnvironmentScope::Global,
     )?;
 
     // Update OPTARG
@@ -368,8 +372,8 @@ fn update_variables<SE: shrub_core::ShellExtensions>(
             "OPTARG",
             variables::ShellValueLiteral::Scalar(optarg),
             |_| Ok(()),
-            shrub_core::env::EnvironmentLookup::Anywhere,
-            shrub_core::env::EnvironmentScope::Global,
+            EnvironmentLookup::Anywhere,
+            EnvironmentScope::Global,
         )?;
     } else {
         context.shell.env_mut().unset("OPTARG")?;
@@ -381,8 +385,8 @@ fn update_variables<SE: shrub_core::ShellExtensions>(
         "OPTIND",
         variables::ShellValueLiteral::Scalar(optind_str.clone()),
         |_| Ok(()),
-        shrub_core::env::EnvironmentLookup::Anywhere,
-        shrub_core::env::EnvironmentScope::Global,
+        EnvironmentLookup::Anywhere,
+        EnvironmentScope::Global,
     )?;
     context.shell.env_mut().update_or_add(
         VAR_GETOPTS_LAST_OPTIND,
@@ -391,8 +395,8 @@ fn update_variables<SE: shrub_core::ShellExtensions>(
             v.hide_from_enumeration();
             Ok(())
         },
-        shrub_core::env::EnvironmentLookup::Anywhere,
-        shrub_core::env::EnvironmentScope::Global,
+        EnvironmentLookup::Anywhere,
+        EnvironmentScope::Global,
     )?;
 
     Ok(result.exit_code)

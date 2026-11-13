@@ -1,7 +1,11 @@
 //! Shell patterns
 
 use std::collections::VecDeque;
+use std::fs::DirEntry;
+use std::mem;
 use std::path::Path;
+
+use shrub_parser::pattern;
 
 use crate::{error, regex, sys, trace_categories};
 
@@ -290,7 +294,7 @@ impl Pattern {
                 continue;
             }
 
-            let current_paths = std::mem::take(&mut paths_so_far);
+            let current_paths = mem::take(&mut paths_so_far);
             for current_path in current_paths {
                 let subpattern = Self::from(&component)
                     .set_extended_globbing(self.enable_extended_globbing)
@@ -304,12 +308,12 @@ impl Pattern {
                 let allow_dot_files = !options.require_dot_in_pattern_to_match_dot_files
                     || subpattern_starts_with_dot;
 
-                let matches_dotfile_policy = |dir_entry: &std::fs::DirEntry| {
+                let matches_dotfile_policy = |dir_entry: &DirEntry| {
                     !dir_entry.file_name().to_string_lossy().starts_with('.') || allow_dot_files
                 };
 
                 let regex = subpattern.to_regex(true, true)?;
-                let matches_regex = |dir_entry: &std::fs::DirEntry| {
+                let matches_regex = |dir_entry: &DirEntry| {
                     regex
                         .is_match(dir_entry.file_name().to_string_lossy().as_ref())
                         .unwrap_or(false)
@@ -390,7 +394,7 @@ impl Pattern {
                 }
                 PatternPiece::Literal(s) => {
                     for c in s.chars() {
-                        if crate::regex::regex_char_is_special(c) {
+                        if regex::regex_char_is_special(c) {
                             current_pattern.push('\\');
                         }
                         current_pattern.push(c);
@@ -455,14 +459,14 @@ impl Pattern {
 /// pathname expansion. Delegates to the pattern parser's grammar, which is
 /// the single source of truth for what constitutes a glob metacharacter.
 fn requires_expansion(s: &str, enable_extended_globbing: bool) -> bool {
-    shrub_parser::pattern::pattern_has_glob_metacharacters(s, enable_extended_globbing)
+    pattern::pattern_has_glob_metacharacters(s, enable_extended_globbing)
 }
 
 fn pattern_to_regex_str(
     pattern: &str,
     enable_extended_globbing: bool,
 ) -> Result<String, error::Error> {
-    Ok(shrub_parser::pattern::pattern_to_regex_str(
+    Ok(pattern::pattern_to_regex_str(
         pattern,
         enable_extended_globbing,
     )?)
@@ -587,6 +591,8 @@ pub(crate) fn remove_smallest_matching_suffix<'a>(
 #[cfg(test)]
 #[expect(clippy::panic_in_result_fn)]
 mod tests {
+    use std::fs;
+
     use anyhow::Result;
 
     use super::*;
@@ -989,9 +995,9 @@ mod tests {
     fn test_relative_glob_returns_relative_paths() -> Result<()> {
         let scratch = tempfile::tempdir()?;
         let sub = scratch.path().join("sub");
-        std::fs::create_dir_all(&sub)?;
-        std::fs::write(sub.join("a.txt"), "")?;
-        std::fs::write(sub.join("b.txt"), "")?;
+        fs::create_dir_all(&sub)?;
+        fs::write(sub.join("a.txt"), "")?;
+        fs::write(sub.join("b.txt"), "")?;
 
         let pattern = Pattern::from("sub/*.txt").set_extended_globbing(false);
         let result = pattern.expand::<fn(&Path) -> bool>(
@@ -1026,8 +1032,8 @@ mod tests {
     #[test]
     fn test_absolute_glob_returns_absolute_paths() -> Result<()> {
         let scratch = tempfile::tempdir()?;
-        std::fs::write(scratch.path().join("one.log"), "")?;
-        std::fs::write(scratch.path().join("two.log"), "")?;
+        fs::write(scratch.path().join("one.log"), "")?;
+        fs::write(scratch.path().join("two.log"), "")?;
 
         let abs_pattern = format!("{}/*.log", scratch.path().to_string_lossy());
         // Normalize to forward slashes so the test works consistently across

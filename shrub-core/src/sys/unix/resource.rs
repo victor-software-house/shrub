@@ -1,5 +1,11 @@
 //! Resource utilities
 
+use std::time::Duration;
+
+use nix::sys::resource;
+use nix::sys::resource::UsageWho;
+use nix::sys::time::TimeVal;
+
 use crate::error;
 
 /// Returns the user and system CPU time used by the current process;
@@ -9,9 +15,8 @@ use crate::error;
 ///
 /// Returns [`crate::error::ErrorKind::PlatformError`] wrapping the OS error if
 /// `getrusage` fails.
-pub fn get_self_user_and_system_time()
--> Result<(std::time::Duration, std::time::Duration), error::Error> {
-    let usage = nix::sys::resource::getrusage(nix::sys::resource::UsageWho::RUSAGE_SELF)?;
+pub fn get_self_user_and_system_time() -> Result<(Duration, Duration), error::Error> {
+    let usage = resource::getrusage(UsageWho::RUSAGE_SELF)?;
     Ok((
         convert_rusage_time(usage.user_time()),
         convert_rusage_time(usage.system_time()),
@@ -25,17 +30,16 @@ pub fn get_self_user_and_system_time()
 ///
 /// Returns [`crate::error::ErrorKind::PlatformError`] wrapping the OS error if
 /// `getrusage` fails.
-pub fn get_children_user_and_system_time()
--> Result<(std::time::Duration, std::time::Duration), error::Error> {
-    let usage = nix::sys::resource::getrusage(nix::sys::resource::UsageWho::RUSAGE_CHILDREN)?;
+pub fn get_children_user_and_system_time() -> Result<(Duration, Duration), error::Error> {
+    let usage = resource::getrusage(UsageWho::RUSAGE_CHILDREN)?;
     Ok((
         convert_rusage_time(usage.user_time()),
         convert_rusage_time(usage.system_time()),
     ))
 }
 
-const fn convert_rusage_time(time: nix::sys::time::TimeVal) -> std::time::Duration {
+const fn convert_rusage_time(time: TimeVal) -> Duration {
     #[allow(clippy::cast_sign_loss)]
     #[allow(clippy::cast_possible_truncation)]
-    std::time::Duration::new(time.tv_sec() as u64, time.tv_usec() as u32 * 1000)
+    Duration::new(time.tv_sec() as u64, time.tv_usec() as u32 * 1000)
 }

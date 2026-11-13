@@ -1,6 +1,7 @@
 use std::io::Write;
 
 use clap::Parser;
+use shrub_core::builtins::try_parse_known;
 use shrub_core::{ExecutionResult, builtins, escape};
 
 /// Echo text to standard output.
@@ -35,7 +36,7 @@ impl builtins::Command for EchoCommand {
     where
         I: IntoIterator<Item = String>,
     {
-        let (mut this, rest_args) = shrub_core::builtins::try_parse_known::<Self>(args)?;
+        let (mut this, rest_args) = try_parse_known::<Self>(args)?;
         if let Some(args) = rest_args {
             this.args.extend(args);
         }

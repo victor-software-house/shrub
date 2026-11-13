@@ -2,7 +2,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use clap::Parser;
-use shrub_core::{ExecutionExitCode, ExecutionResult, builtins, error, history};
+use shrub_core::{ExecutionExitCode, ExecutionResult, builtins, error, history, int_utils};
 
 /// Query or manipulate the shell's command history.
 // TODO(history): Evaluate which of the options conflict with each other.
@@ -170,7 +170,7 @@ impl HistoryCommand {
         }
 
         let max_entries: Option<usize> = if let Some(arg) = self.args.first() {
-            Some(shrub_core::int_utils::parse(arg.as_str(), 10)?)
+            Some(int_utils::parse(arg.as_str(), 10)?)
         } else {
             None
         };

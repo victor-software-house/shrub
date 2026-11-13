@@ -1,7 +1,10 @@
 use std::io::Write;
+use std::process;
 
 use clap::Parser;
-use shrub_core::{ExecutionExitCode, ExecutionResult, builtins};
+use nix::sys::signal;
+use shrub_core::traps::TrapSignal;
+use shrub_core::{ExecutionExitCode, ExecutionResult, builtins, sys};
 
 /// Suspend the shell.
 #[derive(Parser)]
@@ -24,10 +27,7 @@ impl builtins::Command for SuspendCommand {
         }
 
         #[expect(clippy::cast_possible_wrap)]
-        shrub_core::sys::signal::kill_process(
-            std::process::id() as i32,
-            shrub_core::traps::TrapSignal::Signal(nix::sys::signal::SIGSTOP),
-        )?;
+        sys::signal::kill_process(process::id() as i32, TrapSignal::Signal(signal::SIGSTOP))?;
 
         Ok(ExecutionResult::success())
     }

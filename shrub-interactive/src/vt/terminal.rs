@@ -1,8 +1,12 @@
 //! The terminal a [`super::VtInputBackend`] edits on.
 
-use std::io::{IsTerminal, Read};
+use std::io;
+use std::io::{ErrorKind, IsTerminal, Read};
 use std::ops::{Deref, DerefMut};
 use std::time::Duration;
+
+use shrub_core::sys::{poll, terminal};
+use shrub_core::terminal::{AutoModeGuard, Settings};
 
 /// What a [`super::VtInputBackend`] needs from its terminal, beyond the shell's
 /// standard error, where it draws.
@@ -18,14 +22,14 @@ pub trait Terminal: Send {
     /// # Errors
     ///
     /// Returns an I/O error when the terminal cannot be switched to raw mode.
-    fn enable_raw_mode(&mut self) -> std::io::Result<()>;
+    fn enable_raw_mode(&mut self) -> io::Result<()>;
 
     /// Restores the mode the terminal was in before [`Self::enable_raw_mode`].
     ///
     /// # Errors
     ///
     /// Returns an I/O error when the previous mode cannot be restored.
-    fn disable_raw_mode(&mut self) -> std::io::Result<()>;
+    fn disable_raw_mode(&mut self) -> io::Result<()>;
 
     /// Returns the terminal's width, in columns, if known.
     fn columns(&self) -> Option<usize>;
@@ -34,7 +38,7 @@ pub trait Terminal: Send {
     /// come, without editing. By default, whether standard input is a
     /// terminal.
     fn is_terminal(&self) -> bool {
-        std::io::stdin().is_terminal()
+        io::stdin().is_terminal()
     }
 
     /// Reads what the terminal sends as keys are pressed. By default, from
@@ -47,8 +51,8 @@ pub trait Terminal: Send {
     /// # Errors
     ///
     /// Returns an I/O error when reading from the terminal fails.
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        std::io::stdin().read(buf)
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        io::stdin().read(buf)
     }
 
     /// Waits up to `timeout` for the terminal to send more; returns whether it
@@ -63,7 +67,7 @@ pub trait Terminal: Send {
     /// # Errors
     ///
     /// Returns an I/O error when polling the terminal for input fails.
-    fn wait_for_input(&mut self, timeout: Duration) -> std::io::Result<bool> {
+    fn wait_for_input(&mut self, timeout: Duration) -> io::Result<bool> {
         let _ = timeout;
         Ok(false)
     }
@@ -83,7 +87,7 @@ impl<'a, T: Terminal> RawMode<'a, T> {
     /// # Arguments
     ///
     /// * `terminal` - The terminal to switch.
-    pub fn enable(terminal: &'a mut T) -> std::io::Result<Self> {
+    pub fn enable(terminal: &'a mut T) -> io::Result<Self> {
         terminal.enable_raw_mode()?;
         Ok(Self {
             terminal,
@@ -92,7 +96,7 @@ impl<'a, T: Terminal> RawMode<'a, T> {
     }
 
     /// Restores the mode the terminal was in before.
-    pub fn restore(mut self) -> std::io::Result<()> {
+    pub fn restore(mut self) -> io::Result<()> {
         self.terminal.disable_raw_mode()?;
         self.restored = true;
         Ok(())
@@ -126,55 +130,53 @@ impl<T: Terminal> Drop for RawMode<'_, T> {
 /// mode; elsewhere, [`Terminal::enable_raw_mode`] fails.
 #[derive(Default)]
 pub struct StdTerminal {
-    mode: Option<shrub_core::terminal::AutoModeGuard>,
+    mode: Option<AutoModeGuard>,
 }
 
 impl Terminal for StdTerminal {
-    fn enable_raw_mode(&mut self) -> std::io::Result<()> {
+    fn enable_raw_mode(&mut self) -> io::Result<()> {
         // Only a Unix terminal can be set to send keys as bytes, unechoed: the
         // Windows console sends them only in a mode shrub doesn't set, and WASI
         // has no raw mode. Fail, rather than edit with the terminal echoing
         // keys.
         if !cfg!(unix) {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Unsupported,
+            return Err(io::Error::new(
+                ErrorKind::Unsupported,
                 "the terminal can't be switched to raw mode on this platform",
             ));
         }
 
         // Restore any mode set before, so it isn't taken for the original one.
         self.mode = None;
-        let mode = shrub_core::terminal::AutoModeGuard::new(std::io::stdin().into())
-            .map_err(std::io::Error::other)?;
+        let mode = AutoModeGuard::new(io::stdin().into()).map_err(io::Error::other)?;
 
         // Raw mode, as readline sets it, with Enter and Ctrl-J told apart, and
         // a read waiting for a byte; but with newlines output as CRLF
         // pairs, as the drawing expects.
-        let settings = shrub_core::terminal::Settings::builder()
+        let settings = Settings::builder()
             .raw_input(true)
             .output_nl_as_nlcr(true)
             .build();
-        mode.apply_settings(&settings)
-            .map_err(std::io::Error::other)?;
+        mode.apply_settings(&settings).map_err(io::Error::other)?;
 
         self.mode = Some(mode);
         Ok(())
     }
 
-    fn disable_raw_mode(&mut self) -> std::io::Result<()> {
+    fn disable_raw_mode(&mut self) -> io::Result<()> {
         // Dropping the guard restores the original mode.
         self.mode = None;
         Ok(())
     }
 
     fn columns(&self) -> Option<usize> {
-        shrub_core::sys::terminal::get_columns(&std::io::stdin().into())
+        terminal::get_columns(&io::stdin().into())
     }
 
-    fn wait_for_input(&mut self, timeout: Duration) -> std::io::Result<bool> {
-        match shrub_core::sys::poll::poll_for_input(&std::io::stdin().into(), timeout) {
+    fn wait_for_input(&mut self, timeout: Duration) -> io::Result<bool> {
+        match poll::poll_for_input(&io::stdin().into(), timeout) {
             // Where the platform can't wait for input, don't.
-            Err(e) if e.kind() == std::io::ErrorKind::Unsupported => Ok(false),
+            Err(e) if e.kind() == ErrorKind::Unsupported => Ok(false),
             result => result,
         }
     }

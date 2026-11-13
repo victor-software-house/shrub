@@ -13,6 +13,7 @@
 
 use std::ffi::OsStr;
 use std::path::PathBuf;
+use std::{env, fs};
 
 use anyhow::{Context, Result};
 use clap::Parser;
@@ -196,8 +197,8 @@ fn gen_docs_dist(sh: &Shell, args: &GenerateDistArgs, verbose: bool) -> Result<(
     let md_dir = staging_dir.join("md");
     let man_dir = staging_dir.join("man");
 
-    std::fs::create_dir_all(&md_dir)?;
-    std::fs::create_dir_all(&man_dir)?;
+    fs::create_dir_all(&md_dir)?;
+    fs::create_dir_all(&man_dir)?;
 
     if verbose {
         eprintln!("Staging documentation in: {}", staging_dir.display());
@@ -219,7 +220,7 @@ fn gen_docs_dist(sh: &Shell, args: &GenerateDistArgs, verbose: bool) -> Result<(
     let output_path = if args.output_path.is_absolute() {
         args.output_path.clone()
     } else {
-        std::env::current_dir()?.join(&args.output_path)
+        env::current_dir()?.join(&args.output_path)
     };
 
     if verbose {
@@ -258,7 +259,7 @@ fn gen_docs_dist(sh: &Shell, args: &GenerateDistArgs, verbose: bool) -> Result<(
         let checksum = cmd!(sh, "sha256sum {output_path_str}")
             .read()
             .context("Failed to generate SHA-256 checksum")?;
-        std::fs::write(&checksum_path, format!("{checksum}\n"))?;
+        fs::write(&checksum_path, format!("{checksum}\n"))?;
         if verbose {
             eprintln!("Created: {checksum_path}");
         }
@@ -269,7 +270,7 @@ fn gen_docs_dist(sh: &Shell, args: &GenerateDistArgs, verbose: bool) -> Result<(
         let checksum = cmd!(sh, "sha512sum {output_path_str}")
             .read()
             .context("Failed to generate SHA-512 checksum")?;
-        std::fs::write(&checksum_path, format!("{checksum}\n"))?;
+        fs::write(&checksum_path, format!("{checksum}\n"))?;
         if verbose {
             eprintln!("Created: {checksum_path}");
         }

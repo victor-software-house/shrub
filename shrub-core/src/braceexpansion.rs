@@ -1,8 +1,11 @@
+use std::iter;
+
 use itertools::Itertools;
 use shrub_parser::word;
+use shrub_parser::word::BraceExpressionOrText;
 
 pub(crate) fn generate_and_combine_brace_expansions(
-    pieces: Vec<shrub_parser::word::BraceExpressionOrText>,
+    pieces: Vec<BraceExpressionOrText>,
 ) -> impl IntoIterator<Item = String> {
     let expansions: Vec<Vec<String>> = pieces
         .into_iter()
@@ -23,7 +26,7 @@ fn expand_brace_expr_or_text(
             // Chain all member iterators together
             Box::new(members.into_iter().flat_map(expand_brace_expr_member))
         }
-        word::BraceExpressionOrText::Text(text) => Box::new(std::iter::once(text)),
+        word::BraceExpressionOrText::Text(text) => Box::new(iter::once(text)),
     }
 }
 
@@ -56,7 +59,7 @@ fn expand_brace_expr_member(bem: word::BraceExpressionMember) -> Box<dyn Iterato
                 // Iterate from start down to end by decrementing.
                 let increment = increment as u64;
                 Box::new(
-                    std::iter::successors(Some(start), move |&n| {
+                    iter::successors(Some(start), move |&n| {
                         let next = n.checked_sub_unsigned(increment)?;
                         (next >= end).then_some(next)
                     })
@@ -81,7 +84,7 @@ fn expand_brace_expr_member(bem: word::BraceExpressionMember) -> Box<dyn Iterato
                 // Iterate from start down to end by decrementing.
                 let increment = u32::try_from(increment).unwrap_or(u32::MAX);
                 Box::new(
-                    std::iter::successors(Some(start), move |&c| {
+                    iter::successors(Some(start), move |&c| {
                         let next = char::from_u32((c as u32).checked_sub(increment)?)?;
                         (next >= end).then_some(next)
                     })

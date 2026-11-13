@@ -20,12 +20,18 @@
 //! included: its errors come from an errno. `std::process::Command` runs it
 //! after the fork, with the command's descriptors in place.
 
-use std::ffi::CStr;
+use std::ffi::{CStr, CString, OsStr};
 use std::os::unix::process::CommandExt as _;
+use std::path::Path;
 use std::process::Command;
 use std::sync::Arc;
+use std::{io, mem};
 
 use command_fds::{CommandFdExt as _, FdMapping};
+use nix::unistd;
+use nix::unistd::Pid;
+use tokio::process;
+use tokio::process::Child;
 
 use crate::{Error, Group, PidsLimit, Spawn, Terminal};
 
@@ -63,7 +69,7 @@ pub(crate) fn command(request: &mut Spawn) -> Result<Command, Error> {
     // for the `/bin/sh` fallback off macOS: there `posix_spawnp` runs a
     // script without a `#!` line with `/bin/sh`, as `execvp` does, while
     // glibc's fails it with `ENOEXEC`.
-    let fds = std::mem::take(&mut request.fds);
+    let fds = mem::take(&mut request.fds);
     if !fds.is_empty() || (request.sh_fallback && !cfg!(target_os = "macos")) {
         let mappings = fds
             .into_iter()
@@ -108,11 +114,8 @@ pub(crate) fn command(request: &mut Spawn) -> Result<Command, Error> {
 }
 
 /// Spawns `command` on tokio's process driver.
-pub(crate) fn spawn(
-    command: Command,
-    kill_on_drop: bool,
-) -> std::io::Result<tokio::process::Child> {
-    let mut command = tokio::process::Command::from(command);
+pub(crate) fn spawn(command: Command, kill_on_drop: bool) -> io::Result<Child> {
+    let mut command = process::Command::from(command);
     command.kill_on_drop(kill_on_drop);
     command.spawn()
 }
@@ -158,7 +161,7 @@ fn register_lead_session(command: &mut Command) {
 /// standard input. It uses descriptor 0 directly, because the first call to
 /// `std::io::stdin()` allocates its buffer.
 fn pre_exec_take_foreground() {
-    let pgrp = nix::unistd::getpgrp();
+    let pgrp = unistd::getpgrp();
     // SAFETY: `tcsetpgrp` takes a descriptor number and a process group by
     // value and reads no memory of this process. When descriptor 0 is closed
     // or is not this session's terminal, it fails with `EBADF` or `ENOTTY`,
@@ -167,8 +170,8 @@ fn pre_exec_take_foreground() {
     let _ = unsafe { libc::tcsetpgrp(0, pgrp.as_raw()) };
 }
 
-fn pre_exec_lead_session() -> Result<(), std::io::Error> {
-    nix::unistd::setsid()?;
+fn pre_exec_lead_session() -> Result<(), io::Error> {
+    unistd::setsid()?;
 
     #[cfg(not(target_os = "macos"))]
     let control = libc::TIOCSCTTY;
@@ -180,7 +183,7 @@ fn pre_exec_lead_session() -> Result<(), std::io::Error> {
     // a descriptor 0 that is not a terminal it fails with an errno.
     let result = unsafe { libc::ioctl(0, control, 0) };
     if result != 0 {
-        return Err(std::io::Error::last_os_error());
+        return Err(io::Error::last_os_error());
     }
 
     Ok(())
@@ -190,7 +193,7 @@ fn pre_exec_lead_session() -> Result<(), std::io::Error> {
 /// `cgroup.procs` file, after it is forked and before it runs its program,
 /// which moves it into that cgroup. A child that cannot open or write the
 /// file fails its spawn.
-fn register_join_cgroup(command: &mut Command, cgroup_procs: Arc<std::ffi::CString>) {
+fn register_join_cgroup(command: &mut Command, cgroup_procs: Arc<CString>) {
     // SAFETY: `pre_exec` requires a closure that is safe to run in a
     // forked child of a process that may have other threads: no
     // allocation, no lock, no `std::env`. The closure reads the captured
@@ -203,7 +206,7 @@ fn register_join_cgroup(command: &mut Command, cgroup_procs: Arc<std::ffi::CStri
     }
 }
 
-fn pre_exec_join_cgroup(cgroup_procs: &CStr) -> Result<(), std::io::Error> {
+fn pre_exec_join_cgroup(cgroup_procs: &CStr) -> Result<(), io::Error> {
     use nix::fcntl::{OFlag, open};
     use nix::sys::stat::Mode;
 
@@ -212,7 +215,7 @@ fn pre_exec_join_cgroup(cgroup_procs: &CStr) -> Result<(), std::io::Error> {
         OFlag::O_WRONLY | OFlag::O_CLOEXEC,
         Mode::empty(),
     )?;
-    nix::unistd::write(&file, b"0")?;
+    unistd::write(&file, b"0")?;
     Ok(())
 }
 
@@ -248,7 +251,7 @@ fn register_open_file_limit(command: &mut Command, limit: u64) {
 #[cfg(target_os = "macos")]
 const MACOS_OPEN_MAX: libc::rlim_t = 10240;
 
-fn pre_exec_set_open_file_limit(limit: u64) -> Result<(), std::io::Error> {
+fn pre_exec_set_open_file_limit(limit: u64) -> Result<(), io::Error> {
     use nix::sys::resource::{Resource, getrlimit, setrlimit};
 
     let (_, hard) = getrlimit(Resource::RLIMIT_NOFILE)?;
@@ -309,7 +312,7 @@ const fn register_process_limit(_command: &mut Command, _limit: u64) -> Result<(
 /// Sets this process's soft and hard `RLIMIT_NPROC` to `limit`, or to its
 /// hard limit if that is lower, in a child between the fork and `exec`.
 #[cfg(target_os = "linux")]
-fn pre_exec_set_process_limit(limit: u64) -> Result<(), std::io::Error> {
+fn pre_exec_set_process_limit(limit: u64) -> Result<(), io::Error> {
     use nix::sys::resource::{Resource, getrlimit, setrlimit};
 
     let (_, hard) = getrlimit(Resource::RLIMIT_NPROC)?;
@@ -334,7 +337,7 @@ fn pre_exec_set_process_limit(limit: u64) -> Result<(), std::io::Error> {
 fn register_check_pids_limits(command: &mut Command, limits: Arc<[PidsLimit]>) {
     // The process that registers the check: the function runs in it, not
     // in a child, only under `exec`.
-    let spawner = nix::unistd::getpid();
+    let spawner = unistd::getpid();
     // SAFETY: `pre_exec` requires a closure that is safe to run in a
     // forked child of a process that may have other threads: no
     // allocation, no lock, no `std::env`. The closure reads the captured
@@ -354,12 +357,9 @@ fn register_check_pids_limits(command: &mut Command, limits: Arc<[PidsLimit]>) {
     }
 }
 
-fn pre_exec_check_pids_limits(
-    limits: &[PidsLimit],
-    spawner: nix::unistd::Pid,
-) -> Result<(), std::io::Error> {
-    if nix::unistd::getpid() == spawner {
-        return Err(std::io::Error::from_raw_os_error(libc::ENOTSUP));
+fn pre_exec_check_pids_limits(limits: &[PidsLimit], spawner: Pid) -> Result<(), io::Error> {
+    if unistd::getpid() == spawner {
+        return Err(io::Error::from_raw_os_error(libc::ENOTSUP));
     }
     limits.iter().try_for_each(check_pids_limit)
 }
@@ -367,7 +367,7 @@ fn pre_exec_check_pids_limits(
 /// Fails with `EAGAIN` when `limit`'s count is above its maximum, and with
 /// `EIO` when the count cannot be read. Both errors are built from an errno,
 /// which allocates nothing.
-fn check_pids_limit(limit: &PidsLimit) -> Result<(), std::io::Error> {
+fn check_pids_limit(limit: &PidsLimit) -> Result<(), io::Error> {
     use std::os::unix::fs::FileExt as _;
 
     let mut buffer = [0u8; PIDS_CURRENT_BUFFER];
@@ -377,8 +377,8 @@ fn check_pids_limit(limit: &PidsLimit) -> Result<(), std::io::Error> {
     };
     match count {
         Some(count) if count <= limit.max => Ok(()),
-        Some(_) => Err(std::io::Error::from_raw_os_error(libc::EAGAIN)),
-        None => Err(std::io::Error::from_raw_os_error(libc::EIO)),
+        Some(_) => Err(io::Error::from_raw_os_error(libc::EAGAIN)),
+        None => Err(io::Error::from_raw_os_error(libc::EIO)),
     }
 }
 
@@ -400,11 +400,13 @@ fn parse_count(bytes: &[u8]) -> Option<u64> {
 pub(crate) fn is_missing(path: &CStr) -> bool {
     use std::os::unix::ffi::OsStrExt as _;
 
-    !std::path::Path::new(std::ffi::OsStr::from_bytes(path.to_bytes())).exists()
+    !Path::new(OsStr::from_bytes(path.to_bytes())).exists()
 }
 
 #[cfg(test)]
 mod tests {
+    use std::str;
+
     use proptest::prelude::*;
 
     use super::parse_count;
@@ -421,7 +423,7 @@ mod tests {
             if let Some(count) = parse_count(&bytes) {
                 let digits = bytes.strip_suffix(b"\n").unwrap_or(&bytes);
                 prop_assert!(digits.iter().all(u8::is_ascii_digit));
-                let text = std::str::from_utf8(digits).map_err(|e| TestCaseError::fail(e.to_string()))?;
+                let text = str::from_utf8(digits).map_err(|e| TestCaseError::fail(e.to_string()))?;
                 prop_assert_eq!(text.parse::<u64>().ok(), Some(count));
             }
         }

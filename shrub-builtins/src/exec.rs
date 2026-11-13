@@ -1,7 +1,10 @@
 use std::borrow::Cow;
+use std::io;
 
 use clap::Parser;
-use shrub_core::{ErrorKind, ExecutionExitCode, ExecutionResult, builtins, commands};
+use shrub_core::{ErrorKind, ExecutionExitCode, ExecutionResult, builtins, commands, error};
+
+use crate::command::CommandCommand;
 
 /// Exec the provided command.
 #[derive(Parser)]
@@ -48,10 +51,10 @@ impl builtins::Command for ExecCommand {
         // to perform the execution, with an expectation of returning.
         if context.shell.is_subshell() {
             if self.empty_environment || self.exec_as_login || self.name_for_argv0.is_some() {
-                return shrub_core::error::unimp("exec with options in subshell not yet supported");
+                return error::unimp("exec with options in subshell not yet supported");
             }
 
-            let cmd_cmd = crate::command::CommandCommand {
+            let cmd_cmd = CommandCommand {
                 command_and_args: self.args.clone(),
                 ..Default::default()
             };
@@ -66,8 +69,8 @@ impl builtins::Command for ExecCommand {
         if !context.shell.options().spawn.pids_limits.is_empty() {
             return Err(ErrorKind::FailedToExecuteCommand(
                 self.args[0].clone(),
-                std::io::Error::new(
-                    std::io::ErrorKind::Unsupported,
+                io::Error::new(
+                    io::ErrorKind::Unsupported,
                     "exec cannot replace a shell that checks process limits",
                 ),
             )
@@ -81,8 +84,8 @@ impl builtins::Command for ExecCommand {
         if context.shell.options().spawn.process_limit.is_some() {
             return Err(ErrorKind::FailedToExecuteCommand(
                 self.args[0].clone(),
-                std::io::Error::new(
-                    std::io::ErrorKind::Unsupported,
+                io::Error::new(
+                    io::ErrorKind::Unsupported,
                     "exec cannot replace a shell that sets a process limit",
                 ),
             )
@@ -108,7 +111,7 @@ impl builtins::Command for ExecCommand {
             other => return Err(commands::process_error(self.args[0].clone(), other)),
         };
 
-        if exec_error.kind() != std::io::ErrorKind::NotFound {
+        if exec_error.kind() != io::ErrorKind::NotFound {
             Err(ErrorKind::from(exec_error).into())
         } else if let Some(missing) = commands::missing_cgroup(context.shell.options()) {
             Err(ErrorKind::FailedToExecuteCommand(self.args[0].clone(), missing).into())

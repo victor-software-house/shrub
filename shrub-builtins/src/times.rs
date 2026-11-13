@@ -1,6 +1,7 @@
 use std::io::Write;
 
 use clap::Parser;
+use shrub_core::sys::resource;
 use shrub_core::{ExecutionResult, builtins, timing};
 
 /// Report on usage time.
@@ -14,7 +15,7 @@ impl builtins::Command for TimesCommand {
         &self,
         context: shrub_core::ExecutionContext<'_, SE>,
     ) -> Result<ExecutionResult, Self::Error> {
-        let (self_user, self_system) = shrub_core::sys::resource::get_self_user_and_system_time()?;
+        let (self_user, self_system) = resource::get_self_user_and_system_time()?;
         writeln!(
             context.stdout(),
             "{} {}",
@@ -22,8 +23,7 @@ impl builtins::Command for TimesCommand {
             timing::format_duration_non_posixly(&self_system),
         )?;
 
-        let (children_user, children_system) =
-            shrub_core::sys::resource::get_children_user_and_system_time()?;
+        let (children_user, children_system) = resource::get_children_user_and_system_time()?;
         writeln!(
             context.stdout(),
             "{} {}",

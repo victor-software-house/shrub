@@ -35,21 +35,21 @@ workspace = true
 features = ["highlighting"]
 
 [[bin]]
-name = "fuzz_parse"
+name = "fuzz-parse"
 path = "fuzz_targets/fuzz_parse.rs"
 test = false
 doc = false
 bench = false
 
 [[bin]]
-name = "fuzz_arithmetic"
+name = "fuzz-arithmetic"
 path = "fuzz_targets/fuzz_arithmetic.rs"
 test = false
 doc = false
 bench = false
 
 [[bin]]
-name = "fuzz_highlight"
+name = "fuzz-highlight"
 path = "fuzz_targets/fuzz_highlight.rs"
 test = false
 doc = false

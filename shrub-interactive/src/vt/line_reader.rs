@@ -2,6 +2,7 @@
 
 use std::io::Write;
 use std::sync::Arc;
+use std::{io, mem};
 
 use shrub_core::interfaces::InputFunction;
 use tokio::sync::Mutex;
@@ -71,7 +72,7 @@ impl LineReader {
         out: &mut (impl Write + Send),
     ) -> Result<ReadResult, ShellError> {
         // A program that a bound command interrupted goes on where it left off.
-        let mut program = std::mem::take(&mut self.unfinished_program);
+        let mut program = mem::take(&mut self.unfinished_program);
         let mut prompt_text = if program.is_empty() {
             prompt.prompt.as_str()
         } else {
@@ -126,7 +127,7 @@ impl LineReader {
         editor.start_on_own_row(out, columns)?;
         // A line erased for a bound command is drawn again in its place, below
         // the rest of the prompt, which is still shown.
-        if !std::mem::take(&mut self.redraw_in_place) {
+        if !mem::take(&mut self.redraw_in_place) {
             editor.show_prompt_above(out)?;
         }
         if let Some((text, cursor)) = self.next_line.take() {
@@ -216,7 +217,7 @@ impl LineReader {
         &mut self,
         first: Keypress,
         terminal: &mut impl Terminal,
-    ) -> std::io::Result<Option<Action>> {
+    ) -> io::Result<Option<Action>> {
         let mut held = vec![first];
         // The longest bound sequence of keys held, and what it's bound to.
         let mut bound: Option<(usize, Binding)> = None;
@@ -286,8 +287,12 @@ fn columns(terminal: &impl Terminal) -> usize {
 #[allow(clippy::panic_in_result_fn, reason = "assertions in tests")]
 mod tests {
     use std::collections::VecDeque;
+    use std::io;
+    use std::io::ErrorKind;
     use std::time::Duration;
 
+    use shrub_core::completion::{Spec, SpecName};
+    use shrub_core::history::Item;
     use shrub_core::interfaces::{Key, KeyAction, KeyBindings as _, KeySequence, KeyStroke};
 
     use super::*;
@@ -326,11 +331,11 @@ mod tests {
     }
 
     impl Terminal for FakeTerminal {
-        fn enable_raw_mode(&mut self) -> std::io::Result<()> {
+        fn enable_raw_mode(&mut self) -> io::Result<()> {
             Ok(())
         }
 
-        fn disable_raw_mode(&mut self) -> std::io::Result<()> {
+        fn disable_raw_mode(&mut self) -> io::Result<()> {
             Ok(())
         }
 
@@ -338,7 +343,7 @@ mod tests {
             self.columns
         }
 
-        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
             while let Some(chunk) = self.input.pop_front() {
                 match chunk {
                     Chunk::Data(bytes) => {
@@ -351,14 +356,14 @@ mod tests {
                     }
                     Chunk::Pause => {}
                     Chunk::Interrupted => {
-                        return Err(std::io::ErrorKind::Interrupted.into());
+                        return Err(ErrorKind::Interrupted.into());
                     }
                 }
             }
             Ok(0)
         }
 
-        fn wait_for_input(&mut self, _timeout: Duration) -> std::io::Result<bool> {
+        fn wait_for_input(&mut self, _timeout: Duration) -> io::Result<bool> {
             Ok(match self.input.front() {
                 Some(Chunk::Pause) => {
                     self.input.pop_front();
@@ -425,11 +430,7 @@ mod tests {
             .await
             .unwrap();
         for entry in entries {
-            shell
-                .history_mut()
-                .unwrap()
-                .add(shrub_core::history::Item::new(*entry))
-                .unwrap();
+            shell.history_mut().unwrap().add(Item::new(*entry)).unwrap();
         }
         Arc::new(Mutex::new(shell))
     }
@@ -438,8 +439,8 @@ mod tests {
     async fn shell_completing(words: &str) -> crate::ShellRef {
         let shell = shell().await;
         shell.lock().await.completion_config_mut().set(
-            shrub_core::completion::SpecName::Command("cmd"),
-            shrub_core::completion::Spec {
+            SpecName::Command("cmd"),
+            Spec {
                 word_list: Some(words.to_owned()),
                 ..Default::default()
             },

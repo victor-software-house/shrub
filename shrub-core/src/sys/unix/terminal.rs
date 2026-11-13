@@ -1,15 +1,21 @@
 //! Terminal utilities.
 
+use std::io;
 use std::io::IsTerminal;
 use std::os::fd::AsFd;
 use std::path::PathBuf;
+
+use nix::sys::termios;
+use nix::sys::termios::{LocalFlags, OutputFlags, SetArg, Termios};
+use nix::unistd;
+use nix::unistd::Pid;
 
 use crate::{error, openfiles, sys, terminal};
 
 /// Terminal configuration.
 #[derive(Clone, Debug)]
 pub struct Config {
-    termios: nix::sys::termios::Termios,
+    termios: Termios,
 }
 
 impl Config {
@@ -27,7 +33,7 @@ impl Config {
     /// `tcgetattr` fails, for example because the file is not a terminal.
     pub fn from_term(file: &openfiles::OpenFile) -> Result<Self, error::Error> {
         let fd = file.try_borrow_as_fd()?;
-        let termios = nix::sys::termios::tcgetattr(fd)?;
+        let termios = termios::tcgetattr(fd)?;
         Ok(Self { termios })
     }
 
@@ -45,7 +51,7 @@ impl Config {
     /// `tcsetattr` fails.
     pub fn apply_to_term(&self, file: &openfiles::OpenFile) -> Result<(), error::Error> {
         let fd = file.try_borrow_as_fd()?;
-        nix::sys::termios::tcsetattr(fd, nix::sys::termios::SetArg::TCSANOW, &self.termios)?;
+        termios::tcsetattr(fd, SetArg::TCSANOW, &self.termios)?;
         Ok(())
     }
 
@@ -58,39 +64,38 @@ impl Config {
     ///   configuration.
     pub fn update(&mut self, settings: &terminal::Settings) {
         if settings.raw_input {
-            nix::sys::termios::cfmakeraw(&mut self.termios);
+            termios::cfmakeraw(&mut self.termios);
         }
 
         if let Some(echo_input) = &settings.echo_input {
             if *echo_input {
-                self.termios.local_flags |= nix::sys::termios::LocalFlags::ECHO;
+                self.termios.local_flags |= LocalFlags::ECHO;
             } else {
-                self.termios.local_flags -= nix::sys::termios::LocalFlags::ECHO;
+                self.termios.local_flags -= LocalFlags::ECHO;
             }
         }
 
         if let Some(line_input) = &settings.line_input {
             if *line_input {
-                self.termios.local_flags |= nix::sys::termios::LocalFlags::ICANON;
+                self.termios.local_flags |= LocalFlags::ICANON;
             } else {
-                self.termios.local_flags -= nix::sys::termios::LocalFlags::ICANON;
+                self.termios.local_flags -= LocalFlags::ICANON;
             }
         }
 
         if let Some(interrupt_signals) = &settings.interrupt_signals {
             if *interrupt_signals {
-                self.termios.local_flags |= nix::sys::termios::LocalFlags::ISIG;
+                self.termios.local_flags |= LocalFlags::ISIG;
             } else {
-                self.termios.local_flags -= nix::sys::termios::LocalFlags::ISIG;
+                self.termios.local_flags -= LocalFlags::ISIG;
             }
         }
 
         if let Some(output_nl_as_nlcr) = &settings.output_nl_as_nlcr {
             if *output_nl_as_nlcr {
-                self.termios.output_flags |=
-                    nix::sys::termios::OutputFlags::OPOST | nix::sys::termios::OutputFlags::ONLCR;
+                self.termios.output_flags |= OutputFlags::OPOST | OutputFlags::ONLCR;
             } else {
-                self.termios.output_flags -= nix::sys::termios::OutputFlags::ONLCR;
+                self.termios.output_flags -= OutputFlags::ONLCR;
             }
         }
     }
@@ -98,17 +103,17 @@ impl Config {
 
 /// Get the process ID of this process's parent.
 pub fn get_parent_process_id() -> Option<sys::process::ProcessId> {
-    Some(nix::unistd::getppid().as_raw())
+    Some(unistd::getppid().as_raw())
 }
 
 /// Get the process group ID for this process's process group.
 pub fn get_process_group_id() -> Option<sys::process::ProcessId> {
-    Some(nix::unistd::getpgrp().as_raw())
+    Some(unistd::getpgrp().as_raw())
 }
 
 /// Get the foreground process ID of the attached terminal.
 pub fn get_foreground_pid() -> Option<sys::process::ProcessId> {
-    nix::unistd::tcgetpgrp(std::io::stdin())
+    unistd::tcgetpgrp(io::stdin())
         .ok()
         .map(|pgid| pgid.as_raw())
 }
@@ -120,7 +125,7 @@ pub fn get_foreground_pid() -> Option<sys::process::ProcessId> {
 /// Returns [`crate::error::ErrorKind::PlatformError`] wrapping the OS error if
 /// `tcsetpgrp` fails, for example when standard input is not a terminal.
 pub fn move_to_foreground(pid: sys::process::ProcessId) -> Result<(), error::Error> {
-    nix::unistd::tcsetpgrp(std::io::stdin(), nix::unistd::Pid::from_raw(pid))?;
+    unistd::tcsetpgrp(io::stdin(), Pid::from_raw(pid))?;
     Ok(())
 }
 
@@ -132,14 +137,14 @@ pub fn move_to_foreground(pid: sys::process::ProcessId) -> Result<(), error::Err
 /// failure to move the group to the foreground is ignored.
 // This function needs to return `std::io::Error` so that the OS error code can
 // be recovered.
-pub fn move_self_to_foreground() -> Result<(), std::io::Error> {
-    if std::io::stdin().is_terminal() {
-        let pgid = nix::unistd::getpgid(None)?;
+pub fn move_self_to_foreground() -> Result<(), io::Error> {
+    if io::stdin().is_terminal() {
+        let pgid = unistd::getpgid(None)?;
 
         // TODO(jobs): This sometimes fails with ENOTTY even though we checked
         // that stdin is a terminal. We should investigate why this is
         // happening.
-        let _ = nix::unistd::tcsetpgrp(std::io::stdin(), pgid);
+        let _ = unistd::tcsetpgrp(io::stdin(), pgid);
     }
 
     Ok(())
@@ -149,7 +154,7 @@ pub fn move_self_to_foreground() -> Result<(), std::io::Error> {
 /// terminal. Returns `None` if there is no terminal attached or the lookup
 /// failed.
 pub fn try_get_terminal_device_path() -> Option<PathBuf> {
-    nix::unistd::ttyname(std::io::stdin()).ok()
+    unistd::ttyname(io::stdin()).ok()
 }
 
 /// Returns the width, in columns, of the terminal associated with the given

@@ -1,5 +1,7 @@
 //! Function support for shells.
 
+use shrub_parser::ast::FunctionDefinition;
+
 use crate::results::ExecutionWaitResult;
 use crate::{ExecutionParameters, ExecutionResult, commands, error, extensions, functions};
 
@@ -36,7 +38,7 @@ impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
     pub fn define_func(
         &mut self,
         name: impl Into<String>,
-        definition: shrub_parser::ast::FunctionDefinition,
+        definition: FunctionDefinition,
         source_info: &crate::SourceInfo,
     ) {
         let reg = functions::Registration::new(definition, source_info);
@@ -78,7 +80,7 @@ impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
             error::Error::from(error::ErrorKind::FunctionParseError(name.clone(), e))
         })?;
 
-        let def = shrub_parser::ast::FunctionDefinition {
+        let def = FunctionDefinition {
             fname: name.clone().into(),
             body: func_body,
         };

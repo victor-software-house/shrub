@@ -1,5 +1,7 @@
 use std::borrow::Cow;
+use std::io::{BufRead, BufReader};
 use std::sync::Arc;
+use std::{io, mem};
 
 use utf8_chars::BufReadCharsExt;
 
@@ -172,7 +174,7 @@ pub enum TokenizerError {
 
     /// An I/O error occurred while reading from the input stream.
     #[error("failed to read input")]
-    ReadError(#[from] std::io::Error),
+    ReadError(#[from] io::Error),
 }
 
 impl TokenizerError {
@@ -412,7 +414,7 @@ impl Default for TokenizerOptions {
 pub(crate) const MAX_EXPANSION_NESTING: u32 = 32;
 
 /// A tokenizer for shell scripts.
-pub(crate) struct Tokenizer<'a, R: ?Sized + std::io::BufRead> {
+pub(crate) struct Tokenizer<'a, R: ?Sized + BufRead> {
     char_reader: CharReader<utf8_chars::Chars<'a, R>>,
     /// Chars read ahead and put back, to be read again before any further
     /// input; see [`Tokenizer::read_here_doc_bodies_left_pending`].
@@ -461,14 +463,14 @@ impl TokenParseState {
     pub fn pop(&mut self, end_position: &SourcePosition) -> Token {
         let end = Arc::new(end_position.to_owned());
         let token_location = SourceSpan {
-            start: Arc::new(std::mem::take(&mut self.start_position)),
+            start: Arc::new(mem::take(&mut self.start_position)),
             end,
         };
 
-        let token = if std::mem::take(&mut self.token_is_operator) {
-            Token::Operator(std::mem::take(&mut self.token_so_far), token_location)
+        let token = if mem::take(&mut self.token_is_operator) {
+            Token::Operator(mem::take(&mut self.token_so_far), token_location)
         } else {
-            Token::Word(std::mem::take(&mut self.token_so_far), token_location)
+            Token::Word(mem::take(&mut self.token_so_far), token_location)
         };
 
         end_position.clone_into(&mut self.start_position);
@@ -548,7 +550,7 @@ impl TokenParseState {
             }));
         }
 
-        let current_here_state = std::mem::take(&mut cross_token_state.frame.here_state);
+        let current_here_state = mem::take(&mut cross_token_state.frame.here_state);
         match current_here_state {
             HereState::NextTokenIsHereTag { remove_tabs } => {
                 // Don't yield the operator as a token yet. We need to make sure
@@ -807,7 +809,7 @@ pub fn uncached_tokenize_str(
     input: &str,
     options: &TokenizerOptions,
 ) -> Result<Vec<Token>, TokenizerError> {
-    let mut reader = std::io::BufReader::new(input.as_bytes());
+    let mut reader = BufReader::new(input.as_bytes());
     let mut tokenizer = crate::tokenizer::Tokenizer::new(&mut reader, options);
 
     let mut tokens = vec![];
@@ -883,7 +885,7 @@ fn expansion_body<'a>(
     Ok(input.split_at(body_len).0)
 }
 
-impl<'a, R: ?Sized + std::io::BufRead> Tokenizer<'a, R> {
+impl<'a, R: ?Sized + BufRead> Tokenizer<'a, R> {
     pub fn new(reader: &'a mut R, options: &TokenizerOptions) -> Self {
         Tokenizer {
             options: options.clone(),
@@ -1053,7 +1055,7 @@ impl<'a, R: ?Sized + std::io::BufRead> Tokenizer<'a, R> {
         // expansions only consumed) once the queue is empty, and
         // consuming one leaves it empty.
         debug_assert!(self.cross_state.queued_tokens.is_empty());
-        let enclosing = std::mem::replace(&mut self.cross_state.frame, frame);
+        let enclosing = mem::replace(&mut self.cross_state.frame, frame);
         let result = self.consume_expansion_contents(state, expansion);
         debug_assert!(result.is_err() || self.cross_state.queued_tokens.is_empty());
         self.cross_state.frame = enclosing;
@@ -1075,7 +1077,7 @@ impl<'a, R: ?Sized + std::io::BufRead> Tokenizer<'a, R> {
             match result.reason {
                 // The bodies set aside go after the rest of the line holding
                 // their tags.
-                TokenEndReason::UnescapedNewLine => state.append_str(&std::mem::take(&mut bodies)),
+                TokenEndReason::UnescapedNewLine => state.append_str(&mem::take(&mut bodies)),
                 TokenEndReason::ExpansionClosingChar => {
                     // The closing char comes next; consume it too.
                     let closing_char = self
@@ -1143,7 +1145,7 @@ impl<'a, R: ?Sized + std::io::BufRead> Tokenizer<'a, R> {
 
         if !rest_of_line.is_empty() {
             rest_of_line.reverse();
-            let resume_at = std::mem::replace(&mut self.cross_state.cursor, rest_of_line_start);
+            let resume_at = mem::replace(&mut self.cross_state.cursor, rest_of_line_start);
             self.unread = Some(UnreadChars {
                 chars: rest_of_line,
                 resume_at,
@@ -1631,7 +1633,7 @@ impl<'a, R: ?Sized + std::io::BufRead> Tokenizer<'a, R> {
                             self.cross_state.cursor.clone(),
                         ));
                     };
-                    let was_after_dollar = std::mem::take(&mut after_dollar);
+                    let was_after_dollar = mem::take(&mut after_dollar);
 
                     let starts_nested_construct = match quote {
                         None => extglob_char == '`',
@@ -1864,7 +1866,7 @@ impl<'a, R: ?Sized + std::io::BufRead> Tokenizer<'a, R> {
     }
 }
 
-impl<R: ?Sized + std::io::BufRead> Iterator for Tokenizer<'_, R> {
+impl<R: ?Sized + BufRead> Iterator for Tokenizer<'_, R> {
     type Item = Result<TokenizeResult, TokenizerError>;
 
     fn next(&mut self) -> Option<Self::Item> {

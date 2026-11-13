@@ -3,6 +3,7 @@
 //! region below, so the README can never show code that doesn't build.
 
 use anyhow::Result;
+use tokio::runtime::Builder;
 
 async fn run() -> Result<()> {
     // readme:start
@@ -22,9 +23,7 @@ async fn run() -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    let rt = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()?;
+    let rt = Builder::new_multi_thread().enable_all().build()?;
 
     rt.block_on(run())
 }

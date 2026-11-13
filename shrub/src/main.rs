@@ -1,5 +1,7 @@
 //! Wrapper binary for shrub-shell
 
+use shrub_shell::entry;
+
 fn main() {
-    shrub_shell::entry::run();
+    entry::run();
 }

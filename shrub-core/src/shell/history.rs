@@ -1,20 +1,22 @@
 //! History management for shells.
 
 use std::collections::BTreeSet;
+use std::fs::File;
 use std::path::PathBuf;
 
-use crate::history::HistoryControl;
+use crate::extensions::ShellExtensions;
+use crate::history::{History, HistoryControl, Item};
 use crate::{error, openfiles};
 
-impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
-    pub(super) fn load_history(&self) -> Result<Option<crate::history::History>, error::Error> {
+impl<SE: ShellExtensions> crate::Shell<SE> {
+    pub(super) fn load_history(&self) -> Result<Option<History>, error::Error> {
         const MAX_FILE_SIZE_FOR_HISTORY_IMPORT: u64 = 1024 * 1024 * 1024; // 1 GiB
 
         let Some(history_path) = self.history_file_path() else {
             return Ok(None);
         };
 
-        let mut options = std::fs::File::options();
+        let mut options = File::options();
         options.read(true);
 
         let mut history_file =
@@ -40,7 +42,7 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
             }
         }
 
-        let history = crate::history::History::import(history_file)?;
+        let history = History::import(history_file)?;
         Ok(Some(history))
     }
 
@@ -98,8 +100,7 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
     pub fn add_to_history(&mut self, command: &str) -> Result<(), error::Error> {
         let controls = if self.options.interactive {
             self.env_str("HISTCONTROL")
-                .map(|value| HistoryControl::parse_list(&value))
-                .unwrap_or_default()
+                .map_or_default(|value| HistoryControl::parse_list(&value))
         } else {
             BTreeSet::new()
         };
@@ -129,7 +130,7 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
             history.retain(|item| item.command_line != command);
         }
 
-        history.add(crate::history::Item {
+        history.add(Item {
             id: 0,
             command_line: command.to_owned(),
             timestamp: Some(chrono::Utc::now()),

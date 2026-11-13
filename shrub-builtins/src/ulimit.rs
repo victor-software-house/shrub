@@ -2,7 +2,8 @@ use std::io::{self, ErrorKind, Write};
 use std::str::FromStr;
 
 use clap::Parser;
-use clap::builder::{IntoResettable, StyledStr};
+use clap::builder::{IntoResettable, Resettable, StyledStr};
+use nix::unistd::PathconfVar;
 use shrub_core::{ExecutionResult, builtins};
 
 #[derive(Clone, Copy)]
@@ -33,10 +34,10 @@ enum Virtual {
 }
 
 impl Virtual {
-    fn get(self) -> std::io::Result<(u64, u64)> {
+    fn get(self) -> io::Result<(u64, u64)> {
         match self {
             Self::Pipe => {
-                let lim = nix::unistd::PathconfVar::PIPE_BUF as u64 * 512;
+                let lim = PathconfVar::PIPE_BUF as u64 * 512;
                 Ok((lim, lim))
             }
             Self::VMem => rlimit::Resource::AS
@@ -44,9 +45,9 @@ impl Virtual {
                 .or_else(|_| rlimit::Resource::VMEM.get()),
         }
     }
-    fn set(self, soft: u64, hard: u64) -> std::io::Result<()> {
+    fn set(self, soft: u64, hard: u64) -> io::Result<()> {
         match self {
-            Self::Pipe => Err(std::io::Error::from(ErrorKind::Unsupported)),
+            Self::Pipe => Err(io::Error::from(ErrorKind::Unsupported)),
             Self::VMem => rlimit::Resource::AS
                 .set(soft, hard)
                 .or_else(|_| rlimit::Resource::VMEM.set(soft, hard)),
@@ -69,13 +70,13 @@ enum Resource {
 }
 
 impl Resource {
-    fn get(self) -> std::io::Result<(u64, u64)> {
+    fn get(self) -> io::Result<(u64, u64)> {
         match self {
             Self::Phy(res) => res.get(),
             Self::Virt(res) => res.get(),
         }
     }
-    fn set(self, soft: u64, hard: u64) -> std::io::Result<()> {
+    fn set(self, soft: u64, hard: u64) -> io::Result<()> {
         match self {
             Self::Phy(res) => res.set(soft, hard),
             Self::Virt(res) => res.set(soft, hard),
@@ -247,7 +248,7 @@ impl ResourceDescription {
         unit: Unit::Number,
     };
 
-    fn get(&self, hard: bool) -> std::io::Result<String> {
+    fn get(&self, hard: bool) -> io::Result<String> {
         let (soft_limit, hard_limit) = self.resource.get()?;
         let val = if hard { hard_limit } else { soft_limit };
 
@@ -258,7 +259,7 @@ impl ResourceDescription {
         }
     }
 
-    fn set(&self, set_hard: bool, value: LimitValue) -> std::io::Result<()> {
+    fn set(&self, set_hard: bool, value: LimitValue) -> io::Result<()> {
         let (soft, hard) = self.resource.get()?;
         let value = match value {
             LimitValue::Soft => soft,
@@ -318,8 +319,8 @@ impl ResourceDescription {
 }
 
 impl IntoResettable<StyledStr> for ResourceDescription {
-    fn into_resettable(self) -> clap::builder::Resettable<StyledStr> {
-        clap::builder::Resettable::Value(self.help().into())
+    fn into_resettable(self) -> Resettable<StyledStr> {
+        Resettable::Value(self.help().into())
     }
 }
 

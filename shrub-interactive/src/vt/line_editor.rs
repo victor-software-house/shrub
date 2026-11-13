@@ -1,7 +1,9 @@
 //! Editing a line: readline's functions, history, and incremental search.
 
+use std::io;
 use std::io::Write;
 
+use shrub_core::history;
 use shrub_core::interfaces::InputFunction;
 
 use super::line_buffer::LineBuffer;
@@ -59,7 +61,7 @@ impl History for [String] {
     }
 }
 
-impl History for shrub_core::history::History {
+impl History for history::History {
     fn len(&self) -> usize {
         self.count()
     }
@@ -177,7 +179,7 @@ impl<'a> LineEditor<'a> {
     }
 
     /// Rings the bell, if the style rings it.
-    pub fn bell(&self, out: &mut impl Write) -> std::io::Result<()> {
+    pub fn bell(&self, out: &mut impl Write) -> io::Result<()> {
         if self.style == Style::Vt {
             out.write_all(b"\x07")?;
         }
@@ -189,7 +191,7 @@ impl<'a> LineEditor<'a> {
     }
 
     /// Draws the line, replacing what was drawn before.
-    pub fn draw(&mut self, out: &mut impl Write, columns: usize) -> std::io::Result<()> {
+    pub fn draw(&mut self, out: &mut impl Write, columns: usize) -> io::Result<()> {
         let prompt = self.search_prompt();
         let prompt = prompt.as_deref().unwrap_or(self.prompt);
         self.renderer.draw(
@@ -202,7 +204,7 @@ impl<'a> LineEditor<'a> {
     }
 
     /// Draws the line a last time, and moves to the next.
-    pub fn finish(&mut self, out: &mut impl Write, columns: usize) -> std::io::Result<()> {
+    pub fn finish(&mut self, out: &mut impl Write, columns: usize) -> io::Result<()> {
         let prompt = self.search_prompt();
         let prompt = prompt.as_deref().unwrap_or(self.prompt);
         self.renderer
@@ -213,7 +215,7 @@ impl<'a> LineEditor<'a> {
     /// does, it's erased, to be drawn again where it was; returns `true`.
     /// Without cursor addressing, there's no erasing it, so it's left in
     /// place and the next line is drawn afresh below; returns `false`.
-    pub fn set_aside(&mut self, out: &mut impl Write, columns: usize) -> std::io::Result<bool> {
+    pub fn set_aside(&mut self, out: &mut impl Write, columns: usize) -> io::Result<bool> {
         if let Renderer::Vt(renderer) = &mut self.renderer {
             renderer.erase(out)?;
             Ok(true)
@@ -225,12 +227,12 @@ impl<'a> LineEditor<'a> {
 
     /// Moves to the start of a row of its own to start drawing, so the line
     /// doesn't overwrite output that didn't end with a newline.
-    pub fn start_on_own_row(&self, out: &mut impl Write, columns: usize) -> std::io::Result<()> {
+    pub fn start_on_own_row(&self, out: &mut impl Write, columns: usize) -> io::Result<()> {
         self.renderer.start_on_own_row(out, columns)
     }
 
     /// Writes the prompt's lines before its last, to start drawing it afresh.
-    pub fn show_prompt_above(&self, out: &mut impl Write) -> std::io::Result<()> {
+    pub fn show_prompt_above(&self, out: &mut impl Write) -> io::Result<()> {
         if !self.prompt_above.is_empty() {
             out.write_all(self.prompt_above.as_bytes())?;
             out.write_all(b"\n")?;
@@ -268,7 +270,7 @@ impl<'a> LineEditor<'a> {
         history: &(impl History + ?Sized),
         out: &mut impl Write,
         columns: usize,
-    ) -> std::io::Result<Option<String>> {
+    ) -> io::Result<Option<String>> {
         use InputFunction as F;
 
         let b = &mut self.buffer;
@@ -307,7 +309,7 @@ impl<'a> LineEditor<'a> {
     /// Clears the screen, leaving the line to be drawn at the top. Without
     /// cursor addressing there's no clearing it, so, as readline does, the
     /// line is drawn afresh on the next.
-    fn clear_screen(&mut self, out: &mut impl Write, columns: usize) -> std::io::Result<()> {
+    fn clear_screen(&mut self, out: &mut impl Write, columns: usize) -> io::Result<()> {
         match self.style {
             Style::Vt => {
                 out.write_all(b"\x1b[H\x1b[2J")?;
@@ -322,7 +324,7 @@ impl<'a> LineEditor<'a> {
         &mut self,
         history: &(impl History + ?Sized),
         out: &mut impl Write,
-    ) -> std::io::Result<()> {
+    ) -> io::Result<()> {
         let previous = self
             .history_index
             .unwrap_or_else(|| history.len())
@@ -339,7 +341,7 @@ impl<'a> LineEditor<'a> {
         &mut self,
         history: &(impl History + ?Sized),
         out: &mut impl Write,
-    ) -> std::io::Result<()> {
+    ) -> io::Result<()> {
         if let Some(index) = self.history_index {
             let next = Some(index + 1).filter(|&next| next < history.len());
             self.show_history_entry(next, history);
@@ -454,6 +456,8 @@ impl<'a> LineEditor<'a> {
 #[cfg(test)]
 #[allow(clippy::panic_in_result_fn, reason = "assertions in tests")]
 mod tests {
+    use std::io;
+
     use InputFunction as F;
 
     use super::*;
@@ -482,7 +486,7 @@ mod tests {
 
         /// Takes actions as the line reader does, returning the line if
         /// accepted.
-        fn act(&mut self, actions: &[Action]) -> std::io::Result<Option<String>> {
+        fn act(&mut self, actions: &[Action]) -> io::Result<Option<String>> {
             for action in actions {
                 if self.editor.searching()
                     && self.editor.search_step(action, self.history) == SearchStep::Taken
@@ -524,7 +528,7 @@ mod tests {
     }
 
     #[test]
-    fn performs_editing_functions() -> std::io::Result<()> {
+    fn performs_editing_functions() -> io::Result<()> {
         let mut e = Editing::new(&[], Style::Vt);
         e.editor.buffer = LineBuffer::new("one two three");
 
@@ -554,7 +558,7 @@ mod tests {
     }
 
     #[test]
-    fn kills_and_yanks() -> std::io::Result<()> {
+    fn kills_and_yanks() -> io::Result<()> {
         let mut e = Editing::new(&[], Style::Vt);
         e.editor.buffer = LineBuffer::new("echo hello world");
         e.act(&[f(F::UnixWordRubout)])?;
@@ -565,7 +569,7 @@ mod tests {
     }
 
     #[test]
-    fn adds_consecutive_kills_together() -> std::io::Result<()> {
+    fn adds_consecutive_kills_together() -> io::Result<()> {
         let mut e = Editing::new(&[], Style::Vt);
         e.editor.buffer = LineBuffer::new("one two three four");
 
@@ -593,7 +597,7 @@ mod tests {
     }
 
     #[test]
-    fn killing_nothing_keeps_what_was_killed() -> std::io::Result<()> {
+    fn killing_nothing_keeps_what_was_killed() -> io::Result<()> {
         let mut e = Editing::new(&[], Style::Vt);
         e.editor.buffer = LineBuffer::new("echo word");
         e.act(&[f(F::UnixWordRubout)])?;
@@ -604,7 +608,7 @@ mod tests {
     }
 
     #[test]
-    fn browses_history_and_keeps_the_draft() -> std::io::Result<()> {
+    fn browses_history_and_keeps_the_draft() -> io::Result<()> {
         let history = strings(&["first", "second"]);
         let mut e = Editing::new(&history, Style::Vt);
 
@@ -620,7 +624,7 @@ mod tests {
     }
 
     #[test]
-    fn jumps_to_either_end_of_history() -> std::io::Result<()> {
+    fn jumps_to_either_end_of_history() -> io::Result<()> {
         let history = strings(&["first", "second"]);
         let mut e = Editing::new(&history, Style::Vt);
 
@@ -640,7 +644,7 @@ mod tests {
     }
 
     #[test]
-    fn keeps_the_draft_when_already_at_the_end() -> std::io::Result<()> {
+    fn keeps_the_draft_when_already_at_the_end() -> io::Result<()> {
         let mut e = Editing::new(&[], Style::Vt);
         e.act(&typing("foo"))?;
         e.act(&[f(F::EndOfHistory), f(F::BeginningOfHistory)])?;
@@ -649,7 +653,7 @@ mod tests {
     }
 
     #[test]
-    fn keeps_the_draft_through_a_search() -> std::io::Result<()> {
+    fn keeps_the_draft_through_a_search() -> io::Result<()> {
         let history = strings(&["one", "two"]);
         let mut e = Editing::new(&history, Style::Vt);
         e.act(&typing("foo"))?;
@@ -662,7 +666,7 @@ mod tests {
     }
 
     #[test]
-    fn rings_the_bell_only_in_the_vt_style() -> std::io::Result<()> {
+    fn rings_the_bell_only_in_the_vt_style() -> io::Result<()> {
         let mut e = Editing::new(&[], Style::Basic);
         e.act(&[f(F::PreviousHistory), f(F::NextHistory), f(F::Abort)])?;
         assert_eq!(e.out, b"");
@@ -674,7 +678,7 @@ mod tests {
     }
 
     #[test]
-    fn searches_history_incrementally() -> std::io::Result<()> {
+    fn searches_history_incrementally() -> io::Result<()> {
         let history = strings(&["echo one", "ls -l", "echo two"]);
         let mut e = Editing::new(&history, Style::Vt);
 
@@ -707,7 +711,7 @@ mod tests {
     }
 
     #[test]
-    fn refines_ends_and_cancels_searches() -> std::io::Result<()> {
+    fn refines_ends_and_cancels_searches() -> io::Result<()> {
         let history = strings(&["make test", "cargo build", "make all"]);
         let mut e = Editing::new(&history, Style::Vt);
 
@@ -753,7 +757,7 @@ mod tests {
     }
 
     #[test]
-    fn keeps_the_last_match_when_a_search_fails() -> std::io::Result<()> {
+    fn keeps_the_last_match_when_a_search_fails() -> io::Result<()> {
         let history = strings(&["cargo test", "make build", "cargo doc"]);
         let mut e = Editing::new(&history, Style::Vt);
 
@@ -776,7 +780,7 @@ mod tests {
     }
 
     #[test]
-    fn leaves_the_line_as_it_is_for_an_empty_search() -> std::io::Result<()> {
+    fn leaves_the_line_as_it_is_for_an_empty_search() -> io::Result<()> {
         let history = strings(&["echo aaa", "echo bbb"]);
         let mut e = Editing::new(&history, Style::Vt);
         e.act(&typing("echo DRAFT"))?;
@@ -798,7 +802,7 @@ mod tests {
     }
 
     #[test]
-    fn clears_the_screen() -> std::io::Result<()> {
+    fn clears_the_screen() -> io::Result<()> {
         let no_history: &[String] = &[];
         let mut editor = LineEditor::new("$ ", "above".to_owned(), Style::Vt);
         let mut out = vec![];

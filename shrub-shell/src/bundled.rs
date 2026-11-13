@@ -27,6 +27,7 @@
 //! anything matching the signature can be registered.
 
 use std::collections::HashMap;
+use std::env;
 use std::ffi::OsString;
 use std::io::Write;
 use std::path::PathBuf;
@@ -103,7 +104,7 @@ pub fn registry() -> Option<&'static HashMap<String, BundledFn>> {
 /// are not affected.
 #[must_use]
 pub fn maybe_dispatch() -> Option<i32> {
-    let mut raw = std::env::args_os();
+    let mut raw = env::args_os();
     let _argv0 = raw.next();
     let first = raw.next()?;
     if first != DISPATCH_FLAG {
@@ -146,9 +147,7 @@ fn exit_code(code: ExecutionExitCode) -> i32 {
 
 /// Returns the path to the running shrub executable (cached).
 fn self_exe() -> Option<&'static PathBuf> {
-    SELF_EXE
-        .get_or_init(|| std::env::current_exe().ok())
-        .as_ref()
+    SELF_EXE.get_or_init(|| env::current_exe().ok()).as_ref()
 }
 
 /// Help/usage content provider for the shim builtin. shrub calls this for

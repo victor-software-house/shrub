@@ -24,12 +24,16 @@
 
 use std::borrow::Cow;
 use std::collections::{BTreeSet, HashMap};
+use std::mem;
+use std::ops::DerefMut;
 use std::path::Path;
 
 use itertools::Itertools;
-use shrub_parser::unquote_str;
+use shrub_parser::word::WordPiece;
+use shrub_parser::{unquote_str, word};
 use strum::IntoEnumIterator;
 
+use crate::expansion::ExpanderOptions;
 use crate::sys::{self, users};
 use crate::variables::{self, ShellValue, ShellVariable};
 use crate::{
@@ -54,7 +58,7 @@ fn split_completion_word_list(
     quoting::close(&mut word_list);
     let word_list = word_list.as_str();
 
-    let pieces = shrub_parser::word::parse(word_list, parser_options)?;
+    let pieces = word::parse(word_list, parser_options)?;
     let mut words = vec![];
     let mut current_word = String::new();
 
@@ -67,11 +71,11 @@ fn split_completion_word_list(
                 ))
             })?;
 
-        if matches!(piece.piece, shrub_parser::word::WordPiece::Text(_)) {
+        if matches!(piece.piece, WordPiece::Text(_)) {
             for c in source.chars() {
                 if ifs.contains(c) {
                     if !current_word.is_empty() {
-                        words.push(std::mem::take(&mut current_word));
+                        words.push(mem::take(&mut current_word));
                     }
                 } else {
                     current_word.push(c);
@@ -359,7 +363,7 @@ fn enter_comp_vars_scope<SE: extensions::ShellExtensions>(
     shell: &mut Shell<SE>,
     vars: impl IntoIterator<Item = (&'static str, ShellValue)>,
     export: bool,
-) -> Result<impl std::ops::DerefMut<Target = Shell<SE>> + '_, error::Error> {
+) -> Result<impl DerefMut<Target = Shell<SE>> + '_, error::Error> {
     let mut scoped = shell.enter_scope(env::EnvironmentScope::Command);
     for (name, value) in vars {
         let mut var = ShellVariable::new(value);
@@ -504,7 +508,7 @@ impl Spec {
         &self,
         shell: &mut Shell<impl extensions::ShellExtensions>,
         word: &str,
-    ) -> Result<Vec<String>, crate::error::Error> {
+    ) -> Result<Vec<String>, error::Error> {
         let word = unquote_str(word);
         let context = Context {
             word: &word,
@@ -539,7 +543,7 @@ impl Spec {
         &self,
         shell: &mut Shell<impl extensions::ShellExtensions>,
         context: &Context<'_>,
-    ) -> Result<Generated<(Vec<String>, ProcessingOptions)>, crate::error::Error> {
+    ) -> Result<Generated<(Vec<String>, ProcessingOptions)>, error::Error> {
         let mut scope = InProgressScope::start(
             shell,
             InProgressCompletion {
@@ -576,7 +580,7 @@ impl Spec {
         &self,
         shell: &mut Shell<impl extensions::ShellExtensions>,
         context: &Context<'_>,
-    ) -> Result<Generated<SpecCandidates>, crate::error::Error> {
+    ) -> Result<Generated<SpecCandidates>, error::Error> {
         // Generate completions based on any provided actions (and on words).
         let SpecCandidates {
             mut candidates,
@@ -586,14 +590,14 @@ impl Spec {
             let params = shell.default_exec_params();
             let unexpanded_words =
                 split_completion_word_list(word_list, &shell.ifs(), &shell.parser_options())?;
-            let options = crate::expansion::ExpanderOptions {
+            let options = ExpanderOptions {
                 pathname_expand: false,
                 ..Default::default()
             };
             let mut words = vec![];
             for word in unexpanded_words {
                 words.extend(
-                    crate::expansion::full_expand_and_split_word_with_options(
+                    expansion::full_expand_and_split_word_with_options(
                         shell, &params, word, &options,
                     )
                     .await?,
@@ -1324,8 +1328,8 @@ async fn get_file_completions(
         .into_paths()
         .into_iter()
         .map(|p| match sys::fs::normalize_path_separators(&p) {
-            std::borrow::Cow::Borrowed(_) => p,
-            std::borrow::Cow::Owned(normalized) => normalized,
+            Cow::Borrowed(_) => p,
+            Cow::Owned(normalized) => normalized,
         })
         .collect();
 
@@ -1540,11 +1544,13 @@ fn shell_pattern(
 
 #[cfg(test)]
 mod tests {
+    use std::iter;
+
     use super::*;
 
     #[test]
     fn generation_options_enable_and_disable_each_option() {
-        let mut options: GenerationOptions = std::iter::once(CompleteOption::NoSpace).collect();
+        let mut options: GenerationOptions = iter::once(CompleteOption::NoSpace).collect();
         assert!(options.get(CompleteOption::NoSpace));
         assert!(!options.get(CompleteOption::NoSort));
 
@@ -1554,7 +1560,7 @@ mod tests {
         assert!(!options.get(CompleteOption::NoSpace));
         assert_eq!(
             options,
-            std::iter::once(CompleteOption::NoSort).collect::<GenerationOptions>()
+            iter::once(CompleteOption::NoSort).collect::<GenerationOptions>()
         );
     }
 

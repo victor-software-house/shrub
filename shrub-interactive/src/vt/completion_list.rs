@@ -2,6 +2,9 @@
 
 use std::io::Write;
 
+use shrub_core::completion::ProcessingOptions;
+use shrub_core::sys::fs;
+
 use super::line_editor::LineEditor;
 use super::render::display_width;
 use super::style::Style;
@@ -100,7 +103,7 @@ fn common_prefix(candidates: &[String]) -> String {
 /// Returns how a completion candidate is shown in a list of candidates, as bash
 /// shows it: file names unquoted and without their directory, and without the
 /// space that would follow them.
-fn display_name(candidate: &str, options: &shrub_core::completion::ProcessingOptions) -> String {
+fn display_name(candidate: &str, options: &ProcessingOptions) -> String {
     let mut word = candidate;
     // Drop the space completion puts after a word, but not an escaped space
     // that ends the word itself (e.g., in `foo\ `, for a file named `foo
@@ -121,8 +124,8 @@ fn display_name(candidate: &str, options: &shrub_core::completion::ProcessingOpt
     } else {
         shrub_parser::unquote_str(word)
     };
-    let trimmed = shrub_core::sys::fs::strip_path_separator_suffix(&name);
-    match shrub_core::sys::fs::rfind_path_separator(trimmed) {
+    let trimmed = fs::strip_path_separator_suffix(&name);
+    match fs::rfind_path_separator(trimmed) {
         Some(index) => name.get(index + 1..).unwrap_or(&name).to_owned(),
         None => name,
     }
@@ -149,6 +152,8 @@ fn format_in_columns(names: &[String], columns: usize) -> String {
 
 #[cfg(test)]
 mod tests {
+    use shrub_core::completion::ProcessingOptions;
+
     use super::*;
 
     fn strings(items: &[&str]) -> Vec<String> {
@@ -185,7 +190,7 @@ mod tests {
 
     #[test]
     fn shows_file_names_without_their_directories() {
-        let filenames = shrub_core::completion::ProcessingOptions::default();
+        let filenames = ProcessingOptions::default();
         assert_eq!(display_name("dir/sub/file ", &filenames), "file");
         assert_eq!(display_name("dir/sub/", &filenames), "sub/");
         assert_eq!(display_name("plain ", &filenames), "plain");
@@ -197,13 +202,13 @@ mod tests {
         assert_eq!(display_name("dir/foo\\ ", &filenames), "foo ");
         assert_eq!(display_name("dir/foo\\\\ ", &filenames), "foo\\");
 
-        let unquoted = shrub_core::completion::ProcessingOptions {
+        let unquoted = ProcessingOptions {
             no_autoquote_filenames: true,
             ..Default::default()
         };
         assert_eq!(display_name("dir/it's ", &unquoted), "it's");
 
-        let words = shrub_core::completion::ProcessingOptions {
+        let words = ProcessingOptions {
             treat_as_filenames: false,
             ..Default::default()
         };

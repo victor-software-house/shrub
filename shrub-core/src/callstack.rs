@@ -2,6 +2,9 @@
 
 use std::borrow::Cow;
 use std::collections::{HashSet, VecDeque};
+use std::fmt;
+use std::fmt::{Display, Formatter};
+use std::ops::Index;
 use std::sync::Arc;
 
 use shrub_parser::ast::SourceLocation;
@@ -35,8 +38,8 @@ pub enum ScriptCallType {
     Run,
 }
 
-impl std::fmt::Display for ScriptCall {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for ScriptCall {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self.call_type {
             ScriptCallType::Source => write!(f, "source({})", self.source_info),
             ScriptCallType::Run => write!(f, "script({})", self.source_info),
@@ -112,8 +115,8 @@ impl FrameType {
     }
 }
 
-impl std::fmt::Display for FrameType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for FrameType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Script(call) => call.fmt(f),
             Self::Function(call) => call.fmt(f),
@@ -142,8 +145,8 @@ impl FunctionCall {
     }
 }
 
-impl std::fmt::Display for FunctionCall {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for FunctionCall {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "func({})", self.function_name)
     }
 }
@@ -278,8 +281,8 @@ impl<'a> FormatCallStack<'a> {
     }
 }
 
-impl std::fmt::Display for FormatCallStack<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for FormatCallStack<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.stack.fmt_with_options(f, self.options)
     }
 }
@@ -311,11 +314,7 @@ impl CallStack {
     ///
     /// * `f` - The formatter to write to.
     /// * `options` - The formatting options.
-    fn fmt_with_options(
-        &self,
-        f: &mut std::fmt::Formatter<'_>,
-        options: &FormatOptions,
-    ) -> std::fmt::Result {
+    fn fmt_with_options(&self, f: &mut Formatter<'_>, options: &FormatOptions) -> fmt::Result {
         if self.is_empty() {
             return Ok(());
         }
@@ -369,13 +368,13 @@ impl CallStack {
     }
 }
 
-impl std::fmt::Display for CallStack {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for CallStack {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.fmt_with_options(f, &FormatOptions::default())
     }
 }
 
-impl std::ops::Index<usize> for CallStack {
+impl Index<usize> for CallStack {
     type Output = Frame;
 
     fn index(&self, index: usize) -> &Self::Output {

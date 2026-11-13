@@ -1,7 +1,9 @@
 use std::borrow::Cow;
 
 use clap::Parser;
-use shrub_core::{ExecutionResult, Shell, builtins};
+use shrub_core::{ExecutionResult, Shell, builtins, error};
+use shrub_parser::word::Parameter;
+use shrub_parser::{arithmetic, word};
 
 /// Unset a variable.
 #[derive(Parser)]
@@ -46,7 +48,7 @@ impl builtins::Command for UnsetCommand {
         // TODO(nameref): implement nameref
         //
         if self.name_interpretation.name_references {
-            return shrub_core::error::unimp("unset: name references are not yet implemented");
+            return error::unimp("unset: name references are not yet implemented");
         }
 
         let unspecified = self.name_interpretation.unspecified();
@@ -57,19 +59,18 @@ impl builtins::Command for UnsetCommand {
                 // Try to parse the name as a parameter. If we can't, don't
                 // bail; it may not be a valid variable
                 // name/parameter but could still be a function name.
-                if let Ok(parameter) =
-                    shrub_parser::word::parse_parameter(name, &context.shell.parser_options())
+                if let Ok(parameter) = word::parse_parameter(name, &context.shell.parser_options())
                 {
                     let result = match parameter {
-                        shrub_parser::word::Parameter::Positional(_) => continue,
-                        shrub_parser::word::Parameter::Special(_) => continue,
-                        shrub_parser::word::Parameter::Named(name) => {
+                        Parameter::Positional(_) => continue,
+                        Parameter::Special(_) => continue,
+                        Parameter::Named(name) => {
                             context.shell.env_mut().unset(name.as_str())?.is_some()
                         }
-                        shrub_parser::word::Parameter::NamedWithIndex { name, index } => {
+                        Parameter::NamedWithIndex { name, index } => {
                             unset_array_index(context.shell, name.as_str(), index.as_str())?
                         }
-                        shrub_parser::word::Parameter::NamedWithAllIndices {
+                        Parameter::NamedWithAllIndices {
                             name: _,
                             concatenate: _,
                         } => continue,
@@ -110,7 +111,7 @@ fn unset_array_index(
         index.into()
     } else {
         // First evaluate the index expression.
-        let index_as_expr = shrub_parser::arithmetic::parse(index)?;
+        let index_as_expr = arithmetic::parse(index)?;
         let evaluated_index = shell.eval_arithmetic(&index_as_expr)?;
         evaluated_index.to_string().into()
     };

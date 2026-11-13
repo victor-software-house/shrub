@@ -1,3 +1,5 @@
+use std::io;
+
 use super::line_reader::LineReader;
 use super::style::Style;
 use super::terminal::{RawMode, StdTerminal, Terminal};
@@ -90,7 +92,7 @@ impl<T: Terminal> InputBackend for VtInputBackend<T> {
         let mut terminal = RawMode::enable(&mut self.terminal)?;
         let result = self
             .reader
-            .read_program(shell, &prompt, &mut *terminal, &mut std::io::stderr())
+            .read_program(shell, &prompt, &mut *terminal, &mut io::stderr())
             .await;
         let restored = terminal.restore();
 
@@ -113,6 +115,7 @@ mod tests {
     use std::pin::pin;
     use std::sync::{Arc, PoisonError};
     use std::task::{Context, Waker};
+    use std::{io, sync};
 
     use shrub_core::interfaces::{Key, KeyAction, KeyBindings as _, KeySequence, KeyStroke};
     use tokio::sync::Mutex;
@@ -133,11 +136,11 @@ mod tests {
     /// switched.
     struct LoggingTerminal {
         input: Vec<u8>,
-        log: Arc<std::sync::Mutex<Vec<&'static str>>>,
+        log: Arc<sync::Mutex<Vec<&'static str>>>,
     }
 
     impl Terminal for LoggingTerminal {
-        fn enable_raw_mode(&mut self) -> std::io::Result<()> {
+        fn enable_raw_mode(&mut self) -> io::Result<()> {
             self.log
                 .lock()
                 .unwrap_or_else(PoisonError::into_inner)
@@ -145,7 +148,7 @@ mod tests {
             Ok(())
         }
 
-        fn disable_raw_mode(&mut self) -> std::io::Result<()> {
+        fn disable_raw_mode(&mut self) -> io::Result<()> {
             self.log
                 .lock()
                 .unwrap_or_else(PoisonError::into_inner)
@@ -161,7 +164,7 @@ mod tests {
             true
         }
 
-        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
             let count = self.input.len().min(buf.len());
             buf[..count].copy_from_slice(&self.input[..count]);
             self.input.drain(..count);

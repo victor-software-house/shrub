@@ -2,14 +2,17 @@
 #![allow(missing_docs)]
 #![allow(clippy::unwrap_used)]
 
+use std::process::Command;
+use std::str;
 use std::sync::LazyLock;
+use std::time::Duration;
 
 use anyhow::Result;
 use libfuzzer_sys::fuzz_target;
-use shrub_parser::ast;
+use shrub_parser::{arithmetic, ast};
+use tokio::runtime::Runtime;
 
-static TOKIO_RT: LazyLock<tokio::runtime::Runtime> =
-    LazyLock::new(|| tokio::runtime::Runtime::new().unwrap());
+static TOKIO_RT: LazyLock<Runtime> = LazyLock::new(|| Runtime::new().unwrap());
 
 static SHELL_TEMPLATE: LazyLock<shrub_core::Shell> = LazyLock::new(|| {
     TOKIO_RT
@@ -34,7 +37,7 @@ fn eval_arithmetic(mut shell: shrub_core::Shell, input: &ast::ArithmeticExpr) ->
     // Instantiate a shrub shell with defaults, then try to evaluate the
     // expression.
     //
-    let parsed_expr = shrub_parser::arithmetic::parse(input_str.as_str()).ok();
+    let parsed_expr = arithmetic::parse(input_str.as_str()).ok();
     let our_eval_result = if let Some(parsed_expr) = parsed_expr {
         shell.eval_arithmetic(&parsed_expr).ok()
     } else {
@@ -44,7 +47,7 @@ fn eval_arithmetic(mut shell: shrub_core::Shell, input: &ast::ArithmeticExpr) ->
     //
     // Now run it under 'bash'
     //
-    let mut oracle_cmd = std::process::Command::new("bash");
+    let mut oracle_cmd = Command::new("bash");
     oracle_cmd
         .arg("--noprofile")
         .arg("--norc")
@@ -54,14 +57,14 @@ fn eval_arithmetic(mut shell: shrub_core::Shell, input: &ast::ArithmeticExpr) ->
 
     let mut oracle_cmd = assert_cmd::Command::from_std(oracle_cmd);
 
-    oracle_cmd.timeout(std::time::Duration::from_secs(DEFAULT_TIMEOUT_IN_SECONDS));
+    oracle_cmd.timeout(Duration::from_secs(DEFAULT_TIMEOUT_IN_SECONDS));
 
     let input = std::format!("echo \"$(( {input_str} ))\"\n");
     oracle_cmd.write_stdin(input.as_bytes());
 
     let oracle_result = oracle_cmd.output()?;
     let oracle_eval_result = if oracle_result.status.success() {
-        let oracle_output = std::str::from_utf8(&oracle_result.stdout)?;
+        let oracle_output = str::from_utf8(&oracle_result.stdout)?;
         oracle_output.trim().parse::<i64>().ok()
     } else {
         None

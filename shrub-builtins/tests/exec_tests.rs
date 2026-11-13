@@ -5,7 +5,9 @@
 #![allow(clippy::panic_in_result_fn, clippy::expect_used)]
 
 use std::ffi::CString;
+use std::fs::File;
 use std::sync::Arc;
+use std::{env, fs, process};
 
 use anyhow::Result;
 use shrub_builtins::{BuiltinSet, ShellBuilderExt as _};
@@ -58,10 +60,10 @@ async fn exec_with_process_limits_is_refused_and_the_shell_lives_on() -> Result<
         .build()
         .await?;
     // A count far under its limit, which a forked child would pass.
-    let count = std::env::temp_dir().join(format!("shrub-exec-count-{}", std::process::id()));
-    std::fs::write(&count, "1\n")?;
-    let current = Arc::new(std::fs::File::open(&count)?);
-    std::fs::remove_file(&count)?;
+    let count = env::temp_dir().join(format!("shrub-exec-count-{}", process::id()));
+    fs::write(&count, "1\n")?;
+    let current = Arc::new(File::open(&count)?);
+    fs::remove_file(&count)?;
     shell.options_mut().spawn = SpawnOptions {
         pids_limits: vec![PidsLimit {
             current,

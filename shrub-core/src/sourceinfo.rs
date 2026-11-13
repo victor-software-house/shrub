@@ -1,5 +1,7 @@
 //! Source info.
 
+use std::fmt;
+use std::fmt::{Display, Formatter};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -32,8 +34,8 @@ impl From<PathBuf> for SourceInfo {
     }
 }
 
-impl std::fmt::Display for SourceInfo {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for SourceInfo {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.source)?;
 
         if let Some(pos) = &self.start {

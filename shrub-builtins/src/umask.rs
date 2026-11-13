@@ -2,9 +2,9 @@ use std::io::Write;
 
 use cfg_if::cfg_if;
 use clap::Parser;
-#[cfg(not(any(target_os = "linux", target_os = "android")))]
+use nix::sys::stat;
 use nix::sys::stat::Mode;
-use shrub_core::{ErrorKind, ExecutionResult, builtins};
+use shrub_core::{ErrorKind, ExecutionResult, builtins, error, int_utils};
 
 /// Manage the process umask.
 #[derive(Parser)]
@@ -30,10 +30,10 @@ impl builtins::Command for UmaskCommand {
     ) -> Result<shrub_core::ExecutionResult, Self::Error> {
         if let Some(mode) = &self.mode {
             if mode.starts_with(|c: char| c.is_digit(8)) {
-                let parsed = shrub_core::int_utils::parse(mode.as_str(), 8)?;
+                let parsed = int_utils::parse(mode.as_str(), 8)?;
                 set_umask(parsed)?;
             } else {
-                return shrub_core::error::unimp("umask setting mode from symbolic value");
+                return error::unimp("umask setting mode from symbolic value");
             }
         } else {
             let umask = get_umask()?;
@@ -61,7 +61,9 @@ impl builtins::Command for UmaskCommand {
 cfg_if! {
     if #[cfg(any(target_os = "linux", target_os = "android"))] {
         fn get_umask() -> Result<u32, shrub_core::Error> {
-            let umask = procfs::process::Process::myself().ok().and_then(|me| me.status().ok()).and_then(|status| status.umask);
+            use procfs::process::Process;
+
+            let umask = Process::myself().ok().and_then(|me| me.status().ok()).and_then(|status| status.umask);
             umask.ok_or_else(|| shrub_core::ErrorKind::InvalidUmask.into())
         }
     } else {
@@ -74,10 +76,10 @@ cfg_if! {
     }
 }
 
-fn set_umask(value: nix::sys::stat::mode_t) -> Result<(), shrub_core::Error> {
+fn set_umask(value: stat::mode_t) -> Result<(), shrub_core::Error> {
     // value of mode_t can be platform dependent
-    let mode = nix::sys::stat::Mode::from_bits(value).ok_or_else(|| ErrorKind::InvalidUmask)?;
-    nix::sys::stat::umask(mode);
+    let mode = Mode::from_bits(value).ok_or_else(|| ErrorKind::InvalidUmask)?;
+    stat::umask(mode);
     Ok(())
 }
 

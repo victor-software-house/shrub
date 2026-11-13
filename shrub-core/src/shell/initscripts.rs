@@ -2,6 +2,8 @@
 
 use std::path::PathBuf;
 
+use crate::history::History;
+use crate::sys::fs;
 use crate::{Shell, error, extensions, interp};
 
 /// Behavior for loading profile files.
@@ -70,10 +72,7 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
         // (e.g. via `history -s`). Do NOT fail if we can't load
         // history.
         if self.options.enable_command_history
-            && self
-                .history
-                .as_ref()
-                .is_none_or(crate::history::History::is_empty)
+            && self.history.as_ref().is_none_or(History::is_empty)
             && let Ok(Some(history)) = self.load_history()
         {
             self.history = Some(history);
@@ -105,7 +104,7 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
             //     * ~/.bash_login
             //     * ~/.profile
             //
-            if let Some(system_profile) = crate::sys::fs::get_system_profile_path() {
+            if let Some(system_profile) = fs::get_system_profile_path() {
                 self.source_if_exists(system_profile, &params).await?;
             }
             if let Some(home_path) = self.home_dir() {
@@ -144,7 +143,7 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
                         //     system rc file (e.g. /etc/bash.bashrc on Unix)
                         //     ~/.bashrc
                         //
-                        if let Some(system_rc) = crate::sys::fs::get_system_rc_path() {
+                        if let Some(system_rc) = fs::get_system_rc_path() {
                             self.source_if_exists(system_rc, &params).await?;
                         }
                         if let Some(home_path) = self.home_dir() {

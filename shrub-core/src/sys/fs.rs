@@ -1,6 +1,7 @@
 //! Filesystem utilities
 
 pub use super::platform::fs::*;
+use crate::error;
 
 /// Extension trait for path-related filesystem operations.
 pub trait PathExt {
@@ -41,5 +42,5 @@ pub trait PathExt {
     /// cannot report device and inode numbers return
     /// [`crate::error::ErrorKind::NotSupportedOnThisPlatform`] or placeholder
     /// values.
-    fn get_device_and_inode(&self) -> Result<(u64, u64), crate::error::Error>;
+    fn get_device_and_inode(&self) -> Result<(u64, u64), error::Error>;
 }

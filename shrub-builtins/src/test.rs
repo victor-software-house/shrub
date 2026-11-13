@@ -1,9 +1,11 @@
 use std::io::Write;
 
 use clap::Parser;
+use shrub_core::builtins::try_parse_known;
 use shrub_core::{
     ErrorKind, ExecutionExitCode, ExecutionParameters, ExecutionResult, Shell, builtins, tests,
 };
+use shrub_parser::test_command;
 
 /// Evaluate test expression.
 #[derive(Parser)]
@@ -24,7 +26,7 @@ impl builtins::Command for TestCommand {
     where
         I: IntoIterator<Item = String>,
     {
-        let (mut this, rest_args) = shrub_core::builtins::try_parse_known::<Self>(args)?;
+        let (mut this, rest_args) = try_parse_known::<Self>(args)?;
         if let Some(args) = rest_args {
             this.args.extend(args);
         }
@@ -62,7 +64,6 @@ fn execute_test(
     params: &ExecutionParameters,
     args: &[String],
 ) -> Result<bool, shrub_core::Error> {
-    let test_command =
-        shrub_parser::test_command::parse(args).map_err(ErrorKind::TestCommandParseError)?;
+    let test_command = test_command::parse(args).map_err(ErrorKind::TestCommandParseError)?;
     tests::eval_expr(&test_command, shell, params)
 }

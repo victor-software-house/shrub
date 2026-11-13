@@ -1,5 +1,9 @@
+use std::path::{Path, PathBuf};
+
 use clap::Parser;
 use shrub_core::{ExecutionResult, builtins};
+
+use crate::dirs::DirsCommand;
 
 /// Push a path onto the current directory stack.
 #[derive(Parser)]
@@ -25,18 +29,18 @@ impl builtins::Command for PushdCommand {
             context
                 .shell
                 .directory_stack_mut()
-                .push(std::path::PathBuf::from(&self.dir));
+                .push(PathBuf::from(&self.dir));
         } else {
             let prev_working_dir = context.shell.working_dir().to_path_buf();
 
-            let dir = std::path::Path::new(&self.dir);
+            let dir = Path::new(&self.dir);
             context.shell.set_working_dir(dir)?;
 
             context.shell.directory_stack_mut().push(prev_working_dir);
         }
 
         // Display dirs.
-        let dirs_cmd = crate::dirs::DirsCommand::default();
+        let dirs_cmd = DirsCommand::default();
         dirs_cmd.execute(context).await?;
 
         Ok(ExecutionResult::success())

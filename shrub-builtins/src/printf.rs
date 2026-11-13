@@ -193,6 +193,8 @@ fn parse_format_string(format_string: &str) -> Result<Vec<ParsedFormatItem>, shr
 #[cfg(test)]
 #[expect(clippy::panic_in_result_fn)]
 mod tests {
+    use std::iter;
+
     use anyhow::Result;
 
     use super::*;
@@ -209,8 +211,8 @@ mod tests {
 
     #[test]
     fn test_basic_sprintf() -> Result<()> {
-        assert_eq!(sprintf_via_uucore("%s", std::iter::once(&"xyz"))?, "xyz");
-        assert_eq!(sprintf_via_uucore(r"%d\n", std::iter::once(&"1"))?, "1\n");
+        assert_eq!(sprintf_via_uucore("%s", iter::once(&"xyz"))?, "xyz");
+        assert_eq!(sprintf_via_uucore(r"%d\n", iter::once(&"1"))?, "1\n");
 
         Ok(())
     }

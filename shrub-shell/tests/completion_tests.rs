@@ -5,22 +5,26 @@
 #![cfg(test)]
 #![allow(clippy::panic_in_result_fn)]
 
+use std::env;
+use std::iter::empty;
+use std::ops::Range;
 use std::path::PathBuf;
+use std::time::Duration;
 
 use anyhow::Result;
 use assert_fs::prelude::*;
 use shrub_builtins::ShellBuilderExt;
+use shrub_core::completion::Completions;
+use tokio::time;
 
 /// Returns each candidate in `completions`.
-fn candidate_texts(completions: &shrub_core::completion::Completions) -> Vec<String> {
+fn candidate_texts(completions: &Completions) -> Vec<String> {
     completions.candidates.clone()
 }
 
 /// Returns the range of the line that the only candidate in `completions`
 /// replaces.
-fn replaced_range(
-    completions: &shrub_core::completion::Completions,
-) -> Result<std::ops::Range<usize>> {
+fn replaced_range(completions: &Completions) -> Result<Range<usize>> {
     match completions.candidates.as_slice() {
         [_] => {
             let start = completions.insertion_index;
@@ -67,7 +71,7 @@ impl TestShell {
             .shell
             .source_script(
                 Self::find_bash_completion_script()?.as_path(),
-                std::iter::empty::<String>(),
+                empty::<String>(),
                 &exec_params,
             )
             .await?;
@@ -80,7 +84,7 @@ impl TestShell {
 
     fn find_bash_completion_script() -> Result<PathBuf> {
         // See if an environmental override was provided.
-        let script_path = std::env::var("BASH_COMPLETION_PATH").map_or_else(
+        let script_path = env::var("BASH_COMPLETION_PATH").map_or_else(
             |_| PathBuf::from(DEFAULT_BASH_COMPLETION_SCRIPT),
             PathBuf::from,
         );
@@ -96,30 +100,20 @@ impl TestShell {
     }
 
     /// Completes `line` at `pos`.
-    async fn complete(
-        &mut self,
-        line: &str,
-        pos: usize,
-    ) -> Result<shrub_core::completion::Completions> {
+    async fn complete(&mut self, line: &str, pos: usize) -> Result<Completions> {
         Ok(self.shell.complete(line, pos).await?)
     }
 
     /// Completes `input` at its `|`, which marks the cursor (or at its end, if
     /// it has none).
-    async fn complete_at_marker(
-        &mut self,
-        input: &str,
-    ) -> Result<shrub_core::completion::Completions> {
+    async fn complete_at_marker(&mut self, input: &str) -> Result<Completions> {
         let cursor = input.find('|').unwrap_or(input.len());
         let line = input.replacen('|', "", 1);
         self.complete(&line, cursor).await
     }
 
     /// Completes `line` at its end.
-    async fn complete_end_of_line_full(
-        &mut self,
-        line: &str,
-    ) -> Result<shrub_core::completion::Completions> {
+    async fn complete_end_of_line_full(&mut self, line: &str) -> Result<Completions> {
         self.complete(line, line.len()).await
     }
 
@@ -1068,7 +1062,7 @@ async fn cancelled_completion_leaves_nothing_behind() -> Result<()> {
         .await?;
 
     let completion = test_shell.complete_end_of_line_full("mycmd x");
-    let result = tokio::time::timeout(std::time::Duration::from_millis(500), completion).await;
+    let result = time::timeout(Duration::from_millis(500), completion).await;
     assert!(result.is_err(), "the completion should have been cancelled");
 
     let shell = &test_shell.shell;

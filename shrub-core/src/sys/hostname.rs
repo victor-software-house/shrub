@@ -1,3 +1,6 @@
-pub(crate) fn get() -> std::io::Result<std::ffi::OsString> {
+use std::ffi::OsString;
+use std::io;
+
+pub(crate) fn get() -> io::Result<OsString> {
     hostname::get()
 }

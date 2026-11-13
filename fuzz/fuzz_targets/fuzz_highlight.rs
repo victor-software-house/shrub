@@ -7,9 +7,9 @@ use std::sync::LazyLock;
 
 use libfuzzer_sys::fuzz_target;
 use shrub_interactive::highlighting::{Highlighted, highlight_command};
+use tokio::runtime::Runtime;
 
-static TOKIO_RT: LazyLock<tokio::runtime::Runtime> =
-    LazyLock::new(|| tokio::runtime::Runtime::new().unwrap());
+static TOKIO_RT: LazyLock<Runtime> = LazyLock::new(|| Runtime::new().unwrap());
 
 static SHELL_TEMPLATE: LazyLock<shrub_core::Shell> = LazyLock::new(|| {
     TOKIO_RT

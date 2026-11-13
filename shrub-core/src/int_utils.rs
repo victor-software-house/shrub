@@ -1,5 +1,7 @@
 //! Generic utilities.
 
+use std::num::ParseIntError;
+
 use crate::error;
 
 /// Trait for integer types that support parsing from strings with a radix.
@@ -10,7 +12,7 @@ pub trait ParseIntRadix: Sized {
     ///
     /// Returns the underlying [`std::num::ParseIntError`] if `s` is empty,
     /// contains invalid digits for `radix`, or overflows this type.
-    fn from_str_radix(s: &str, radix: u32) -> Result<Self, std::num::ParseIntError>;
+    fn from_str_radix(s: &str, radix: u32) -> Result<Self, ParseIntError>;
 
     /// Returns the name of the integer type as a static string.
     fn type_name() -> &'static str;

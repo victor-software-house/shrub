@@ -13,7 +13,9 @@
 //! 3. The unsafe operations are the `fcntl` call that duplicates the number and
 //!    `OwnedFd::from_raw_fd` on the duplicate, in `open_file_by_fd`.
 
-use std::os::fd::RawFd;
+use std::fs::File;
+use std::os::fd::{OwnedFd, RawFd};
+use std::{fs, io};
 
 use crate::{ShellFd, error, openfiles};
 
@@ -60,7 +62,7 @@ cfg_if::cfg_if! {
     target_os = "openbsd"
 ))]
 pub fn try_iter_open_fds() -> impl Iterator<Item = (ShellFd, openfiles::OpenFile)> {
-    std::fs::read_dir(FD_DIR_PATH)
+    fs::read_dir(FD_DIR_PATH)
         .into_iter()
         .flatten()
         .filter_map(Result::ok)
@@ -104,11 +106,11 @@ fn open_file_by_fd(fd: RawFd) -> Result<openfiles::OpenFile, error::Error> {
     // and it neither closes nor changes `fd`, which another owner may hold.
     let duplicate = unsafe { libc::fcntl(fd, libc::F_DUPFD_CLOEXEC, FIRST_DUPLICATE_FD) };
     if duplicate == -1 {
-        return Err(std::io::Error::last_os_error().into());
+        return Err(io::Error::last_os_error().into());
     }
     // SAFETY: `from_raw_fd` requires an open descriptor that nothing else
     // owns. `duplicate` was just returned by `fcntl`, so it is open, and no
     // other code has seen its number.
-    let owned_fd = unsafe { std::os::fd::OwnedFd::from_raw_fd(duplicate) };
-    Ok(std::fs::File::from(owned_fd).into())
+    let owned_fd = unsafe { OwnedFd::from_raw_fd(duplicate) };
+    Ok(File::from(owned_fd).into())
 }

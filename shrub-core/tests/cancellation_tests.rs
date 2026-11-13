@@ -6,10 +6,13 @@
 #![cfg(test)]
 #![allow(clippy::panic_in_result_fn)]
 
+use std::fs;
+use std::iter::empty;
 use std::time::Duration;
 
 use anyhow::Result;
 use shrub_core::traps::TrapSignal;
+use tokio::time;
 
 /// A command that runs until it's cancelled.
 const BLOCK: &str = "/bin/sleep 30";
@@ -26,7 +29,7 @@ async fn new_shell() -> Result<shrub_core::Shell> {
 
 /// Waits on `run` until it's had time to block, then cancels it.
 async fn cancel<T>(run: impl Future<Output = T>) {
-    let finished = tokio::time::timeout(Duration::from_millis(250), run).await;
+    let finished = time::timeout(Duration::from_millis(250), run).await;
     assert!(
         finished.is_err(),
         "the command finished before it was cancelled"
@@ -65,10 +68,10 @@ async fn cancelled_command_drops_its_assignments() -> Result<()> {
 async fn cancelled_sourced_script_is_left() -> Result<()> {
     let mut shell = new_shell().await?;
     let script = tempfile::NamedTempFile::new()?;
-    std::fs::write(script.path(), BLOCK)?;
+    fs::write(script.path(), BLOCK)?;
 
     let params = shell.default_exec_params();
-    cancel(shell.source_script(script.path(), std::iter::empty::<String>(), &params)).await;
+    cancel(shell.source_script(script.path(), empty::<String>(), &params)).await;
 
     assert!(!shell.in_sourced_script());
     assert_eq!(shell.call_stack().script_source_depth(), 0);

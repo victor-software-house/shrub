@@ -9,28 +9,37 @@
 //! 3. The unsafe operations are the two `libc::confstr` calls and the
 //!    `Vec::set_len` that records what the second one wrote, in `confstr`.
 
+use std::borrow::Cow;
+use std::env::SplitPaths;
+use std::ffi::{OsStr, OsString};
+use std::fs::{File, FileType};
 use std::os::unix::ffi::OsStringExt;
 use std::os::unix::fs::FileTypeExt;
 pub use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
+use std::{env, io, ptr};
+
+use nix::unistd::AccessFlags;
+use nix::{libc, unistd};
 
 use crate::error;
+use crate::sys::fs::PathExt;
 
 #[cfg(target_os = "android")]
 // _PATH_DEFPATH in https://android.googlesource.com/platform/bionic/+/refs/heads/main/libc/include/paths.h
 const ANDROID_DEFPATH: &str = "/product/bin:/apex/com.android.runtime/bin:/apex/com.android.art/bin:/apex/com.android.virt/bin:/system_ext/bin:/system/bin:/system/xbin:/odm/bin:/vendor/bin:/vendor/xbin";
 
-impl crate::sys::fs::PathExt for Path {
+impl PathExt for Path {
     fn readable(&self) -> bool {
-        nix::unistd::access(self, nix::unistd::AccessFlags::R_OK).is_ok()
+        unistd::access(self, AccessFlags::R_OK).is_ok()
     }
 
     fn writable(&self) -> bool {
-        nix::unistd::access(self, nix::unistd::AccessFlags::W_OK).is_ok()
+        unistd::access(self, AccessFlags::W_OK).is_ok()
     }
 
     fn executable(&self) -> bool {
-        nix::unistd::access(self, nix::unistd::AccessFlags::X_OK).is_ok()
+        unistd::access(self, AccessFlags::X_OK).is_ok()
     }
 
     fn exists_and_is_block_device(&self) -> bool {
@@ -42,7 +51,7 @@ impl crate::sys::fs::PathExt for Path {
     }
 
     fn exists_and_is_fifo(&self) -> bool {
-        try_get_file_type(self).is_some_and(|ft: std::fs::FileType| ft.is_fifo())
+        try_get_file_type(self).is_some_and(|ft: FileType| ft.is_fifo())
     }
 
     fn exists_and_is_socket(&self) -> bool {
@@ -67,13 +76,13 @@ impl crate::sys::fs::PathExt for Path {
         file_mode.is_some_and(|mode| mode & S_ISVTX != 0)
     }
 
-    fn get_device_and_inode(&self) -> Result<(u64, u64), crate::error::Error> {
+    fn get_device_and_inode(&self) -> Result<(u64, u64), error::Error> {
         let metadata = self.metadata()?;
         Ok((metadata.dev(), metadata.ino()))
     }
 }
 
-fn try_get_file_type(path: &Path) -> Option<std::fs::FileType> {
+fn try_get_file_type(path: &Path) -> Option<FileType> {
     path.metadata().map(|metadata| metadata.file_type()).ok()
 }
 
@@ -84,8 +93,8 @@ fn try_get_file_mode(path: &Path) -> Option<u32> {
 /// Splits a platform-specific PATH-like value into individual paths.
 ///
 /// On Unix, this delegates to [`std::env::split_paths`].
-pub fn split_paths<T: AsRef<std::ffi::OsStr> + ?Sized>(s: &T) -> std::env::SplitPaths<'_> {
-    std::env::split_paths(s)
+pub fn split_paths<T: AsRef<OsStr> + ?Sized>(s: &T) -> SplitPaths<'_> {
+    env::split_paths(s)
 }
 
 pub(crate) fn get_default_executable_search_paths() -> Vec<PathBuf> {
@@ -141,14 +150,14 @@ pub fn get_default_standard_utils_paths() -> Vec<PathBuf> {
 }
 
 #[allow(clippy::unnecessary_wraps)]
-fn confstr_cs_path() -> Result<Option<PathBuf>, std::io::Error> {
+fn confstr_cs_path() -> Result<Option<PathBuf>, io::Error> {
     #[cfg(target_os = "android")]
     {
         Ok(Some(PathBuf::from(ANDROID_DEFPATH)))
     }
     #[cfg(not(target_os = "android"))]
     {
-        let value = confstr(nix::libc::_CS_PATH)?;
+        let value = confstr(libc::_CS_PATH)?;
 
         if let Some(value) = value {
             let value_str = PathBuf::from(value);
@@ -167,11 +176,11 @@ fn confstr_cs_path() -> Result<Option<PathBuf>, std::io::Error> {
 /// way) by nix or similar. Until that exists, we accept the need to make the
 /// unsafe call directly.
 #[cfg(not(target_os = "android"))]
-fn confstr(name: nix::libc::c_int) -> Result<Option<std::ffi::OsString>, std::io::Error> {
+fn confstr(name: libc::c_int) -> Result<Option<OsString>, io::Error> {
     // SAFETY: `confstr` writes at most `len` bytes to `buf`. With `len` 0 it
     // writes nothing, so the null `buf` is never written; it returns the size
     // the value needs, terminator included (POSIX `confstr`).
-    let required_size = unsafe { nix::libc::confstr(name, std::ptr::null_mut(), 0) };
+    let required_size = unsafe { libc::confstr(name, ptr::null_mut(), 0) };
 
     // When confstr returns 0, it either means there's no value associated with
     // _CS_PATH, or _CS_PATH is considered invalid (and not present) on this
@@ -187,11 +196,10 @@ fn confstr(name: nix::libc::c_int) -> Result<Option<std::ffi::OsString>, std::io
     // `buffer`'s allocation, which holds `buffer.capacity()` bytes and lives
     // across the call, and `len` is that capacity. `c_char` is one byte on
     // every platform Rust supports, so the bytes it writes are valid `u8`s.
-    let final_size =
-        unsafe { nix::libc::confstr(name, buffer.as_mut_ptr().cast(), buffer.capacity()) };
+    let final_size = unsafe { libc::confstr(name, buffer.as_mut_ptr().cast(), buffer.capacity()) };
 
     if final_size == 0 {
-        return Err(std::io::Error::last_os_error());
+        return Err(io::Error::last_os_error());
     }
 
     // Per the docs on `confstr`, it *may* return a size larger than the
@@ -199,7 +207,7 @@ fn confstr(name: nix::libc::c_int) -> Result<Option<std::ffi::OsString>, std::io
     // we've first queried the required size. However, we defensively check
     // for this case and return an error if it happens.
     if final_size > buffer.capacity() {
-        return Err(std::io::Error::other(
+        return Err(io::Error::other(
             "confstr needed more space than advertised",
         ));
     }
@@ -212,12 +220,12 @@ fn confstr(name: nix::libc::c_int) -> Result<Option<std::ffi::OsString>, std::io
 
     // The last byte is a null terminator. We assert that it is.
     if !matches!(buffer.pop(), Some(0)) {
-        return Err(std::io::Error::other(
+        return Err(io::Error::other(
             "confstr did not null-terminate the returned string",
         ));
     }
 
-    Ok(Some(std::ffi::OsString::from_vec(buffer)))
+    Ok(Some(OsString::from_vec(buffer)))
 }
 
 /// Opens a null file that will discard all I/O.
@@ -226,11 +234,8 @@ fn confstr(name: nix::libc::c_int) -> Result<Option<std::ffi::OsString>, std::io
 ///
 /// Returns [`crate::error::ErrorKind::IoError`] if `/dev/null` cannot be opened
 /// for reading and writing.
-pub fn open_null_file() -> Result<std::fs::File, error::Error> {
-    let f = std::fs::File::options()
-        .read(true)
-        .write(true)
-        .open("/dev/null")?;
+pub fn open_null_file() -> Result<File, error::Error> {
+    let f = File::options().read(true).write(true).open("/dev/null")?;
 
     Ok(f)
 }
@@ -241,7 +246,7 @@ pub fn open_null_file() -> Result<std::fs::File, error::Error> {
 /// # Errors
 ///
 /// This implementation never returns `Some`, so it reports no error.
-pub const fn try_open_special_file(_path: &Path) -> Option<Result<std::fs::File, std::io::Error>> {
+pub const fn try_open_special_file(_path: &Path) -> Option<Result<File, io::Error>> {
     None
 }
 
@@ -314,15 +319,15 @@ pub fn pattern_path_root(first_component: &str) -> Option<PathBuf> {
 /// Pushes a component onto a path for pattern expansion.
 ///
 /// On Unix, this delegates directly to `PathBuf::push`.
-pub fn push_path_for_pattern(path: &mut std::path::PathBuf, component: &str) {
+pub fn push_path_for_pattern(path: &mut PathBuf, component: &str) {
     path.push(component);
 }
 
 /// Normalizes path separators for shell output.
 ///
 /// On Unix, this is a no-op since paths already use `/`.
-pub const fn normalize_path_separators(s: &str) -> std::borrow::Cow<'_, str> {
-    std::borrow::Cow::Borrowed(s)
+pub const fn normalize_path_separators(s: &str) -> Cow<'_, str> {
+    Cow::Borrowed(s)
 }
 
 /// Resolves an owned path to the actual on-disk executable file, if any.

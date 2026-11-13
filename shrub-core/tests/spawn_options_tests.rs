@@ -17,6 +17,9 @@
 #![allow(clippy::panic_in_result_fn, clippy::expect_used)]
 
 use std::ffi::CString;
+use std::fs;
+use std::fs::File;
+use std::io::ErrorKind;
 use std::os::fd::AsRawFd as _;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
@@ -24,8 +27,11 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
+use nix::sys::resource;
 use nix::sys::resource::{RLIM_INFINITY, Resource, rlim_t};
+use nix::unistd;
 use shrub_core::options::{PidsLimit, SpawnOptions, SpawnedProcess};
+use tokio::time;
 
 /// How long the background process of a script may take to start and write
 /// its pid.
@@ -62,9 +68,9 @@ async fn run(shell: &mut shrub_core::Shell, script: &str) -> Result<shrub_core::
 }
 
 fn pids(path: &Path) -> Result<Vec<i32>> {
-    let text = match std::fs::read_to_string(path) {
+    let text = match fs::read_to_string(path) {
         Ok(text) => text,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(error) if error.kind() == ErrorKind::NotFound => String::new(),
         Err(error) => return Err(error.into()),
     };
     Ok(text.lines().map(str::parse).collect::<Result<_, _>>()?)
@@ -99,7 +105,7 @@ async fn the_observer_sees_every_external_process_with_its_pid() -> Result<()> {
 
     let began = Instant::now();
     while pids(&file)?.len() < 4 && began.elapsed() < BACKGROUND_WAIT {
-        tokio::time::sleep(Duration::from_millis(10)).await;
+        time::sleep(Duration::from_millis(10)).await;
     }
     let mut printed = pids(&file)?;
     let mut observed: Vec<i32> = seen
@@ -186,7 +192,7 @@ async fn each_child_writes_zero_to_the_join_file_before_its_program_runs() -> Re
     let dir = tempfile::tempdir()?;
     let procs = dir.path().join("cgroup.procs");
     let seen = dir.path().join("seen");
-    std::fs::write(&procs, "x")?;
+    fs::write(&procs, "x")?;
     let mut shell = new_shell(SpawnOptions {
         cgroup_procs: Some(join_file(&procs)),
         ..SpawnOptions::default()
@@ -199,7 +205,7 @@ async fn each_child_writes_zero_to_the_join_file_before_its_program_runs() -> Re
     let result = run(&mut shell, &script).await?;
 
     assert!(result.is_success());
-    assert_eq!(std::fs::read_to_string(&seen)?, "0");
+    assert_eq!(fs::read_to_string(&seen)?, "0");
 
     Ok(())
 }
@@ -274,12 +280,12 @@ async fn child_open_file_limit(limit: u64) -> Result<String> {
     let result = run(&mut shell, &script).await?;
 
     assert!(result.is_success());
-    Ok(std::fs::read_to_string(&out)?.trim().to_owned())
+    Ok(fs::read_to_string(&out)?.trim().to_owned())
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn each_child_gets_the_open_file_limit() -> Result<()> {
-    let (soft, hard) = nix::sys::resource::getrlimit(Resource::RLIMIT_NOFILE)?;
+    let (soft, hard) = resource::getrlimit(Resource::RLIMIT_NOFILE)?;
     // Below this process's own limit, so the child's limit has changed.
     let limit = limit_u64(soft.min(hard))?.min(OPEN_FILE_LIMIT) - 1;
 
@@ -290,7 +296,7 @@ async fn each_child_gets_the_open_file_limit() -> Result<()> {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn an_open_file_limit_above_the_hard_limit_sets_the_hard_limit() -> Result<()> {
-    let (_, hard) = nix::sys::resource::getrlimit(Resource::RLIMIT_NOFILE)?;
+    let (_, hard) = resource::getrlimit(Resource::RLIMIT_NOFILE)?;
     // An unlimited hard limit has nothing above it.
     if hard == RLIM_INFINITY {
         return Ok(());
@@ -333,7 +339,7 @@ async fn child_process_limits(limit: u64) -> Result<(String, String)> {
     let result = run(&mut shell, &script).await?;
 
     assert!(result.is_success());
-    let limits = std::fs::read_to_string(&out)?;
+    let limits = fs::read_to_string(&out)?;
     let line = limits
         .lines()
         .find_map(|line| line.strip_prefix("Max processes"))
@@ -347,7 +353,7 @@ async fn child_process_limits(limit: u64) -> Result<(String, String)> {
 #[cfg(target_os = "linux")]
 #[tokio::test(flavor = "multi_thread")]
 async fn each_child_gets_the_process_limit_as_its_soft_and_hard_limit() -> Result<()> {
-    let (soft, hard) = nix::sys::resource::getrlimit(Resource::RLIMIT_NPROC)?;
+    let (soft, hard) = resource::getrlimit(Resource::RLIMIT_NPROC)?;
     // Below this process's own limit, so the child's limits have changed.
     let limit = if soft.min(hard) == RLIM_INFINITY {
         PROCESS_LIMIT
@@ -368,7 +374,7 @@ async fn each_child_gets_the_process_limit_as_its_soft_and_hard_limit() -> Resul
 #[cfg(target_os = "linux")]
 #[tokio::test(flavor = "multi_thread")]
 async fn a_child_at_its_process_limit_cannot_fork() -> Result<()> {
-    if nix::unistd::geteuid().is_root() {
+    if unistd::geteuid().is_root() {
         return Ok(());
     }
     let dir = tempfile::tempdir()?;
@@ -386,16 +392,16 @@ async fn a_child_at_its_process_limit_cannot_fork() -> Result<()> {
     let result = run(&mut shell, &script).await?;
 
     assert!(!result.is_success(), "the child's shell forked");
-    assert_eq!(std::fs::read_to_string(&out)?, "");
+    assert_eq!(fs::read_to_string(&out)?, "");
 
     Ok(())
 }
 
 /// A file standing in for a cgroup's `pids.current`, holding `content`.
-fn pids_current(dir: &Path, name: &str, content: &str) -> Result<Arc<std::fs::File>> {
+fn pids_current(dir: &Path, name: &str, content: &str) -> Result<Arc<File>> {
     let path = dir.join(name);
-    std::fs::write(&path, content)?;
-    Ok(Arc::new(std::fs::File::open(path)?))
+    fs::write(&path, content)?;
+    Ok(Arc::new(File::open(path)?))
 }
 
 /// Runs `touch` in a shell with `limits`, and returns its exit status and
@@ -463,7 +469,7 @@ async fn a_redirection_onto_a_count_descriptor_does_not_change_the_count_read() 
     let current = pids_current(dir.path(), "session", "6\n")?;
     let fd = current.as_raw_fd();
     let zero = dir.path().join("zero");
-    std::fs::write(&zero, "0\n")?;
+    fs::write(&zero, "0\n")?;
 
     // The redirection reaches the child at the count descriptor's number.
     let out = dir.path().join("out");
@@ -474,7 +480,7 @@ async fn a_redirection_onto_a_count_descriptor_does_not_change_the_count_read() 
         out.display()
     );
     assert!(run(&mut plain, &script).await?.is_success());
-    assert_eq!(std::fs::read_to_string(&out)?, "0\n");
+    assert_eq!(fs::read_to_string(&out)?, "0\n");
 
     // The check still reads the count, not the redirected file.
     let marker = dir.path().join("marker");

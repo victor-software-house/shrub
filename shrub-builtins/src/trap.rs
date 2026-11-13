@@ -2,7 +2,7 @@ use std::io::Write;
 
 use clap::Parser;
 use shrub_core::traps::TrapSignal;
-use shrub_core::{ExecutionResult, builtins};
+use shrub_core::{ExecutionResult, builtins, traps};
 
 /// Manage signal traps.
 #[derive(Parser)]
@@ -26,7 +26,7 @@ impl builtins::Command for TrapCommand {
         mut context: shrub_core::ExecutionContext<'_, SE>,
     ) -> Result<ExecutionResult, Self::Error> {
         if self.list_signals {
-            shrub_core::traps::format_signals(context.stdout(), TrapSignal::iterator())
+            traps::format_signals(context.stdout(), TrapSignal::iterator())
                 .map(|()| ExecutionResult::success())
         } else if self.print_trap_commands || self.args.is_empty() {
             if !self.args.is_empty() {

@@ -1,9 +1,10 @@
 //! Trap handling for the shell.
 
+use crate::extensions::ShellExtensions;
 use crate::traps::TrapSignal;
 use crate::{ExecutionParameters, ExecutionResult, ProcessGroupPolicy, error};
 
-impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
+impl<SE: ShellExtensions> crate::Shell<SE> {
     /// Runs any exit steps for the shell.
     ///
     /// This currently includes invoking the `EXIT` trap handler, if any.

@@ -1,7 +1,9 @@
 //! Defines the Abstract Syntax Tree (ast) for shell programs. Includes types
 //! and utilities for manipulating the AST.
 
-use std::fmt::{Display, Write};
+use std::fmt;
+use std::fmt::{Display, Formatter, Write};
+use std::slice::Iter;
 
 use crate::{SourceSpan, tokenizer};
 
@@ -57,7 +59,7 @@ impl SourceLocation for Program {
 }
 
 impl Display for Program {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         for complete_command in &self.complete_commands {
             write!(f, "{complete_command}")?;
         }
@@ -89,7 +91,7 @@ pub enum SeparatorOperator {
 }
 
 impl Display for SeparatorOperator {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Async => write!(f, "&"),
             Self::Sequence => write!(f, ";"),
@@ -131,7 +133,7 @@ impl SourceLocation for AndOrList {
 }
 
 impl Display for AndOrList {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.first)?;
         for item in &self.additional {
             write!(f, "{item}")?;
@@ -174,7 +176,7 @@ impl Into<PipelineOperator> for AndOr {
 /// An iterator over the pipelines in an [`AndOrList`].
 pub struct AndOrListIter<'a> {
     first: Option<&'a Pipeline>,
-    additional_iter: std::slice::Iter<'a, AndOr>,
+    additional_iter: Iter<'a, AndOr>,
 }
 
 impl<'a> Iterator for AndOrListIter<'a> {
@@ -250,7 +252,7 @@ impl SourceLocation for AndOr {
 }
 
 impl Display for AndOr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::And(pipeline) => write!(f, " && {pipeline}"),
             Self::Or(pipeline) => write!(f, " || {pipeline}"),
@@ -284,7 +286,7 @@ impl SourceLocation for PipelineTimed {
 }
 
 impl Display for PipelineTimed {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Timed(_) => write!(f, "time"),
             Self::TimedWithPosixOutput(_) => write!(f, "time -p"),
@@ -344,7 +346,7 @@ impl SourceLocation for Pipeline {
 }
 
 impl Display for Pipeline {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         if let Some(timed) = &self.timed {
             write!(f, "{timed} ")?;
         }
@@ -398,7 +400,7 @@ impl SourceLocation for Command {
 }
 
 impl Display for Command {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Simple(simple_command) => write!(f, "{simple_command}"),
             Self::Compound(compound_command, redirect_list) => {
@@ -469,7 +471,7 @@ impl SourceLocation for CompoundCommand {
 }
 
 impl Display for CompoundCommand {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Arithmetic(arithmetic_command) => write!(f, "{arithmetic_command}"),
             Self::ArithmeticForClause(arithmetic_for_clause_command) => {
@@ -523,7 +525,7 @@ impl SourceLocation for ArithmeticCommand {
 }
 
 impl Display for ArithmeticCommand {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "(({}))", self.expr)
     }
 }
@@ -551,7 +553,7 @@ impl SourceLocation for SubshellCommand {
 }
 
 impl Display for SubshellCommand {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "( ")?;
         write!(f, "{}", self.list)?;
         write!(f, " )")
@@ -585,7 +587,7 @@ impl SourceLocation for ForClauseCommand {
 }
 
 impl Display for ForClauseCommand {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "for {} in ", self.variable_name)?;
 
         if let Some(values) = &self.values {
@@ -635,7 +637,7 @@ impl SourceLocation for ArithmeticForClauseCommand {
 }
 
 impl Display for ArithmeticForClauseCommand {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "for ((")?;
 
         if let Some(initializer) = &self.initializer {
@@ -686,7 +688,7 @@ impl SourceLocation for CaseClauseCommand {
 }
 
 impl Display for CaseClauseCommand {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         // Note the trailing space, which the shell emits when printing a case
         // clause.
         write!(f, "case {} in ", self.value)?;
@@ -731,11 +733,7 @@ impl CompoundList {
         TerminatedCompoundList(self)
     }
 
-    fn fmt_items(
-        &self,
-        f: &mut std::fmt::Formatter<'_>,
-        keep_trailing_separator: bool,
-    ) -> std::fmt::Result {
+    fn fmt_items(&self, f: &mut Formatter<'_>, keep_trailing_separator: bool) -> fmt::Result {
         for (i, item) in self.0.iter().enumerate() {
             if i > 0 {
                 writeln!(f)?;
@@ -759,7 +757,7 @@ impl CompoundList {
 }
 
 impl Display for CompoundList {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.fmt_items(f, false)
     }
 }
@@ -767,7 +765,7 @@ impl Display for CompoundList {
 struct TerminatedCompoundList<'a>(&'a CompoundList);
 
 impl Display for TerminatedCompoundList<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.0.fmt_items(f, true)
     }
 }
@@ -791,7 +789,7 @@ impl SourceLocation for CompoundListItem {
 }
 
 impl Display for CompoundListItem {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)?;
         write!(f, "{}", self.1)?;
         Ok(())
@@ -830,7 +828,7 @@ impl SourceLocation for IfClauseCommand {
 }
 
 impl Display for IfClauseCommand {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         writeln!(f, "if {}; then", self.condition)?;
         write!(
             indenter::indented(f).with_str(DISPLAY_INDENT),
@@ -870,7 +868,7 @@ pub struct ElseClause {
 }
 
 impl Display for ElseClause {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         writeln!(f)?;
         if let Some(condition) = &self.condition {
             writeln!(f, "elif {condition}; then")?;
@@ -916,7 +914,7 @@ impl SourceLocation for CoprocessCommand {
 }
 
 impl Display for CoprocessCommand {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "coproc")?;
         if let Some(name) = &self.name {
             write!(f, " {name}")?;
@@ -954,7 +952,7 @@ impl SourceLocation for CaseItem {
 }
 
 impl Display for CaseItem {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         writeln!(f)?;
         for (i, pattern) in self.patterns.iter().enumerate() {
             if i > 0 {
@@ -994,7 +992,7 @@ pub enum CaseItemPostAction {
 }
 
 impl Display for CaseItemPostAction {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::ExitCase => write!(f, ";;"),
             Self::UnconditionallyExecuteNextCaseItem => write!(f, ";&"),
@@ -1021,7 +1019,7 @@ impl SourceLocation for WhileOrUntilClauseCommand {
 }
 
 impl Display for WhileOrUntilClauseCommand {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}; {}", self.0, self.1)
     }
 }
@@ -1058,7 +1056,7 @@ impl SourceLocation for FunctionDefinition {
 }
 
 impl Display for FunctionDefinition {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         writeln!(f, "{} () ", self.fname.value)?;
         write!(f, "{}", self.body)?;
         Ok(())
@@ -1094,7 +1092,7 @@ impl SourceLocation for FunctionBody {
 }
 
 impl Display for FunctionBody {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)?;
         if let Some(redirect_list) = &self.1 {
             write!(f, "{redirect_list}")?;
@@ -1127,7 +1125,7 @@ impl SourceLocation for BraceGroupCommand {
 }
 
 impl Display for BraceGroupCommand {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         writeln!(f, "{{ ")?;
         write!(
             indenter::indented(f).with_str(DISPLAY_INDENT),
@@ -1156,7 +1154,7 @@ pub struct DoGroupCommand {
 }
 
 impl Display for DoGroupCommand {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         writeln!(f, "do")?;
         write!(
             indenter::indented(f).with_str(DISPLAY_INDENT),
@@ -1219,7 +1217,7 @@ impl SourceLocation for SimpleCommand {
 }
 
 impl Display for SimpleCommand {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut wrote_something = false;
 
         if let Some(prefix) = &self.prefix {
@@ -1273,7 +1271,7 @@ impl SourceLocation for CommandPrefix {
 }
 
 impl Display for CommandPrefix {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         for (i, item) in self.0.iter().enumerate() {
             if i > 0 {
                 write!(f, " ")?;
@@ -1307,7 +1305,7 @@ impl SourceLocation for CommandSuffix {
 }
 
 impl Display for CommandSuffix {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         for (i, item) in self.0.iter().enumerate() {
             if i > 0 {
                 write!(f, " ")?;
@@ -1334,7 +1332,7 @@ pub enum ProcessSubstitutionKind {
 }
 
 impl Display for ProcessSubstitutionKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Read => write!(f, "<"),
             Self::Write => write!(f, ">"),
@@ -1375,7 +1373,7 @@ impl SourceLocation for CommandPrefixOrSuffixItem {
 }
 
 impl Display for CommandPrefixOrSuffixItem {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::IoRedirect(io_redirect) => write!(f, "{io_redirect}"),
             Self::Word(word) => write!(f, "{word}"),
@@ -1419,7 +1417,7 @@ impl SourceLocation for Assignment {
 }
 
 impl Display for Assignment {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.name)?;
         if self.append {
             write!(f, "+")?;
@@ -1454,7 +1452,7 @@ impl AssignmentName {
 }
 
 impl Display for AssignmentName {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::VariableName(name) => write!(f, "{name}"),
             Self::ArrayElementName(name, index) => {
@@ -1496,7 +1494,7 @@ impl SourceLocation for AssignmentValue {
 }
 
 impl Display for AssignmentValue {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Scalar(word) => write!(f, "{word}"),
             Self::Array(words) => {
@@ -1536,7 +1534,7 @@ impl SourceLocation for RedirectList {
 }
 
 impl Display for RedirectList {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         for item in &self.0 {
             write!(f, "{item}")?;
         }
@@ -1576,7 +1574,7 @@ impl SourceLocation for IoRedirect {
 }
 
 impl Display for IoRedirect {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::File(fd_num, kind, target) => {
                 if let Some(fd_num) = fd_num {
@@ -1637,7 +1635,7 @@ pub enum IoFileRedirectKind {
 }
 
 impl Display for IoFileRedirectKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Read => write!(f, "<"),
             Self::Write => write!(f, ">"),
@@ -1672,7 +1670,7 @@ pub enum IoFileRedirectTarget {
 }
 
 impl Display for IoFileRedirectTarget {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Filename(word) => write!(f, "{word}"),
             Self::Fd(fd) => write!(f, "{fd}"),
@@ -1720,7 +1718,7 @@ impl SourceLocation for IoHereDocument {
 }
 
 impl Display for IoHereDocument {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         if self.remove_tabs {
             write!(f, "-")?;
         }
@@ -1768,7 +1766,7 @@ impl SourceLocation for TestExpr {
 }
 
 impl Display for TestExpr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::False => Ok(()),
             Self::Literal(s) => write!(f, "{s}"),
@@ -1805,7 +1803,7 @@ pub enum ExtendedTestExpr {
 }
 
 impl Display for ExtendedTestExpr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::And(left, right) => {
                 write!(f, "{left} && {right}")
@@ -1852,7 +1850,7 @@ impl SourceLocation for ExtendedTestExprCommand {
 }
 
 impl Display for ExtendedTestExprCommand {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.expr.fmt(f)
     }
 }
@@ -1926,7 +1924,7 @@ pub enum UnaryPredicate {
 }
 
 impl Display for UnaryPredicate {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::FileExists => write!(f, "-e"),
             Self::FileExistsAndIsBlockSpecialFile => write!(f, "-b"),
@@ -2007,7 +2005,7 @@ pub enum BinaryPredicate {
 }
 
 impl Display for BinaryPredicate {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::FilesReferToSameDeviceAndInodeNumbers => write!(f, "-ef"),
             Self::LeftFileIsNewerOrExistsWhenRightDoesNot => write!(f, "-nt"),
@@ -2053,7 +2051,7 @@ impl SourceLocation for Word {
 }
 
 impl Display for Word {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.value)
     }
 }
@@ -2124,7 +2122,7 @@ pub struct UnexpandedArithmeticExpr {
 }
 
 impl Display for UnexpandedArithmeticExpr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.value)
     }
 }
@@ -2213,7 +2211,7 @@ impl<'a> arbitrary::Arbitrary<'a> for ArithmeticExpr {
 }
 
 impl Display for ArithmeticExpr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Literal(literal) => write!(f, "{literal}"),
             Self::Reference(target) => write!(f, "{target}"),
@@ -2293,7 +2291,7 @@ pub enum BinaryOperator {
 }
 
 impl Display for BinaryOperator {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Power => write!(f, "**"),
             Self::Multiply => write!(f, "*"),
@@ -2338,7 +2336,7 @@ pub enum UnaryOperator {
 }
 
 impl Display for UnaryOperator {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::UnaryPlus => write!(f, "+"),
             Self::UnaryMinus => write!(f, "-"),
@@ -2367,7 +2365,7 @@ pub enum UnaryAssignmentOperator {
 }
 
 impl Display for UnaryAssignmentOperator {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::PrefixIncrement => write!(f, "++"),
             Self::PrefixDecrement => write!(f, "--"),
@@ -2401,7 +2399,7 @@ impl SourceLocation for ArithmeticTarget {
 }
 
 impl Display for ArithmeticTarget {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Variable(name) => write!(f, "{name}"),
             Self::ArrayElement(name, index) => write!(f, "{name}[{index}]"),

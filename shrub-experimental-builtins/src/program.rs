@@ -1,4 +1,5 @@
 use std::io::Write;
+use std::iter;
 
 use shrub_core::openfiles::{OpenFile, OpenFiles};
 use shrub_core::{ExecutionResult, commands};
@@ -20,7 +21,7 @@ pub(crate) async fn run_program(
     // A name with a `/` is run as that file, so no builtin or function of
     // the same name answers it.
     let command_name = program.to_string_lossy().into_owned();
-    let words = std::iter::once(command_name.clone())
+    let words = iter::once(command_name.clone())
         .chain(args.iter().cloned())
         .map(shrub_core::CommandArg::from);
     let mut params = context.params.clone();

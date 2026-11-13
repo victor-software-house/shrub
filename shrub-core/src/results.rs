@@ -1,7 +1,9 @@
 //! Encapsulation of execution results.
 
+use std::os::raw;
 #[cfg(unix)] // ast-grep-ignore: platform-cfg-outside-sys
 use std::os::unix::process::ExitStatusExt;
+use std::process::Output;
 
 use crate::{error, processes, tasks};
 
@@ -31,7 +33,7 @@ impl ExecutionResult {
     pub fn stopped() -> Self {
         // TODO(jobs): Decide how to sort this out in a platform-independent
         // way.
-        const SIGTSTP: std::os::raw::c_int = 20;
+        const SIGTSTP: raw::c_int = 20;
 
         #[expect(clippy::cast_possible_truncation)]
         Self::new(128 + SIGTSTP as u8)
@@ -115,8 +117,8 @@ impl From<ExecutionWaitResult> for ExecutionResult {
     }
 }
 
-impl From<std::process::Output> for ExecutionResult {
-    fn from(output: std::process::Output) -> Self {
+impl From<Output> for ExecutionResult {
+    fn from(output: Output) -> Self {
         if let Some(code) = output.status.code() {
             #[expect(clippy::cast_sign_loss)]
             return Self::new((code & 0xff) as u8);

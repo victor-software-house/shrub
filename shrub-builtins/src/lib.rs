@@ -208,22 +208,18 @@ mod factory;
 mod lookup;
 mod unimp;
 
+use std::io;
+use std::io::Write;
+
 pub use builder::ShellBuilderExt;
 pub use factory::{BuiltinSet, default_builtins};
+use shrub_core::escape;
 
 /// Writes an alias definition in the reusable form printed by `alias` and
 /// `command -v`.
 #[cfg(any(feature = "builtin.alias", feature = "builtin.command"))]
-fn write_alias_definition(
-    mut writer: impl std::io::Write,
-    name: &str,
-    value: &str,
-) -> std::io::Result<()> {
-    writeln!(
-        writer,
-        "alias {name}={}",
-        shrub_core::escape::single_quote(value)
-    )
+fn write_alias_definition(mut writer: impl Write, name: &str, value: &str) -> io::Result<()> {
+    writeln!(writer, "alias {name}={}", escape::single_quote(value))
 }
 
 /// Macro to define a struct that represents a shell built-in flag argument that

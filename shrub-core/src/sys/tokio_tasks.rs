@@ -1,6 +1,11 @@
 //! Tasks run on tokio's runtime.
 
+use std::future;
+
 use futures::FutureExt as _;
+use tokio::runtime::Handle;
+use tokio::task;
+use tokio::task::JoinError;
 
 use crate::error;
 use crate::tasks::TaskHandle;
@@ -34,19 +39,20 @@ where
     F: Future + Send + 'static,
     F::Output: Send + 'static,
 {
-    let handle =
-        tokio::task::spawn_blocking(move || tokio::runtime::Handle::current().block_on(future));
+    let handle = task::spawn_blocking(move || Handle::current().block_on(future));
     let task = TaskHandle::from_future(handle.map(|r| r.map_err(join_error)));
-    std::future::ready(task)
+    future::ready(task)
 }
 
-fn join_error(err: tokio::task::JoinError) -> error::Error {
+fn join_error(err: JoinError) -> error::Error {
     error::ErrorKind::TaskError(Box::new(err)).into()
 }
 
 #[cfg(test)]
 #[allow(clippy::panic_in_result_fn, reason = "assertions in a fallible test")]
 mod tests {
+    use std::panic;
+    use std::sync::mpsc;
     use std::time::Duration;
 
     use super::*;
@@ -63,7 +69,7 @@ mod tests {
 
     /// Unwinds the way a panic does, without printing a panic message.
     fn unwind() {
-        std::panic::resume_unwind(Box::new("task unwound"));
+        panic::resume_unwind(Box::new("task unwound"));
     }
 
     #[tokio::test]
@@ -94,7 +100,7 @@ mod tests {
     /// task here blocks until the caller signals it.
     #[tokio::test]
     async fn spawn_blocking_does_not_hold_up_the_caller() -> Result<(), error::Error> {
-        let (sender, receiver) = std::sync::mpsc::channel();
+        let (sender, receiver) = mpsc::channel();
         let task = spawn_blocking(async move { receiver.recv_timeout(TIMEOUT).is_ok() }).await;
 
         // If the task held up the caller, it has given up by now and dropped

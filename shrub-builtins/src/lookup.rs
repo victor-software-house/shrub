@@ -1,5 +1,6 @@
 //! Shared command-name resolution, used by the `type` and `command` builtins.
 
+use std::io;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -142,7 +143,7 @@ pub(crate) fn describe(
     mut writer: impl Write,
     name: &str,
     resolved: &Resolved<'_>,
-) -> std::io::Result<()> {
+) -> io::Result<()> {
     match resolved {
         Resolved::Alias(target) => writeln!(writer, "{name} is aliased to `{target}'"),
         Resolved::Keyword => writeln!(writer, "{name} is a shell keyword"),

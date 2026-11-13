@@ -1,7 +1,9 @@
 //! Keys: decoding them from the bytes a terminal sends, and encoding them back.
 
 use std::collections::VecDeque;
+use std::io::ErrorKind;
 use std::time::Duration;
+use std::{io, str};
 
 use shrub_core::interfaces::{Key, KeyStroke};
 
@@ -59,7 +61,7 @@ pub(crate) struct KeyReader {
 impl KeyReader {
     /// Returns the next key, waiting for one if need be; `None` at the end of
     /// input.
-    pub fn next(&mut self, terminal: &mut impl Terminal) -> std::io::Result<Option<Keypress>> {
+    pub fn next(&mut self, terminal: &mut impl Terminal) -> io::Result<Option<Keypress>> {
         loop {
             if let Some(key) = self.queued.pop_front() {
                 return Ok(Some(key));
@@ -82,7 +84,7 @@ impl KeyReader {
             let mut bytes = [0; 256];
             let count = loop {
                 match terminal.read(&mut bytes) {
-                    Err(err) if err.kind() == std::io::ErrorKind::Interrupted => {}
+                    Err(err) if err.kind() == ErrorKind::Interrupted => {}
                     result => break result?,
                 }
             };
@@ -99,7 +101,7 @@ impl KeyReader {
         &mut self,
         terminal: &mut impl Terminal,
         timeout: Duration,
-    ) -> std::io::Result<Option<Keypress>> {
+    ) -> io::Result<Option<Keypress>> {
         if self.queued.is_empty() && self.pending.is_empty() && !terminal.wait_for_input(timeout)? {
             return Ok(None);
         }
@@ -186,7 +188,7 @@ fn decode_char(bytes: &[u8]) -> Option<(char, usize)> {
         return Some((char::REPLACEMENT_CHARACTER, 1));
     }
     let encoded = bytes.get(..len)?;
-    match std::str::from_utf8(encoded) {
+    match str::from_utf8(encoded) {
         Ok(s) => s.chars().next().map(|c| (c, len)),
         Err(_) => Some((char::REPLACEMENT_CHARACTER, 1)),
     }
@@ -230,7 +232,7 @@ fn decode_csi(bytes: &[u8], more_coming: bool) -> Option<(Option<KeyStroke>, usi
         return alt_bracket();
     }
 
-    let params = std::str::from_utf8(body.get(..final_index)?).unwrap_or_default();
+    let params = str::from_utf8(body.get(..final_index)?).unwrap_or_default();
     let mut params = params.split(';').map(|p| p.parse::<u32>().ok());
     let number = params.next().flatten();
     // A modifier, if present, is the second parameter (e.g., `ESC [ 1 ; 5 C`):

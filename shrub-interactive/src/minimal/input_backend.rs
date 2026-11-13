@@ -1,7 +1,8 @@
+use std::io;
 use std::io::{BufRead, IsTerminal, Write};
 
 use crate::input_backend::{InteractivePrompt, ReadResult};
-use crate::{InputBackend, ShellError};
+use crate::{InputBackend, ShellError, completeness};
 
 /// Represents a minimal shell input backend, capable of taking commands from
 /// standard input.
@@ -18,10 +19,10 @@ impl InputBackend for MinimalInputBackend {
         shell_ref: &crate::ShellRef<impl shrub_core::ShellExtensions>,
         prompt: InteractivePrompt,
     ) -> Result<ReadResult, ShellError> {
-        let stdin = std::io::stdin();
+        let stdin = io::stdin();
         let prompt = stdin.is_terminal().then_some(&prompt);
 
-        Self::read_program_from(shell_ref, prompt, &mut stdin.lock(), &mut std::io::stderr())
+        Self::read_program_from(shell_ref, prompt, &mut stdin.lock(), &mut io::stderr())
     }
 }
 
@@ -66,7 +67,7 @@ impl MinimalInputBackend {
 
             result.push_str(line.as_str());
 
-            if !crate::completeness::needs_more_input(shell_ref, result.as_str()) {
+            if !completeness::needs_more_input(shell_ref, result.as_str()) {
                 break;
             }
         }
@@ -94,10 +95,12 @@ mod tests {
     use std::io::Cursor;
     use std::sync::Arc;
 
+    use tokio::sync::Mutex;
+
     use super::*;
 
     async fn test_shell_ref() -> crate::ShellRef {
-        Arc::new(tokio::sync::Mutex::new(
+        Arc::new(Mutex::new(
             shrub_core::Shell::builder().build().await.unwrap(),
         ))
     }

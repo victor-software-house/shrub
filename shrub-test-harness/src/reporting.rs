@@ -1,13 +1,16 @@
 //! Reporting utilities for test results.
 
+use std::io;
 use std::io::Write;
+use std::time::Duration;
 
 use anyhow::Result;
 use colored::Colorize;
 
 use crate::comparison::{
     DirComparison, DirComparisonEntry, ExitStatusComparison, ExpectationComparison,
-    OracleComparison, SingleExpectationComparison, StringComparison, TestComparison,
+    OracleComparison, SingleExpectationComparison, SnapshotResult, StringComparison,
+    TestComparison,
 };
 use crate::config::{OutputFormat, TestOptions};
 use crate::util::{make_expectrl_output_readable, write_diff};
@@ -33,7 +36,7 @@ impl TestCaseResult {
     ///
     /// Returns an error when writing to standard error fails.
     pub fn report_pretty(&self, options: &TestOptions) -> Result<()> {
-        self.write_details(std::io::stderr(), options)
+        self.write_details(io::stderr(), options)
     }
 
     /// Writes the details of this result to a writer.
@@ -366,10 +369,10 @@ impl TestCaseResult {
         if expectation.snapshot_used {
             if let Some(result) = &expectation.snapshot_result {
                 match result {
-                    crate::comparison::SnapshotResult::Matches => {
+                    SnapshotResult::Matches => {
                         writeln!(writer, "      snapshot matches {}", "✔️".green())?;
                     }
-                    crate::comparison::SnapshotResult::Differs { message } => {
+                    SnapshotResult::Differs { message } => {
                         writeln!(
                             writer,
                             "      snapshot {}: {}",
@@ -402,7 +405,7 @@ pub struct TestCaseSetResults {
     /// Individual test case results.
     pub test_case_results: Vec<TestCaseResult>,
     /// Total duration comparison for successful tests.
-    pub success_duration: std::time::Duration,
+    pub success_duration: Duration,
 }
 
 impl TestCaseSetResults {
@@ -412,7 +415,7 @@ impl TestCaseSetResults {
     ///
     /// Returns an error when writing to standard error fails.
     pub fn report_pretty(&self, options: &TestOptions) -> Result<()> {
-        self.write_details(std::io::stderr(), options)
+        self.write_details(io::stderr(), options)
     }
 
     fn write_details<W: Write>(&self, mut writer: W, options: &TestOptions) -> Result<()> {
@@ -498,8 +501,8 @@ fn report_results_junit(results: Vec<TestCaseSetResults>, options: &TestOptions)
         report.add_testsuite(suite);
     }
 
-    report.write_xml(std::io::stdout())?;
-    writeln!(std::io::stdout())?;
+    report.write_xml(io::stdout())?;
+    writeln!(io::stdout())?;
 
     Ok(())
 }

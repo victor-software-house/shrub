@@ -6,6 +6,7 @@
 #![cfg(all(feature = "builtin.ls", feature = "builtin.tree"))]
 #![allow(clippy::panic_in_result_fn)]
 
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -49,7 +50,7 @@ async fn output(listed: &Path, command: &str) -> Result<Vec<String>> {
         .run_string(&script, &shrub_core::SourceInfo::default(), &params)
         .await?;
     assert!(result.is_success(), "{command} failed");
-    let text = std::fs::read_to_string(out.path())?;
+    let text = fs::read_to_string(out.path())?;
     Ok(text.lines().map(str::to_owned).collect())
 }
 
@@ -66,7 +67,7 @@ async fn ls_prints_the_listers_lines_for_a_directory_it_answers_for() -> Result<
 async fn ls_hands_any_other_directory_to_the_ls_program() -> Result<()> {
     let listed = tempfile::tempdir()?;
     let other = tempfile::tempdir()?;
-    std::fs::write(other.path().join("plain.txt"), "")?;
+    fs::write(other.path().join("plain.txt"), "")?;
     let command = format!("PATH=/bin:/usr/bin; ls '{}'", other.path().display());
     let lines = output(listed.path(), &command).await?;
     assert_eq!(lines, ["plain.txt"]);
@@ -95,7 +96,7 @@ async fn tree_prints_the_listers_lines_and_a_count() -> Result<()> {
 async fn ls_lists_mixed_operands_in_order_each_under_its_header() -> Result<()> {
     let listed = tempfile::tempdir()?;
     let other = tempfile::tempdir()?;
-    std::fs::write(other.path().join("plain.txt"), "")?;
+    fs::write(other.path().join("plain.txt"), "")?;
     let command = format!(
         "PATH=/bin:/usr/bin; ls '{}' '{}'",
         other.path().display(),

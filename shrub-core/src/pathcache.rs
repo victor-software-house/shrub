@@ -1,5 +1,6 @@
 //! Path cache
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use crate::{error, variables};
@@ -9,7 +10,7 @@ use crate::{error, variables};
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PathCache {
     /// The cache itself.
-    cache: std::collections::HashMap<String, PathBuf>,
+    cache: HashMap<String, PathBuf>,
 }
 
 impl PathCache {

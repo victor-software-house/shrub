@@ -1,13 +1,16 @@
 //! Command timing
 
+use std::time::{Duration, SystemTime};
+
 use crate::error;
+use crate::sys::resource;
 
 struct StopwatchTime {
-    now: std::time::SystemTime,
-    self_user: std::time::Duration,
-    self_system: std::time::Duration,
-    children_user: std::time::Duration,
-    children_system: std::time::Duration,
+    now: SystemTime,
+    self_user: Duration,
+    self_system: Duration,
+    children_user: Duration,
+    children_system: Duration,
 }
 
 impl StopwatchTime {
@@ -43,9 +46,9 @@ impl Stopwatch {
     }
 }
 pub(crate) struct StopwatchTiming {
-    pub wall: std::time::Duration,
-    pub user: std::time::Duration,
-    pub system: std::time::Duration,
+    pub wall: Duration,
+    pub user: Duration,
+    pub system: Duration,
 }
 
 pub(crate) fn start_timing() -> Result<Stopwatch, error::Error> {
@@ -55,10 +58,9 @@ pub(crate) fn start_timing() -> Result<Stopwatch, error::Error> {
 }
 
 fn get_current_stopwatch_time() -> Result<StopwatchTime, error::Error> {
-    let now = std::time::SystemTime::now();
-    let (self_user, self_system) = crate::sys::resource::get_self_user_and_system_time()?;
-    let (children_user, children_system) =
-        crate::sys::resource::get_children_user_and_system_time()?;
+    let now = SystemTime::now();
+    let (self_user, self_system) = resource::get_self_user_and_system_time()?;
+    let (children_user, children_system) = resource::get_children_user_and_system_time()?;
 
     Ok(StopwatchTime {
         now,
@@ -74,7 +76,7 @@ fn get_current_stopwatch_time() -> Result<StopwatchTime, error::Error> {
 /// # Arguments
 ///
 /// * `duration` - The duration to format.
-pub fn format_duration_non_posixly(duration: &std::time::Duration) -> String {
+pub fn format_duration_non_posixly(duration: &Duration) -> String {
     let minutes = duration.as_secs() / 60;
     let seconds = duration.as_secs() % 60;
     let millis = duration.subsec_millis();
@@ -86,7 +88,7 @@ pub fn format_duration_non_posixly(duration: &std::time::Duration) -> String {
 /// # Arguments
 ///
 /// * `duration` - The duration to format.
-pub fn format_duration_posixly(duration: &std::time::Duration) -> String {
+pub fn format_duration_posixly(duration: &Duration) -> String {
     let seconds = duration.as_secs();
     let ten_millis = duration.subsec_millis() / 10;
     format!("{seconds}.{ten_millis:02}")

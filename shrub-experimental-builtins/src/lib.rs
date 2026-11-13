@@ -109,13 +109,15 @@ mod tree;
 ))]
 mod window;
 
+use std::collections::HashMap;
+
 #[allow(unused_imports, reason = "not all builtins are used in all configs")]
 use shrub_core::builtins::{self, builtin, decl_builtin, raw_arg_builtin, simple_builtin};
+use shrub_core::extensions::ShellExtensions;
 
 /// Returns the set of experimental built-in commands.
-pub fn experimental_builtins<SE: shrub_core::extensions::ShellExtensions>()
--> std::collections::HashMap<String, builtins::Registration<SE>> {
-    let mut m = std::collections::HashMap::<String, builtins::Registration<SE>>::new();
+pub fn experimental_builtins<SE: ShellExtensions>() -> HashMap<String, builtins::Registration<SE>> {
+    let mut m = HashMap::<String, builtins::Registration<SE>>::new();
 
     #[cfg(feature = "builtin.save")]
     m.insert("save".into(), builtin::<save::SaveCommand, SE>());
@@ -141,7 +143,7 @@ pub trait ShellBuilderExt {
     fn experimental_builtins(self) -> Self;
 }
 
-impl<SE: shrub_core::extensions::ShellExtensions, S: shrub_core::ShellBuilderState> ShellBuilderExt
+impl<SE: ShellExtensions, S: shrub_core::ShellBuilderState> ShellBuilderExt
     for shrub_core::ShellBuilder<SE, S>
 {
     fn experimental_builtins(self) -> Self {

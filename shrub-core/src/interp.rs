@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::collections::VecDeque;
-use std::io::Write;
+use std::fs::File;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 use itertools::Itertools;
@@ -14,6 +15,7 @@ use crate::results::{
     ExecutionExitCode, ExecutionResult, ExecutionSpawnResult, ExecutionWaitResult,
 };
 use crate::shell::Shell;
+use crate::traps::TrapSignal;
 use crate::variables::{
     ArrayLiteral, ShellValue, ShellValueLiteral, ShellValueUnsetType, ShellVariable,
 };
@@ -47,10 +49,7 @@ impl ExecutionParameters {
     /// # Arguments
     ///
     /// * `shell` - The shell context.
-    pub fn stdin(
-        &self,
-        shell: &Shell<impl extensions::ShellExtensions>,
-    ) -> impl std::io::Read + 'static {
+    pub fn stdin(&self, shell: &Shell<impl extensions::ShellExtensions>) -> impl Read + 'static {
         self.try_stdin(shell).unwrap_or_else(|| {
             ioutils::FailingReaderWriter::new("standard input not available").into()
         })
@@ -73,10 +72,7 @@ impl ExecutionParameters {
     /// # Arguments
     ///
     /// * `shell` - The shell context.
-    pub fn stdout(
-        &self,
-        shell: &Shell<impl extensions::ShellExtensions>,
-    ) -> impl std::io::Write + 'static {
+    pub fn stdout(&self, shell: &Shell<impl extensions::ShellExtensions>) -> impl Write + 'static {
         self.try_stdout(shell).unwrap_or_else(|| {
             ioutils::FailingReaderWriter::new("standard output not available").into()
         })
@@ -98,10 +94,7 @@ impl ExecutionParameters {
     /// # Arguments
     ///
     /// * `shell` - The shell context.
-    pub fn stderr(
-        &self,
-        shell: &Shell<impl extensions::ShellExtensions>,
-    ) -> impl std::io::Write + 'static {
+    pub fn stderr(&self, shell: &Shell<impl extensions::ShellExtensions>) -> impl Write + 'static {
         self.try_stderr(shell).unwrap_or_else(|| {
             ioutils::FailingReaderWriter::new("standard error not available").into()
         })
@@ -412,10 +405,8 @@ impl Execute for ast::Pipeline {
         // suppresses errexit (conditionals, `!`-prefixed pipelines,
         // etc.).
         if !result.is_success() && !params.suppress_errexit && !self.bang {
-            if shell.traps().handles(crate::traps::TrapSignal::Err) {
-                shell
-                    .invoke_trap_handler(crate::traps::TrapSignal::Err, &params)
-                    .await?;
+            if shell.traps().handles(TrapSignal::Err) {
+                shell.invoke_trap_handler(TrapSignal::Err, &params).await?;
             }
         }
 
@@ -1192,8 +1183,8 @@ impl<SE: extensions::ShellExtensions> ExecuteInPipeline<SE> for ast::SimpleComma
         mut context: PipelineExecutionContext<'_, SE>,
         mut params: ExecutionParameters,
     ) -> Result<ExecutionSpawnResult, error::Error> {
-        let prefix_iter = self.prefix.as_ref().map(|s| s.0.iter()).unwrap_or_default();
-        let suffix_iter = self.suffix.as_ref().map(|s| s.0.iter()).unwrap_or_default();
+        let prefix_iter = self.prefix.as_ref().map_or_default(|s| s.0.iter());
+        let suffix_iter = self.suffix.as_ref().map_or_default(|s| s.0.iter());
         let cmd_name_items = self
             .word_or_name
             .as_ref()
@@ -1787,7 +1778,7 @@ pub(crate) async fn setup_redirect(
         ast::IoRedirect::File(specified_fd_num, kind, target) => {
             match target {
                 ast::IoFileRedirectTarget::Filename(f) => {
-                    let mut options = std::fs::File::options();
+                    let mut options = File::options();
 
                     let mut expanded_fields =
                         expansion::full_expand_and_split_word(shell, params, f).await?;
@@ -2014,7 +2005,7 @@ fn setup_redirect_output_and_error_to(
 ) -> Result<(), error::Error> {
     let abs_file_path: PathBuf = shell.absolute_path(Path::new(file_path));
 
-    let mut file_options = std::fs::File::options();
+    let mut file_options = File::options();
     file_options
         .create(true)
         .write(true)
@@ -2114,9 +2105,11 @@ fn setup_open_file_with_contents(contents: &str) -> Result<OpenFile, error::Erro
     {
         use std::os::fd::AsFd as _;
 
+        use nix::fcntl::{self, FcntlArg};
+
         let len = i32::try_from(bytes.len())
             .map_err(|_err| error::Error::from(error::ErrorKind::TooMuchData))?;
-        nix::fcntl::fcntl(reader.as_fd(), nix::fcntl::FcntlArg::F_SETPIPE_SZ(len))?;
+        fcntl::fcntl(reader.as_fd(), FcntlArg::F_SETPIPE_SZ(len))?;
     }
 
     writer.write_all(bytes)?;

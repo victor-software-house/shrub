@@ -1,13 +1,15 @@
 use std::path::{Path, PathBuf};
 
+use shrub_core::completion::{Completions, ProcessingOptions};
 use shrub_core::escape;
+use shrub_core::sys::{fs, signal};
 
 #[allow(dead_code)]
 pub(crate) async fn complete_async(
     shell: &mut shrub_core::Shell<impl shrub_core::ShellExtensions>,
     line: &str,
     pos: usize,
-) -> shrub_core::completion::Completions {
+) -> Completions {
     let working_dir = shell.working_dir().to_path_buf();
 
     // Intentionally ignore any errors that arise.
@@ -20,16 +22,16 @@ pub(crate) async fn complete_async(
         result = &mut completion_future => {
             result
         }
-        _ = shrub_core::sys::signal::await_ctrl_c() => {
+        _ = signal::await_ctrl_c() => {
             Err(shrub_core::ErrorKind::Interrupted.into())
         },
     };
 
-    let mut completions = result.unwrap_or_else(|_| shrub_core::completion::Completions {
+    let mut completions = result.unwrap_or_else(|_| Completions {
         insertion_index: pos,
         delete_count: 0,
         candidates: Vec::new(),
-        options: shrub_core::completion::ProcessingOptions::default(),
+        options: ProcessingOptions::default(),
     });
 
     // Look at the line up to 'pos' to check if we're in an unterminated
@@ -82,14 +84,14 @@ pub(crate) async fn complete_async(
 #[allow(dead_code)]
 fn postprocess_completion_candidate(
     mut candidate: String,
-    options: &shrub_core::completion::ProcessingOptions,
+    options: &ProcessingOptions,
     working_dir: &Path,
     completing_end_of_line: bool,
     quote_char: Option<char>,
 ) -> String {
     if options.treat_as_filenames {
         // Check if it's a directory.
-        if !shrub_core::sys::fs::ends_with_path_separator(&candidate) {
+        if !fs::ends_with_path_separator(&candidate) {
             let candidate_path = Path::new(&candidate);
             let abs_candidate_path = if candidate_path.is_absolute() {
                 PathBuf::from(candidate_path)
@@ -120,8 +122,7 @@ fn postprocess_completion_candidate(
         }
     }
     if completing_end_of_line && !options.no_trailing_space_at_end_of_line {
-        if !options.treat_as_filenames || !shrub_core::sys::fs::ends_with_path_separator(&candidate)
-        {
+        if !options.treat_as_filenames || !fs::ends_with_path_separator(&candidate) {
             candidate.push(' ');
         }
     }
@@ -131,11 +132,13 @@ fn postprocess_completion_candidate(
 
 #[cfg(test)]
 mod tests {
+    use shrub_core::completion::ProcessingOptions;
+
     use super::*;
 
     /// Quotes a file-name candidate completed at the end of the line.
     fn quoted_file_name(candidate: &str) -> String {
-        let options = shrub_core::completion::ProcessingOptions {
+        let options = ProcessingOptions {
             treat_as_filenames: true,
             ..Default::default()
         };

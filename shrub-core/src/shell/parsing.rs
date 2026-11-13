@@ -1,6 +1,8 @@
 //! Parsing for shell instances.
 
-use std::io::Read;
+use std::io::{BufReader, Read};
+
+use shrub_parser::ast::Program;
 
 use crate::{Shell, extensions, trace_categories};
 
@@ -15,10 +17,7 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
     /// - [`shrub_parser::ParseError::ParsingNear`] or
     ///   [`shrub_parser::ParseError::ParsingAtEndOfInput`] if the input is not
     ///   a valid program.
-    pub fn parse<R: Read>(
-        &self,
-        reader: R,
-    ) -> Result<shrub_parser::ast::Program, shrub_parser::ParseError> {
+    pub fn parse<R: Read>(&self, reader: R) -> Result<Program, shrub_parser::ParseError> {
         let mut parser = create_parser(reader, &self.parser_options());
 
         tracing::debug!(target: trace_categories::PARSE, "Parsing reader as program...");
@@ -39,10 +38,7 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
     /// - [`shrub_parser::ParseError::ParsingNear`] or
     ///   [`shrub_parser::ParseError::ParsingAtEndOfInput`] if the input is not
     ///   a valid program.
-    pub fn parse_string<S: Into<String>>(
-        &self,
-        s: S,
-    ) -> Result<shrub_parser::ast::Program, shrub_parser::ParseError> {
+    pub fn parse_string<S: Into<String>>(&self, s: S) -> Result<Program, shrub_parser::ParseError> {
         let s: String = s.into();
         parse_string_impl(&s, &self.parser_options())
     }
@@ -70,7 +66,7 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
 fn parse_string_impl(
     s: &str,
     parser_options: &shrub_parser::ParserOptions,
-) -> Result<shrub_parser::ast::Program, shrub_parser::ParseError> {
+) -> Result<Program, shrub_parser::ParseError> {
     let mut parser = create_parser(s.as_bytes(), parser_options);
 
     tracing::debug!(target: trace_categories::PARSE, "Parsing string as program...");
@@ -80,7 +76,7 @@ fn parse_string_impl(
 pub(super) fn create_parser<R: Read>(
     r: R,
     parser_options: &shrub_parser::ParserOptions,
-) -> shrub_parser::Parser<std::io::BufReader<R>> {
-    let reader = std::io::BufReader::new(r);
+) -> shrub_parser::Parser<BufReader<R>> {
+    let reader = BufReader::new(r);
     shrub_parser::Parser::new(reader, parser_options)
 }

@@ -1,8 +1,12 @@
 //! Facilities for implementing and managing builtins
 
+use std::ffi::OsString;
+use std::future::Future;
 use std::io::Write;
+use std::iter;
+use std::marker::Send;
 
-use clap::builder::styling;
+use clap::builder::{Styles, styling};
 pub use futures::future::BoxFuture;
 
 use crate::{BuiltinError, CommandArg, commands, error, extensions, results};
@@ -98,8 +102,7 @@ pub trait Command: clap::Parser {
     fn execute<SE: extensions::ShellExtensions>(
         &self,
         context: commands::ExecutionContext<'_, SE>,
-    ) -> impl std::future::Future<Output = Result<results::ExecutionResult, Self::Error>>
-    + std::marker::Send;
+    ) -> impl Future<Output = Result<results::ExecutionResult, Self::Error>> + Send;
 
     /// Returns the textual help content associated with the command.
     ///
@@ -297,7 +300,7 @@ fn get_builtin_short_usage(name: &str, command: &clap::Command) -> String {
     std::format!("{name}: {name} {usage}\n")
 }
 
-fn shrub_help_styles() -> clap::builder::Styles {
+fn shrub_help_styles() -> Styles {
     styling::Styles::styled()
         .header(
             styling::AnsiColor::Yellow.on_default()
@@ -343,7 +346,7 @@ pub fn parse_known<T: clap::Parser, S>(
     args: impl IntoIterator<Item = S>,
 ) -> (T, Option<impl Iterator<Item = S>>)
 where
-    S: Into<std::ffi::OsString> + Clone + PartialEq<&'static str>,
+    S: Into<OsString> + Clone + PartialEq<&'static str>,
 {
     let mut args = args.into_iter();
     // the best way to save `--` is to get it out with a side effect while
@@ -358,7 +361,7 @@ where
         !is_hyphen
     });
     let parsed_args = T::parse_from(args_before_hyphen);
-    let raw_args = hyphen.map(|hyphen| std::iter::once(hyphen).chain(args));
+    let raw_args = hyphen.map(|hyphen| iter::once(hyphen).chain(args));
     (parsed_args, raw_args)
 }
 
@@ -384,7 +387,7 @@ pub fn try_parse_known<T: clap::Parser>(
     });
     let parsed_args = T::try_parse_from(args_before_hyphen)?;
 
-    let raw_args = hyphen.map(|hyphen| std::iter::once(hyphen).chain(args));
+    let raw_args = hyphen.map(|hyphen| iter::once(hyphen).chain(args));
     Ok((parsed_args, raw_args))
 }
 

@@ -1,3 +1,4 @@
+use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -170,7 +171,7 @@ impl Walk {
             return Ok(entries);
         }
         let mut entries = Vec::new();
-        for entry in std::fs::read_dir(dir)? {
+        for entry in fs::read_dir(dir)? {
             let entry = entry?;
             let name = entry.file_name().to_string_lossy().into_owned();
             if !self.all && name.starts_with('.') {

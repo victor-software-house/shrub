@@ -1,10 +1,11 @@
 //! Types for shrub command-line parsing.
 
+use std::io;
 use std::io::IsTerminal;
 use std::path::PathBuf;
 
 use clap::Parser;
-use clap::builder::styling;
+use clap::builder::{Styles, styling};
 
 use crate::{events, productinfo};
 
@@ -313,7 +314,7 @@ impl CommandLineArgs {
 
         // If *either* stdin or stderr is not a terminal, then we're not in
         // interactive mode.
-        if !std::io::stdin().is_terminal() || !std::io::stderr().is_terminal() {
+        if !io::stdin().is_terminal() || !io::stderr().is_terminal() {
             return false;
         }
 
@@ -324,7 +325,7 @@ impl CommandLineArgs {
 
 /// Returns clap styling to be used for command-line help.
 #[doc(hidden)]
-fn shrub_help_styles() -> clap::builder::Styles {
+fn shrub_help_styles() -> Styles {
     styling::Styles::styled()
         .header(
             styling::AnsiColor::Yellow.on_default()
@@ -338,6 +339,8 @@ fn shrub_help_styles() -> clap::builder::Styles {
 
 #[cfg(test)]
 mod tests {
+    use std::iter;
+
     use super::*;
 
     #[test]
@@ -386,7 +389,7 @@ mod tests {
             // applies shrub's `--` handling, so only the former sees what the
             // shell sees.
             let parsed = CommandLineArgs::try_parse_from(
-                std::iter::once("shrub")
+                iter::once("shrub")
                     .chain(args.iter().copied())
                     .map(String::from),
             )

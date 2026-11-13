@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io;
 use std::io::Write;
 use std::str::FromStr as _;
 use std::sync::Arc;
@@ -7,6 +8,8 @@ use clap::{Parser, ValueEnum};
 use itertools::Itertools as _;
 use shrub_core::interfaces::{self, InputFunction, KeyAction, KeySequence};
 use shrub_core::{ExecutionExitCode, ExecutionResult, builtins, sys, trace_categories};
+use shrub_parser::readline_binding;
+use shrub_parser::readline_binding::ReadlineTarget;
 use strum::IntoEnumIterator;
 use tokio::sync::Mutex;
 
@@ -105,7 +108,7 @@ pub(crate) enum BindError {
 
     /// An I/O error occurred.
     #[error("I/O error occurred")]
-    IoError(#[from] std::io::Error),
+    IoError(#[from] io::Error),
 
     /// A binding parse error occurred.
     #[error(transparent)]
@@ -278,7 +281,7 @@ fn parse_key_sequence(input: &str) -> Result<interfaces::KeySequence, BindError>
     // First trim any whitespace.
     let input = input.trim();
 
-    let parsed = shrub_parser::readline_binding::parse_key_sequence(input)?;
+    let parsed = readline_binding::parse_key_sequence(input)?;
     let abstract_seq = key_sequence_to_abstract_strokes(&parsed)?;
 
     Ok(abstract_seq)
@@ -296,7 +299,7 @@ fn parse_key_sequence_and_shell_command(
 
     // This should be something of the form:
     //     "KEY-SEQUENCE": SHELL-COMMAND
-    let binding = shrub_parser::readline_binding::parse_key_sequence_shell_cmd_binding(input)?;
+    let binding = readline_binding::parse_key_sequence_shell_cmd_binding(input)?;
     let abstract_seq = key_sequence_to_abstract_strokes(&binding.seq)?;
 
     Ok((abstract_seq, binding.shell_cmd))
@@ -322,17 +325,16 @@ fn parse_key_sequence_and_readline_target(
     // This should be of one of these forms:
     //     "KEY-SEQUENCE":function-name
     //     "KEY-SEQUENCE":readline-command
-    let binding = shrub_parser::readline_binding::parse_key_sequence_readline_binding(input)?;
+    let binding = readline_binding::parse_key_sequence_readline_binding(input)?;
     let abstract_seq = key_sequence_to_abstract_strokes(&binding.seq)?;
 
     match binding.target {
-        shrub_parser::readline_binding::ReadlineTarget::Function(func_name) => {
+        ReadlineTarget::Function(func_name) => {
             let func = parse_readline_function(func_name.as_str())?;
             Ok((abstract_seq, BindableReadlineTarget::Function(func)))
         }
-        shrub_parser::readline_binding::ReadlineTarget::Macro(target_seq_str) => {
-            let parsed_target =
-                shrub_parser::readline_binding::parse_key_sequence(&target_seq_str)?;
+        ReadlineTarget::Macro(target_seq_str) => {
+            let parsed_target = readline_binding::parse_key_sequence(&target_seq_str)?;
             let abstract_target = key_sequence_to_abstract_strokes(&parsed_target)?;
             Ok((abstract_seq, BindableReadlineTarget::Macro(abstract_target)))
         }
@@ -384,9 +386,9 @@ fn bind_key_sequence_to_readline_target(
 }
 
 fn key_sequence_to_abstract_strokes(
-    seq: &shrub_parser::readline_binding::KeySequence,
+    seq: &readline_binding::KeySequence,
 ) -> Result<interfaces::KeySequence, BindError> {
-    let phys_strokes = shrub_parser::readline_binding::key_sequence_to_strokes(seq)?;
+    let phys_strokes = readline_binding::key_sequence_to_strokes(seq)?;
 
     // Lift from key codes to abstract keys.
     let mut abstract_strokes = vec![];
