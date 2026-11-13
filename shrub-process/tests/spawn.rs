@@ -16,6 +16,7 @@ use std::process::Stdio;
 use std::sync::{Arc, Mutex};
 use std::{fs, io};
 
+#[cfg(target_os = "linux")]
 use nix::errno::Errno;
 use shrub_process::{Error, Group, Spawn, SpawnOptions, SpawnedProcess, spawn};
 

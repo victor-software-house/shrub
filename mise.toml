@@ -96,8 +96,10 @@ includes = [
 # retries only the terminal cases that time out on a loaded runner.
 # `builtin.ls`, `builtin.tree`, `builtin.cat`, `builtin.head` and
 # `builtin.tail` are off by default, so their tests run only with these
-# features.
+# features. Naming them also turns on shrub-shell's optional
+# shrub-experimental-builtins, so `experimental-builtins` comes with them:
+# Cargo denies the dependency as unused otherwise.
 [tasks.test]
 description = "Unit, integration and compatibility tests with the default features and the listing and read-window builtins"
-run = "cargo nextest run --locked --workspace --features shrub-shell/schema,shrub-experimental-builtins/builtin.ls,shrub-experimental-builtins/builtin.tree,shrub-experimental-builtins/builtin.cat,shrub-experimental-builtins/builtin.head,shrub-experimental-builtins/builtin.tail"
+run = "cargo nextest run --locked --workspace --features shrub-shell/schema,shrub-shell/experimental-builtins,shrub-experimental-builtins/builtin.ls,shrub-experimental-builtins/builtin.tree,shrub-experimental-builtins/builtin.cat,shrub-experimental-builtins/builtin.head,shrub-experimental-builtins/builtin.tail"
 timeout = "30m"

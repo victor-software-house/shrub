@@ -7,6 +7,7 @@ use std::io::Write;
 use std::str::FromStr;
 
 use itertools::Itertools as _;
+#[cfg(feature = "serde")]
 use serde::de;
 
 use crate::{error, sys};

@@ -9,6 +9,7 @@ use std::process::Stdio;
 use std::sync::Arc;
 use std::{fmt, io};
 
+#[cfg(feature = "serde")]
 use serde::de;
 
 use crate::{ShellFd, error, sys};
