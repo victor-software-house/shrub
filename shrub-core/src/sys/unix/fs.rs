@@ -15,6 +15,7 @@ use std::ffi::OsStr;
 #[cfg(not(target_os = "android"))]
 use std::ffi::OsString;
 use std::fs::{File, FileType};
+#[cfg(not(target_os = "android"))]
 use std::os::unix::ffi::OsStringExt;
 use std::os::unix::fs::FileTypeExt;
 pub use std::os::unix::fs::MetadataExt;
