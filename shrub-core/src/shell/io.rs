@@ -2,12 +2,13 @@
 
 use std::io::Write;
 
+use crate::interp::ExecutionParameters;
 use crate::{error, extensions, ioutils};
 
 impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
     /// Returns a value that can be used to write to the shell's currently
     /// configured standard output stream using `write!` et al.
-    pub fn stdout(&self) -> impl std::io::Write + 'static {
+    pub fn stdout(&self) -> impl Write + 'static {
         self.open_files.try_stdout().cloned().unwrap_or_else(|| {
             ioutils::FailingReaderWriter::new("standard output not available").into()
         })
@@ -15,7 +16,7 @@ impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
 
     /// Returns a value that can be used to write to the shell's currently
     /// configured standard error stream using `write!` et al.
-    pub fn stderr(&self) -> impl std::io::Write + 'static {
+    pub fn stderr(&self) -> impl Write + 'static {
         self.open_files.try_stderr().cloned().unwrap_or_else(|| {
             ioutils::FailingReaderWriter::new("standard error not available").into()
         })
@@ -31,7 +32,7 @@ impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
     /// * `command` - The command to trace.
     pub(crate) async fn trace_command<S: AsRef<str>>(
         &mut self,
-        params: &crate::interp::ExecutionParameters,
+        params: &ExecutionParameters,
         command: S,
     ) {
         // Expand the PS4 prompt variable to get our prefix.
@@ -84,7 +85,7 @@ impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
     /// Returns [`crate::error::ErrorKind::IoError`] if writing to `file` fails.
     pub fn display_error(
         &self,
-        file: &mut impl std::io::Write,
+        file: &mut impl Write,
         err: &error::Error,
     ) -> Result<(), error::Error> {
         use crate::extensions::ErrorFormatter as _;

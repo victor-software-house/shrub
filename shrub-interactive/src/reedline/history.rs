@@ -1,3 +1,10 @@
+use std::io;
+
+use shrub_core::history::{CommandLineFilter, Direction, History, Item, Query};
+use tokio::runtime::Handle;
+use tokio::sync::MutexGuard;
+use tokio::task;
+
 use crate::refs;
 
 pub(crate) struct ReedlineHistory<SE: shrub_core::ShellExtensions> {
@@ -5,10 +12,8 @@ pub(crate) struct ReedlineHistory<SE: shrub_core::ShellExtensions> {
 }
 
 impl<SE: shrub_core::ShellExtensions> ReedlineHistory<SE> {
-    fn lock_shell(&self) -> tokio::sync::MutexGuard<'_, shrub_core::Shell<SE>> {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(self.shell.lock())
-        })
+    fn lock_shell(&self) -> MutexGuard<'_, shrub_core::Shell<SE>> {
+        task::block_in_place(|| Handle::current().block_on(self.shell.lock()))
     }
 }
 
@@ -149,9 +154,9 @@ impl<SE: shrub_core::ShellExtensions> reedline::History for ReedlineHistory<SE> 
     }
 
     /// Sync all history items to backing storage.
-    fn sync(&mut self) -> std::io::Result<()> {
+    fn sync(&mut self) -> io::Result<()> {
         let mut shell = self.lock_shell();
-        shell.save_history().map_err(std::io::Error::other)
+        shell.save_history().map_err(io::Error::other)
     }
 
     /// Retrieves a unique ID for the current session.
@@ -161,7 +166,7 @@ impl<SE: shrub_core::ShellExtensions> reedline::History for ReedlineHistory<SE> 
     }
 }
 
-fn shrub_history_item_to_reedline(item: &shrub_core::history::Item) -> reedline::HistoryItem {
+fn shrub_history_item_to_reedline(item: &Item) -> reedline::HistoryItem {
     let mut rl_item = reedline::HistoryItem::from_command_line(item.command_line.as_str());
     rl_item.id = Some(reedline::HistoryItemId(item.id));
     rl_item.start_timestamp = item.timestamp;
@@ -170,9 +175,9 @@ fn shrub_history_item_to_reedline(item: &shrub_core::history::Item) -> reedline:
 }
 
 #[expect(unused)]
-fn reedline_history_item_to_shrub(item: &reedline::HistoryItem) -> shrub_core::history::Item {
+fn reedline_history_item_to_shrub(item: &reedline::HistoryItem) -> Item {
     // TODO(history): implement more fields when they are added to Item
-    shrub_core::history::Item {
+    Item {
         id: item.id.map_or(0, |id| id.0),
         command_line: item.command_line.clone(),
         timestamp: item.start_timestamp,
@@ -181,16 +186,14 @@ fn reedline_history_item_to_shrub(item: &reedline::HistoryItem) -> shrub_core::h
 }
 
 fn shrub_error_to_reedline(error: shrub_core::Error) -> reedline::ReedlineError {
-    reedline::ReedlineError::from(std::io::Error::other(error))
+    reedline::ReedlineError::from(io::Error::other(error))
 }
 
-fn reedline_history_query_into_shrub(
-    query: reedline::SearchQuery,
-) -> reedline::Result<shrub_core::history::Query> {
-    let mut result = shrub_core::history::Query {
+fn reedline_history_query_into_shrub(query: reedline::SearchQuery) -> reedline::Result<Query> {
+    let mut result = Query {
         direction: match query.direction {
-            reedline::SearchDirection::Forward => shrub_core::history::Direction::Forward,
-            reedline::SearchDirection::Backward => shrub_core::history::Direction::Backward,
+            reedline::SearchDirection::Forward => Direction::Forward,
+            reedline::SearchDirection::Backward => Direction::Backward,
         },
         max_items: query.limit,
         not_at_or_before_id: if matches!(query.direction, reedline::SearchDirection::Backward) {
@@ -218,14 +221,12 @@ fn reedline_history_query_into_shrub(
 
     if let Some(cmdline_filter) = query.filter.command_line {
         result.command_line_filter = match cmdline_filter {
-            reedline::CommandLineSearch::Exact(cmdline) => {
-                Some(shrub_core::history::CommandLineFilter::Exact(cmdline))
-            }
+            reedline::CommandLineSearch::Exact(cmdline) => Some(CommandLineFilter::Exact(cmdline)),
             reedline::CommandLineSearch::Substring(cmdline) => {
-                Some(shrub_core::history::CommandLineFilter::Contains(cmdline))
+                Some(CommandLineFilter::Contains(cmdline))
             }
             reedline::CommandLineSearch::Prefix(cmdline) => {
-                Some(shrub_core::history::CommandLineFilter::Prefix(cmdline))
+                Some(CommandLineFilter::Prefix(cmdline))
             }
         }
     }
@@ -248,8 +249,8 @@ fn reedline_history_query_into_shrub(
 }
 
 fn get_shell_history<'a, SE: shrub_core::ShellExtensions>(
-    shell: &'a tokio::sync::MutexGuard<'_, shrub_core::Shell<SE>>,
-) -> Result<&'a shrub_core::history::History, reedline::ReedlineError> {
+    shell: &'a MutexGuard<'_, shrub_core::Shell<SE>>,
+) -> Result<&'a History, reedline::ReedlineError> {
     shell.history().ok_or({
         reedline::ReedlineError(reedline::ReedlineErrorVariants::HistoryFeatureUnsupported {
             history: "(default)",
@@ -259,8 +260,8 @@ fn get_shell_history<'a, SE: shrub_core::ShellExtensions>(
 }
 
 fn get_shell_history_mut<'a, SE: shrub_core::ShellExtensions>(
-    shell: &'a mut tokio::sync::MutexGuard<'_, shrub_core::Shell<SE>>,
-) -> Result<&'a mut shrub_core::history::History, reedline::ReedlineError> {
+    shell: &'a mut MutexGuard<'_, shrub_core::Shell<SE>>,
+) -> Result<&'a mut History, reedline::ReedlineError> {
     shell.history_mut().ok_or({
         reedline::ReedlineError(reedline::ReedlineErrorVariants::HistoryFeatureUnsupported {
             history: "(default)",
@@ -272,13 +273,18 @@ fn get_shell_history_mut<'a, SE: shrub_core::ShellExtensions>(
 #[cfg(test)]
 #[allow(clippy::panic_in_result_fn, reason = "assertions in a fallible test")]
 mod tests {
+    use std::error;
+    use std::sync::Arc;
+
     use reedline::History as _;
+    use shrub_core::history::Item;
+    use tokio::sync::Mutex;
 
     use super::*;
 
     /// A count is of the items that match the query.
     #[tokio::test(flavor = "multi_thread")]
-    async fn count_counts_matching_items() -> Result<(), Box<dyn std::error::Error>> {
+    async fn count_counts_matching_items() -> Result<(), Box<dyn error::Error>> {
         // An interactive shell keeps history; with no HISTFILE, it's not loaded
         // or saved.
         let mut shell = shrub_core::Shell::builder()
@@ -290,10 +296,10 @@ mod tests {
             .await?;
         let history = shell.history_mut().ok_or("no history")?;
         for line in ["ls", "echo a", "echo b"] {
-            history.add(shrub_core::history::Item::new(line))?;
+            history.add(Item::new(line))?;
         }
         let history = ReedlineHistory {
-            shell: std::sync::Arc::new(tokio::sync::Mutex::new(shell)),
+            shell: Arc::new(Mutex::new(shell)),
         };
 
         let everything =

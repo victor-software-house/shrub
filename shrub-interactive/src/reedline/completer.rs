@@ -1,6 +1,10 @@
 use std::borrow::BorrowMut;
 
 use nu_ansi_term::{Color, Style};
+use shrub_core::completion::ProcessingOptions;
+use shrub_core::sys::fs;
+use tokio::runtime::Handle;
+use tokio::task;
 
 use crate::{completion, refs};
 
@@ -10,9 +14,8 @@ pub(crate) struct ReedlineCompleter<SE: shrub_core::ShellExtensions> {
 
 impl<SE: shrub_core::ShellExtensions> reedline::Completer for ReedlineCompleter<SE> {
     fn complete(&mut self, line: &str, pos: usize) -> reedline::CompletionResult {
-        let suggestions = tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(self.complete_async(line, pos))
-        });
+        let suggestions =
+            task::block_in_place(|| Handle::current().block_on(self.complete_async(line, pos)));
         reedline::CompletionResult::fresh(suggestions)
     }
 }
@@ -48,19 +51,19 @@ impl<SE: shrub_core::ShellExtensions> ReedlineCompleter<SE> {
         mut candidate: String,
         mut insertion_index: usize,
         mut delete_count: usize,
-        options: &shrub_core::completion::ProcessingOptions,
+        options: &ProcessingOptions,
     ) -> reedline::Suggestion {
         let mut style = Style::new();
 
         // Special handling for filename completions.
         if options.treat_as_filenames {
-            if shrub_core::sys::fs::ends_with_path_separator(&candidate) {
+            if fs::ends_with_path_separator(&candidate) {
                 style = style.fg(Color::Green);
             }
 
             if insertion_index + delete_count <= line.len() {
                 let removed = &line[insertion_index..insertion_index + delete_count];
-                if let Some(last_sep_index) = shrub_core::sys::fs::rfind_path_separator(removed) {
+                if let Some(last_sep_index) = fs::rfind_path_separator(removed) {
                     if candidate.starts_with(removed) {
                         candidate = candidate.split_off(last_sep_index + 1);
                         insertion_index += last_sep_index + 1;

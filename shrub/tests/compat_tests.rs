@@ -6,18 +6,20 @@
 #![cfg(any(unix, windows))]
 
 use std::path::{Path, PathBuf};
+use std::{env, process};
 
 use anyhow::Result;
 use clap::Parser;
 use shrub_test_harness::{
-    OracleConfig, RunnerConfig, ShellConfig, TestMode, TestOptions, TestRunner, WhichShell,
+    OracleConfig, RunnerConfig, ShellConfig, TestMode, TestOptions, TestRunner, WhichShell, util,
 };
+use tokio::runtime::Builder;
 
 const BASH_CONFIG_NAME: &str = "bash";
 const SH_CONFIG_NAME: &str = "sh";
 
 fn get_bash_version_str(bash_path: &Path) -> Result<String> {
-    shrub_test_harness::util::get_bash_version_str(bash_path)
+    util::get_bash_version_str(bash_path)
 }
 
 fn create_bash_oracle(options: &TestOptions) -> Result<OracleConfig> {
@@ -136,17 +138,17 @@ async fn run_compat_tests(mut options: TestOptions) -> Result<bool> {
 }
 
 fn main() -> Result<()> {
-    let unparsed_args: Vec<_> = std::env::args().collect();
+    let unparsed_args: Vec<_> = env::args().collect();
     let options = TestOptions::parse_from(unparsed_args);
 
-    let success = tokio::runtime::Builder::new_multi_thread()
+    let success = Builder::new_multi_thread()
         .enable_all()
         .worker_threads(32)
         .build()?
         .block_on(run_compat_tests(options))?;
 
     if !success {
-        std::process::exit(1);
+        process::exit(1);
     }
 
     Ok(())

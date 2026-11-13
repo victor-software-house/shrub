@@ -16,9 +16,11 @@
 use std::fmt::Write as _;
 use std::hint::black_box;
 use std::time::{Duration, Instant};
+use std::{env, fs};
 
 use anyhow::Result;
 use shrub_builtins::ShellBuilderExt;
+use tokio::runtime::Builder;
 
 /// Variables the shell defines beyond the process environment.
 const VARIABLES: usize = 200;
@@ -35,9 +37,7 @@ const RUNS: usize = 1000;
 const BASELINE: &str = "true";
 
 fn main() -> Result<()> {
-    let runtime = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()?;
+    let runtime = Builder::new_multi_thread().enable_all().build()?;
     runtime.block_on(measure())
 }
 
@@ -54,7 +54,7 @@ async fn measure() -> Result<()> {
         .build()
         .await?;
 
-    for (name, value) in std::env::vars() {
+    for (name, value) in env::vars() {
         let mut variable = shrub_core::ShellVariable::new(value);
         variable.export();
         shell.env_mut().set_global(name, variable)?;
@@ -74,7 +74,7 @@ async fn measure() -> Result<()> {
     }
     for i in 0..DIRECTORIES {
         let sub = dir.path().join(format!("d{i}"));
-        std::fs::create_dir(&sub)?;
+        fs::create_dir(&sub)?;
         writeln!(script, "pushd '{}' >/dev/null", sub.display())?;
     }
     run(&mut shell, &script).await?;

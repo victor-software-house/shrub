@@ -1,4 +1,6 @@
 use nu_ansi_term::{Color, Style};
+use tokio::runtime::Handle;
+use tokio::task;
 
 use crate::{highlighting, refs};
 
@@ -87,9 +89,7 @@ impl reedline::Highlighter for PlainTextHighlighter {
 impl<SE: shrub_core::ShellExtensions> reedline::Highlighter for ReedlineHighlighter<SE> {
     #[expect(clippy::significant_drop_tightening)]
     fn highlight(&self, line: &str, cursor: usize) -> reedline::StyledText {
-        let shell = tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(self.shell.lock())
-        });
+        let shell = task::block_in_place(|| Handle::current().block_on(self.shell.lock()));
 
         let highlighted = highlighting::highlight_command(shell.as_ref(), line, cursor);
 

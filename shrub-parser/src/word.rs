@@ -9,9 +9,10 @@
 //! - Command substitution expressions.
 //! - Arithmetic expansion expressions.
 
-use std::fmt::{Debug, Display};
+use std::fmt;
+use std::fmt::{Debug, Display, Formatter};
 
-use crate::{ParserOptions, SourceSpan, ast, error};
+use crate::{ParserOptions, SourceSpan, ast, error, parser, tokenizer};
 
 /// Encapsulates a `WordPiece` together with its position in the string it came
 /// from.
@@ -139,7 +140,7 @@ pub enum Parameter {
 }
 
 impl Display for Parameter {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Positional(n) => write!(f, "${n}"),
             Self::Special(s) => write!(f, "${s}"),
@@ -185,7 +186,7 @@ pub enum SpecialParameter {
 }
 
 impl Display for SpecialParameter {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::AllPositionalParameters { concatenate } => {
                 if *concatenate {
@@ -668,7 +669,7 @@ pub fn parse_compound_assignment_value(
     value: &str,
     options: &ParserOptions,
 ) -> Option<Vec<(Option<ast::Word>, ast::Word)>> {
-    let elements = crate::parser::parse_compound_assignment_value(value, options)?;
+    let elements = parser::parse_compound_assignment_value(value, options)?;
     parse_array_elements(elements.iter(), options).ok()
 }
 
@@ -1218,7 +1219,7 @@ peg::parser! {
         // byte offsets.
         rule command_substitution_body() -> &'input str = #{|input, pos| {
             let rest = input.split_at(pos).1;
-            match crate::tokenizer::command_substitution_body(rest, &parser_options.tokenizer_options()) {
+            match tokenizer::command_substitution_body(rest, &parser_options.tokenizer_options()) {
                 Ok(body) => peg::RuleResult::Matched(pos + body.len(), body),
                 Err(_) => peg::RuleResult::Failed,
             }
@@ -1251,7 +1252,7 @@ peg::parser! {
         // each bracket in the expression. As with command substitutions, preserve the source.
         rule legacy_arithmetic_expansion_body() -> &'input str = #{|input, pos| {
             let rest = input.split_at(pos).1;
-            match crate::tokenizer::legacy_arithmetic_expansion_body(rest, &parser_options.tokenizer_options()) {
+            match tokenizer::legacy_arithmetic_expansion_body(rest, &parser_options.tokenizer_options()) {
                 Ok(body) => peg::RuleResult::Matched(pos + body.len(), body),
                 Err(_) => peg::RuleResult::Failed,
             }
@@ -1342,6 +1343,7 @@ mod tests {
     use pretty_assertions::assert_matches;
 
     use super::*;
+    use crate::tokenizer;
 
     #[derive(serde::Serialize, serde::Deserialize)]
     struct ParseTestResults<'a> {
@@ -1663,7 +1665,7 @@ mod tests {
             let depth = depth as usize;
             std::format!("{}:{}\n", "$(".repeat(depth), ")".repeat(depth))
         };
-        let limit = crate::tokenizer::MAX_EXPANSION_NESTING;
+        let limit = tokenizer::MAX_EXPANSION_NESTING;
         let options = ParserOptions::default();
         super::parse_heredoc(&nested(limit), &options)?;
         assert!(super::parse_heredoc(&nested(limit + 1), &options).is_err());

@@ -18,12 +18,12 @@
 //!    `run_e2e_adapter`.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::ffi::OsString;
-use std::fs;
-use std::io::{IsTerminal, Write as _};
+use std::ffi::{OsStr, OsString};
+use std::io::{BufReader, ErrorKind, IsTerminal, Write as _};
 use std::path::{Path, PathBuf};
-use std::process::Command as ProcessCommand;
+use std::process::{Command as ProcessCommand, Stdio};
 use std::time::{Duration, Instant};
+use std::{array, env, fs, io, process, thread};
 
 use anyhow::{Context, Result};
 use clap::Args;
@@ -95,7 +95,7 @@ pub fn run(binary_args: &BinaryArgs, args: &E2eArgs, verbose: bool) -> Result<()
     } else {
         workspace.join(&args.results_dir)
     };
-    let docker = std::env::var_os("DOCKER").unwrap_or_else(|| "docker".into());
+    let docker = env::var_os("DOCKER").unwrap_or_else(|| "docker".into());
     let results_root = create_e2e_results_root(&results_root)?;
 
     let shell_name = shell.as_deref().map_or_else(
@@ -117,10 +117,10 @@ pub fn run(binary_args: &BinaryArgs, args: &E2eArgs, verbose: bool) -> Result<()
     );
 
     let overall = Instant::now();
-    let terminal = std::io::stderr().is_terminal();
+    let terminal = io::stderr().is_terminal();
     let color = terminal
-        && std::env::var_os("NO_COLOR").is_none_or(|value| value.is_empty())
-        && std::env::var_os("TERM").is_none_or(|value| value != "dumb");
+        && env::var_os("NO_COLOR").is_none_or(|value| value.is_empty())
+        && env::var_os("TERM").is_none_or(|value| value != "dumb");
     // On a terminal, name the adapter while it runs: blesh alone takes about
     // nine minutes, and a silent wait that long reads as a hang. Piped
     // output skips the marker so logs stay clean, as does `--verbose`,
@@ -140,7 +140,7 @@ pub fn run(binary_args: &BinaryArgs, args: &E2eArgs, verbose: bool) -> Result<()
         if progress {
             let style = e2e_style(color, AnsiColor::Cyan);
             eprint!("        {style}run {style:#} [        ] {app}\r");
-            let _ = std::io::stderr().flush();
+            let _ = io::stderr().flush();
         }
         let started = Instant::now();
         let outcome = run_e2e_adapter(&run, app);
@@ -246,7 +246,7 @@ fn render_markdown(reports: &[AdapterReport], elapsed: Duration) -> String {
                     cell(summary.skips.len()),
                 ],
             ),
-            None => ("💥", std::array::from_fn(|_| "—".to_owned())),
+            None => ("💥", array::from_fn(|_| "—".to_owned())),
         };
         let _ = writeln!(
             md,
@@ -904,7 +904,7 @@ fn read_test_list(path: &Path) -> Result<BTreeSet<String>> {
             .filter(|line| !line.is_empty() && !line.starts_with('#'))
             .map(ToOwned::to_owned)
             .collect()),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(BTreeSet::new()),
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(BTreeSet::new()),
         Err(error) => Err(error).with_context(|| format!("failed to read {}", path.display())),
     }
 }
@@ -930,9 +930,7 @@ fn read_select_args(adapter_dir: &Path) -> Result<String> {
             );
             Ok(template.to_owned())
         }
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            Ok(PYTEST_SELECT_ARGS.to_owned())
-        }
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(PYTEST_SELECT_ARGS.to_owned()),
         Err(error) => Err(error).with_context(|| format!("failed to read {}", path.display())),
     }
 }
@@ -977,7 +975,7 @@ fn read_junit_summary(
     let mut summary = JunitSummary::default();
     let mut seen = BTreeSet::new();
     for file in &files {
-        let reader = std::io::BufReader::new(
+        let reader = BufReader::new(
             fs::File::open(file).with_context(|| format!("failed to open {}", file.display()))?,
         );
         let report = junit_parser::from_reader(reader)
@@ -1043,7 +1041,7 @@ fn discover_e2e_apps(e2e_dir: &Path, include_opt_in: bool) -> Result<Vec<String>
 
 /// Everything an adapter run needs that does not vary between adapters.
 struct E2eRun<'a> {
-    docker: &'a std::ffi::OsStr,
+    docker: &'a OsStr,
     e2e_dir: &'a Path,
     results_root: &'a Path,
     shell: Option<&'a Path>,
@@ -1100,7 +1098,7 @@ fn run_e2e_adapter(run: &E2eRun<'_>, app: &str) -> Result<Option<String>> {
     // SAFETY: `getegid` takes no arguments, cannot fail and touches no
     // memory of this process (POSIX `getegid`).
     let gid = unsafe { libc::getegid() };
-    let container = format!("{image}-{}", std::process::id());
+    let container = format!("{image}-{}", process::id());
     let mut test = ProcessCommand::new(docker);
     test.args(["run", "--rm", "--name", &container, "--user"])
         .arg(format!("{uid}:{gid}"))
@@ -1125,8 +1123,8 @@ fn run_e2e_adapter(run: &E2eRun<'_>, app: &str) -> Result<Option<String>> {
         // The client is already gone; stop the container it left behind.
         let _ = ProcessCommand::new(docker)
             .args(["kill", &container])
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
             .status();
         anyhow::bail!("container timed out after {}", format_duration(timeout));
     }
@@ -1205,7 +1203,7 @@ fn run_process(
             let _ = child.wait();
             break None;
         }
-        std::thread::sleep(Duration::from_millis(200));
+        thread::sleep(Duration::from_millis(200));
     };
 
     let output = match captured {

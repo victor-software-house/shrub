@@ -10,6 +10,7 @@
 ))]
 #![allow(clippy::panic_in_result_fn)]
 
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -63,7 +64,7 @@ async fn output_in(
         .run_string(&script, &shrub_core::SourceInfo::default(), &params)
         .await?;
     assert!(result.is_success(), "{command} failed");
-    let text = std::fs::read_to_string(out.path())?;
+    let text = fs::read_to_string(out.path())?;
     Ok(text.lines().map(str::to_owned).collect())
 }
 
@@ -71,7 +72,7 @@ async fn output_in(
 /// shell word.
 fn file(dir: &Path, name: &str, text: &str) -> Result<(PathBuf, String)> {
     let path = dir.join(name);
-    std::fs::write(&path, text)?;
+    fs::write(&path, text)?;
     let word = format!("'{}'", path.display());
     Ok((path, word))
 }

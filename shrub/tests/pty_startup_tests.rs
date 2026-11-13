@@ -28,12 +28,15 @@
 #![cfg(test)]
 #![allow(clippy::panic_in_result_fn)]
 
+use std::io;
+use std::io::Stdout;
+use std::process::Command;
 use std::time::Duration;
 
 use anyhow::Context;
 use expectrl::process::unix::{PtyStream, UnixProcess};
 use expectrl::stream::log::LogStream;
-use expectrl::{Expect, Session};
+use expectrl::{Expect, Session, session};
 
 /// Bound on how long we wait for the shell to become responsive. A healthy
 /// shell prompts in well under a second; the generous margin only accommodates
@@ -80,7 +83,7 @@ fn login_flag_with_empty_home_starts_promptly() -> anyhow::Result<()> {
     let empty_home = tempfile::tempdir()?;
 
     let shell_path = assert_cmd::cargo::cargo_bin!("shrub");
-    let mut cmd = std::process::Command::new(shell_path);
+    let mut cmd = Command::new(shell_path);
     cmd.args(["-l", "--disable-bracketed-paste", "--disable-color"]);
     cmd.env("HOME", empty_home.path());
     cmd.env("TERM", "linux");
@@ -100,7 +103,7 @@ fn login_flag_with_empty_home_starts_promptly() -> anyhow::Result<()> {
 fn login_shell_as_grandchild_starts_promptly() -> anyhow::Result<()> {
     let shell_path = assert_cmd::cargo::cargo_bin!("shrub");
 
-    let mut cmd = std::process::Command::new("sh");
+    let mut cmd = Command::new("sh");
     // The trailing `exit $?` keeps `sh` from optimizing the command into an
     // exec, so shrub really runs as a grandchild of the pty session leader.
     // PS1 is set inline since some `sh` implementations drop it from the
@@ -121,15 +124,15 @@ fn login_shell_as_grandchild_starts_promptly() -> anyhow::Result<()> {
 // Helpers
 //
 
-type PtySession = Session<UnixProcess, LogStream<PtyStream, std::io::Stdout>>;
+type PtySession = Session<UnixProcess, LogStream<PtyStream, Stdout>>;
 
 /// Builds a hermetic shrub invocation that, unlike the sessions in
 /// `interactive_tests.rs`, leaves the input backend at its default
 /// (reedline/crossterm) — the backend real terminal sessions use.
-fn shrub_command(extra_args: &[&str]) -> std::process::Command {
+fn shrub_command(extra_args: &[&str]) -> Command {
     let shell_path = assert_cmd::cargo::cargo_bin!("shrub");
 
-    let mut cmd = std::process::Command::new(shell_path);
+    let mut cmd = Command::new(shell_path);
     cmd.args([
         "--norc",
         "--noprofile",
@@ -144,9 +147,9 @@ fn shrub_command(extra_args: &[&str]) -> std::process::Command {
     cmd
 }
 
-fn spawn_shell(cmd: std::process::Command) -> anyhow::Result<PtySession> {
+fn spawn_shell(cmd: Command) -> anyhow::Result<PtySession> {
     let session = Session::spawn(cmd)?;
-    let mut session = expectrl::session::log(session, std::io::stdout())?;
+    let mut session = session::log(session, io::stdout())?;
 
     // Enforce a bounded expect timeout so a startup hang fails fast with a
     // clear error instead of relying on the outer test-harness timeout.

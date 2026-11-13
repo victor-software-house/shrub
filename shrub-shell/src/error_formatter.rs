@@ -1,12 +1,15 @@
+use shrub_core::error;
+use shrub_core::extensions::ErrorFormatter;
+
 #[derive(Debug, Default, Clone)]
 pub(crate) struct Formatter {
     pub use_color: bool,
 }
 
-impl shrub_core::extensions::ErrorFormatter for Formatter {
+impl ErrorFormatter for Formatter {
     fn format_error(
         &self,
-        err: &shrub_core::error::Error,
+        err: &error::Error,
         _shell: &shrub_core::Shell<impl shrub_core::ShellExtensions>,
     ) -> String {
         let prefix = if self.use_color {

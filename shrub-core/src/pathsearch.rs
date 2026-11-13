@@ -182,6 +182,8 @@ where
 #[cfg(test)]
 #[expect(clippy::panic_in_result_fn)]
 mod tests {
+    use std::fs;
+
     use anyhow::Result;
 
     use super::*;
@@ -194,9 +196,9 @@ mod tests {
         let scratch = tempfile::tempdir()?;
         let first = scratch.path().join("first");
         let second = scratch.path().join("second");
-        std::fs::create_dir_all(first.join("prog"))?;
-        std::fs::create_dir_all(&second)?;
-        std::fs::write(second.join("prog"), "")?;
+        fs::create_dir_all(first.join("prog"))?;
+        fs::create_dir_all(&second)?;
+        fs::write(second.join("prog"), "")?;
 
         let paths = [first.as_path(), second.as_path()];
 

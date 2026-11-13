@@ -3,6 +3,7 @@ use std::io::Write;
 use clap::Parser;
 use shrub_core::arithmetic::Evaluatable;
 use shrub_core::{ExecutionExitCode, ExecutionResult, builtins};
+use shrub_parser::arithmetic;
 
 /// Evaluate arithmetic expressions.
 #[derive(Parser)]
@@ -27,7 +28,7 @@ impl builtins::Command for LetCommand {
         }
 
         for expr in &self.exprs {
-            let parsed = shrub_parser::arithmetic::parse(expr.as_str())?;
+            let parsed = arithmetic::parse(expr.as_str())?;
             let evaluated = parsed.eval(context.shell)?;
 
             if evaluated == 0 {

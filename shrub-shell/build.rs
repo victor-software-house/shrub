@@ -3,13 +3,15 @@
 //! and `minimal_backend`. A backend's feature can be enabled for any target;
 //! it's offered only where it works.
 
+use std::env;
+
 fn main() {
     println!("cargo::rerun-if-changed=build.rs");
 
-    let families = std::env::var("CARGO_CFG_TARGET_FAMILY").unwrap_or_default();
+    let families = env::var("CARGO_CFG_TARGET_FAMILY").unwrap_or_default();
     let unix = families.split(',').any(|family| family == "unix");
     let windows = families.split(',').any(|family| family == "windows");
-    let feature = |name: &str| std::env::var_os(format!("CARGO_FEATURE_{name}")).is_some();
+    let feature = |name: &str| env::var_os(format!("CARGO_FEATURE_{name}")).is_some();
 
     let backends = [
         // reedline draws through crossterm, which builds only for Unix and

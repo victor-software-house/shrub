@@ -1,5 +1,12 @@
 //! Test runner implementation.
 
+#[cfg(feature = "insta")]
+use std::collections::{BTreeMap, HashSet};
+use std::fs::File;
+use std::time::{Duration, Instant};
+#[cfg(feature = "insta")]
+use std::{fs, panic};
+
 use anyhow::{Context, Result};
 use colored::Colorize;
 
@@ -8,7 +15,9 @@ use crate::comparison::{
     OracleComparison, SingleExpectationComparison, SnapshotResult, StringComparison,
     TestComparison, diff_dirs, output_matches,
 };
-use crate::config::{RunnerConfig, TestMode, TestOptions};
+use crate::config::{OracleConfig, OutputFormat, RunnerConfig, TestMode, TestOptions};
+use crate::execution::RunResult;
+use crate::reporting;
 use crate::reporting::{TestCaseResult, TestCaseSetResults};
 use crate::testcase::{TestCase, TestCaseSet};
 
@@ -44,7 +53,7 @@ impl TestRunner {
         let mut known_failure_count = 0;
         let mut fail_count = 0;
         let mut join_handles = vec![];
-        let mut success_duration = std::time::Duration::default();
+        let mut success_duration = Duration::default();
 
         // Generate a glob pattern to find all the YAML test case files.
         let glob_pattern = self
@@ -62,7 +71,7 @@ impl TestRunner {
         for entry in glob::glob(glob_pattern.as_ref()).unwrap() {
             let entry = entry.unwrap();
 
-            let yaml_file = std::fs::File::open(entry.as_path())?;
+            let yaml_file = File::open(entry.as_path())?;
             let mut test_case_set: TestCaseSet = yaml_serde::from_reader(yaml_file)
                 .context(format!("parsing {}", entry.to_string_lossy()))?;
 
@@ -108,9 +117,9 @@ impl TestRunner {
             all_results.push(results);
         }
 
-        crate::reporting::report_results(all_results, &self.options)?;
+        reporting::report_results(all_results, &self.options)?;
 
-        if matches!(self.options.format, crate::config::OutputFormat::Pretty) {
+        if matches!(self.options.format, OutputFormat::Pretty) {
             let formatted_fail_count = if fail_count > 0 {
                 fail_count.to_string().red()
             } else {
@@ -241,7 +250,7 @@ fn run_test_case_set(
     let mut skip_count = 0;
     let mut known_failure_count = 0;
     let mut fail_count = 0;
-    let mut success_duration = std::time::Duration::default();
+    let mut success_duration = Duration::default();
     let mut test_case_results = vec![];
 
     for test_case in &test_case_set.cases {
@@ -300,7 +309,7 @@ fn run_single_test(
     test_case: &TestCase,
     config: &RunnerConfig,
 ) -> Result<TestCaseResult> {
-    let start_time = std::time::Instant::now();
+    let start_time = Instant::now();
 
     // Determine what comparisons to perform
     let should_run_oracle = config.oracle.is_some()
@@ -364,8 +373,8 @@ fn run_oracle_comparison(
     test_case_set: &TestCaseSet,
     test_case: &TestCase,
     config: &RunnerConfig,
-    oracle_config: &crate::config::OracleConfig,
-) -> Result<(OracleComparison, crate::execution::RunResult)> {
+    oracle_config: &OracleConfig,
+) -> Result<(OracleComparison, RunResult)> {
     // Run oracle
     let oracle_temp_dir = assert_fs::TempDir::new()?;
     test_case.create_test_files_in(&oracle_temp_dir, test_case_set)?;
@@ -453,7 +462,7 @@ fn run_oracle_comparison(
 fn check_expectations(
     test_case_set: &TestCaseSet,
     test_case: &TestCase,
-    test_result: &crate::execution::RunResult,
+    test_result: &RunResult,
     test_temp_dir: Option<&assert_fs::TempDir>,
     config: &RunnerConfig,
 ) -> ExpectationComparison {
@@ -521,7 +530,7 @@ fn check_expectations(
 fn check_snapshot(
     test_case_set: &TestCaseSet,
     test_case: &TestCase,
-    test_result: &crate::execution::RunResult,
+    test_result: &RunResult,
     test_temp_dir: Option<&assert_fs::TempDir>,
     config: &RunnerConfig,
 ) -> SnapshotResult {
@@ -557,7 +566,7 @@ fn check_snapshot(
 
     settings.bind(|| {
         // Use assert_snapshot with raw string for block-style YAML
-        let result = std::panic::catch_unwind(|| {
+        let result = panic::catch_unwind(|| {
             insta::assert_snapshot!(snapshot_name.clone(), snapshot_content);
         });
 
@@ -578,7 +587,7 @@ fn format_snapshot_yaml(
     exit_code: i32,
     stdout: &str,
     stderr: &str,
-    files: &std::collections::BTreeMap<String, String>,
+    files: &BTreeMap<String, String>,
 ) -> String {
     use std::fmt::Write;
 
@@ -667,7 +676,7 @@ fn format_yaml_string(output: &mut String, s: &str, indent: usize) {
 fn collect_temp_dir_files(
     test_temp_dir: Option<&assert_fs::TempDir>,
     test_case: &TestCase,
-) -> std::collections::BTreeMap<String, String> {
+) -> BTreeMap<String, String> {
     use std::collections::BTreeMap;
 
     let mut files = BTreeMap::new();
@@ -677,14 +686,14 @@ fn collect_temp_dir_files(
     };
 
     // Get the set of input test file names to exclude
-    let input_files: std::collections::HashSet<_> = test_case
+    let input_files: HashSet<_> = test_case
         .test_files
         .iter()
         .map(|f| f.path.to_string_lossy().to_string())
         .collect();
 
     // Walk the temp directory and collect files
-    let Ok(entries) = std::fs::read_dir(temp_dir.path()) else {
+    let Ok(entries) = fs::read_dir(temp_dir.path()) else {
         return files;
     };
 
@@ -707,7 +716,7 @@ fn collect_temp_dir_files(
         }
 
         // Read file contents - use lossy conversion for binary files
-        if let Ok(contents) = std::fs::read(&path) {
+        if let Ok(contents) = fs::read(&path) {
             let text = String::from_utf8_lossy(&contents).to_string();
             files.insert(filename, text);
         }

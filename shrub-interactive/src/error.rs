@@ -1,3 +1,4 @@
+use std::io;
 use std::path::PathBuf;
 
 /// Represents an error encountered while running or otherwise managing an
@@ -10,15 +11,15 @@ pub enum ShellError {
 
     /// A generic I/O error occurred.
     #[error("I/O error: {0}")]
-    IoError(#[from] std::io::Error),
+    IoError(#[from] io::Error),
 
     /// Failed to create xtrace file.
     #[error("failed to create xtrace file '{0}': {1}")]
-    FailedToCreateXtraceFile(PathBuf, std::io::Error),
+    FailedToCreateXtraceFile(PathBuf, io::Error),
 
     /// An error occurred while reading input.
     #[error("input error occurred: {0}")]
-    InputError(std::io::Error),
+    InputError(io::Error),
 
     /// The requested input backend type is not supported.
     #[error("requested input backend type not supported")]

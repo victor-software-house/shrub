@@ -13,6 +13,7 @@
 //! Both unit and integration tests support optional coverage collection via
 //! `cargo-llvm-cov`.
 
+use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
@@ -20,6 +21,10 @@ use clap::{Args, Parser, Subcommand};
 use xshell::{Shell, cmd};
 
 use crate::common::{BuildProfile, find_workspace_root};
+#[cfg(unix)]
+use crate::e2e::E2eArgs;
+#[cfg(unix)]
+use crate::{common, e2e};
 
 /// Integration test binaries that are excluded from unit tests.
 /// These tests execute the shrub binary and are slower.
@@ -71,7 +76,7 @@ impl BinaryArgs {
     /// Find the shrub binary using these arguments.
     #[cfg(unix)]
     pub fn find_shrub_binary(&self) -> Result<PathBuf> {
-        crate::common::find_shrub_binary(self.shrub_path.as_ref(), self.effective_profile())
+        common::find_shrub_binary(self.shrub_path.as_ref(), self.effective_profile())
     }
 }
 
@@ -104,7 +109,7 @@ pub enum TestSubcommand {
 
     /// Run containerized end-to-end tests against real applications.
     #[cfg(unix)]
-    E2e(crate::e2e::E2eArgs),
+    E2e(E2eArgs),
 }
 
 /// Arguments for unit tests.
@@ -174,7 +179,7 @@ pub fn run(cmd: &TestCommand, verbose: bool) -> Result<()> {
             run_integration_tests(&sh, &cmd.binary_args, args, verbose)
         }
         #[cfg(unix)]
-        TestSubcommand::E2e(args) => crate::e2e::run(&cmd.binary_args, args, verbose),
+        TestSubcommand::E2e(args) => e2e::run(&cmd.binary_args, args, verbose),
     }
 }
 
@@ -395,7 +400,7 @@ fn run_nextest(
 fn copy_nextest_results(output: &Path) -> Result<()> {
     let workspace_root = find_workspace_root()?;
     let source = workspace_root.join("target/nextest/default/test-results.xml");
-    std::fs::copy(&source, output).with_context(|| {
+    fs::copy(&source, output).with_context(|| {
         format!(
             "Failed to copy nextest results from {} to {}",
             source.display(),

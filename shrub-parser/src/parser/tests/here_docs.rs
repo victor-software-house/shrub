@@ -4,6 +4,7 @@ use anyhow::Result;
 
 use super::{ParseResult, test_with_snapshot};
 use crate::assert_snapshot_redacted;
+use crate::parser::ParserImpl;
 
 #[test]
 fn parse_here_doc_basic() -> Result<()> {
@@ -135,7 +136,7 @@ fn parse_pathological_here_docs() {
     // another. Each must be reported as an error.
     let peg = super::ParserConfig {
         name: "peg",
-        parser_impl: crate::parser::ParserImpl::Peg,
+        parser_impl: ParserImpl::Peg,
     };
     let results: Vec<_> = [
         "$(cat <<EOF ${y}\nEOF",

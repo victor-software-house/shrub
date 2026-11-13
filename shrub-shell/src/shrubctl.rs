@@ -1,9 +1,13 @@
 use std::io::Write;
+use std::process;
 
 use clap::{Parser, Subcommand};
+use shrub_core::builtins::{Command, builtin};
+use shrub_core::callstack::FormatOptions;
+use shrub_core::extensions::ShellExtensions;
 use shrub_core::{ExecutionResult, sys};
 
-use crate::events;
+use crate::{entry, events};
 
 /// Extension trait for adding shrub-specific built-in commands to a shell
 /// builder.
@@ -13,21 +17,15 @@ pub(crate) trait ShellBuilderShrubBuiltinExt {
     fn shrub_builtins(self) -> Self;
 }
 
-impl<SE: shrub_core::extensions::ShellExtensions, S: shrub_core::ShellBuilderState>
-    ShellBuilderShrubBuiltinExt for shrub_core::ShellBuilder<SE, S>
+impl<SE: ShellExtensions, S: shrub_core::ShellBuilderState> ShellBuilderShrubBuiltinExt
+    for shrub_core::ShellBuilder<SE, S>
 {
     fn shrub_builtins(self) -> Self {
         // For compatibility with previous releases, we register the command
         // under both `shrubctl` and `shrubinfo` names. It will behave
         // identically across the two.
-        self.builtin(
-            "shrubctl",
-            shrub_core::builtins::builtin::<ShrubCtlCommand, SE>(),
-        )
-        .builtin(
-            "shrubinfo",
-            shrub_core::builtins::builtin::<ShrubCtlCommand, SE>(),
-        )
+        self.builtin("shrubctl", builtin::<ShrubCtlCommand, SE>())
+            .builtin("shrubinfo", builtin::<ShrubCtlCommand, SE>())
     }
 }
 
@@ -114,7 +112,7 @@ enum ProcessCommand {
     ShowParentProcessId,
 }
 
-impl shrub_core::builtins::Command for ShrubCtlCommand {
+impl Command for ShrubCtlCommand {
     type Error = shrub_core::Error;
 
     async fn execute<SE: shrub_core::ShellExtensions>(
@@ -138,7 +136,7 @@ impl CallCommand {
         match self {
             Self::ShowCallStack { detailed } => {
                 let stack = context.shell.call_stack();
-                let format_options = shrub_core::callstack::FormatOptions {
+                let format_options = FormatOptions {
                     show_args: *detailed,
                     show_entry_points: *detailed,
                 };
@@ -176,7 +174,7 @@ impl EventsCommand {
         &self,
         context: &shrub_core::ExecutionContext<'_, impl shrub_core::ShellExtensions>,
     ) -> Result<shrub_core::ExecutionResult, shrub_core::Error> {
-        let event_config = crate::entry::get_event_config();
+        let event_config = entry::get_event_config();
 
         let mut event_config = event_config.try_lock().map_err(|_| {
             shrub_core::Error::from(shrub_core::ErrorKind::Unimplemented(
@@ -210,7 +208,7 @@ impl ProcessCommand {
     ) -> Result<shrub_core::ExecutionResult, shrub_core::Error> {
         match self {
             Self::ShowProcessId => {
-                writeln!(context.stdout(), "{}", std::process::id())?;
+                writeln!(context.stdout(), "{}", process::id())?;
                 Ok(ExecutionResult::success())
             }
             Self::ShowProcessGroupId => {

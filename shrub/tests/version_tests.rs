@@ -8,6 +8,9 @@
 #![cfg(test)]
 #![allow(clippy::panic_in_result_fn)]
 
+use std::path::Path;
+use std::process::Command;
+
 use anyhow::Context;
 
 #[test]
@@ -25,12 +28,8 @@ fn get_version_variables() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn get_variable(
-    shell_path: &std::path::Path,
-    shell_is_shrub: bool,
-    var: &str,
-) -> anyhow::Result<String> {
-    let mut cmd = std::process::Command::new(shell_path);
+fn get_variable(shell_path: &Path, shell_is_shrub: bool, var: &str) -> anyhow::Result<String> {
+    let mut cmd = Command::new(shell_path);
 
     if shell_is_shrub {
         cmd.arg("--no-config");

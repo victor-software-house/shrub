@@ -6,9 +6,12 @@
 //! need to depend on the shell it builds. It's driven by `cargo xtask gen`.
 
 use std::path::PathBuf;
+use std::{fs, io};
 
 use anyhow::Result;
 use clap::{CommandFactory, Parser};
+use shrub_shell::args::CommandLineArgs;
+use shrub_shell::config::Config;
 
 /// Generate artifacts derived from the shrub command-line interface.
 #[derive(Parser)]
@@ -38,25 +41,24 @@ enum GenCommand {
 fn main() -> Result<()> {
     match GenCommand::parse() {
         GenCommand::Man { output_dir } => {
-            std::fs::create_dir_all(&output_dir)?;
-            clap_mangen::generate_to(shrub_shell::args::CommandLineArgs::command(), &output_dir)?;
+            fs::create_dir_all(&output_dir)?;
+            clap_mangen::generate_to(CommandLineArgs::command(), &output_dir)?;
         }
         GenCommand::Markdown { output_path } => {
             let options = clap_markdown::MarkdownOptions::new()
                 .show_footer(false)
                 .show_table_of_contents(true);
-            let markdown =
-                clap_markdown::help_markdown_custom::<shrub_shell::args::CommandLineArgs>(&options);
-            std::fs::write(&output_path, markdown)?;
+            let markdown = clap_markdown::help_markdown_custom::<CommandLineArgs>(&options);
+            fs::write(&output_path, markdown)?;
         }
         GenCommand::Completion { shell } => {
-            let mut cmd = shrub_shell::args::CommandLineArgs::command();
-            clap_complete::generate(shell, &mut cmd, "shrub", &mut std::io::stdout());
+            let mut cmd = CommandLineArgs::command();
+            clap_complete::generate(shell, &mut cmd, "shrub", &mut io::stdout());
         }
         GenCommand::Schema { output_path } => {
-            let schema = schemars::schema_for!(shrub_shell::config::Config);
+            let schema = schemars::schema_for!(Config);
             let json = serde_json::to_string_pretty(&schema)?;
-            std::fs::write(&output_path, format!("{json}\n"))?;
+            fs::write(&output_path, format!("{json}\n"))?;
         }
     }
 

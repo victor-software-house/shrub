@@ -1,16 +1,22 @@
 //! Execution support for shell.
 
-use std::io::Read;
+use std::fs::File;
+use std::io;
+use std::io::{BufReader, ErrorKind, Read};
+use std::iter::empty;
 use std::path::Path;
 
+use shrub_parser::ast::{ArithmeticExpr, Program};
+
 use crate::arithmetic::Evaluatable as _;
+use crate::extensions::ShellExtensions;
 use crate::interp::Execute as _;
 use crate::{
     ExecutionControlFlow, ExecutionParameters, ExecutionResult, ProcessGroupPolicy, SourceInfo,
     callstack, error, openfiles, trace_categories,
 };
 
-impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
+impl<SE: ShellExtensions> crate::Shell<SE> {
     /// Returns the default execution parameters for this shell.
     pub fn default_exec_params(&self) -> ExecutionParameters {
         let mut params = ExecutionParameters::default();
@@ -31,8 +37,7 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
     ) -> Result<bool, error::Error> {
         let path = path.as_ref();
         if path.exists() {
-            self.source_script(path, std::iter::empty::<String>(), params)
-                .await?;
+            self.source_script(path, empty::<String>(), params).await?;
             Ok(true)
         } else {
             tracing::debug!("skipping non-existent file: {}", path.display());
@@ -90,7 +95,7 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
         let path = path.as_ref();
         tracing::debug!("sourcing: {}", path.display());
 
-        let mut options = std::fs::File::options();
+        let mut options = File::options();
         options.read(true);
 
         let opened_file: openfiles::OpenFile = self
@@ -100,7 +105,7 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
         if opened_file.is_dir() {
             return Err(error::ErrorKind::FailedSourcingFile(
                 path.to_owned(),
-                std::io::Error::from(std::io::ErrorKind::IsADirectory),
+                io::Error::from(ErrorKind::IsADirectory),
             )
             .into());
         }
@@ -142,7 +147,7 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
         params: &ExecutionParameters,
         call_type: callstack::ScriptCallType,
     ) -> Result<ExecutionResult, error::Error> {
-        let mut reader = std::io::BufReader::new(file);
+        let mut reader = BufReader::new(file);
         let mut parser = shrub_parser::Parser::new(&mut reader, &self.parser_options());
 
         tracing::debug!(target: trace_categories::PARSE, "Parsing sourced file: {}", source_info.source);
@@ -255,7 +260,7 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
 
     pub(crate) async fn run_parsed_result(
         &mut self,
-        parse_result: Result<shrub_parser::ast::Program, shrub_parser::ParseError>,
+        parse_result: Result<Program, shrub_parser::ParseError>,
         source_info: &crate::SourceInfo,
         params: &ExecutionParameters,
     ) -> Result<ExecutionResult, error::Error> {
@@ -299,7 +304,7 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
     /// nor converted to an exit status.
     pub async fn run_program(
         &mut self,
-        program: shrub_parser::ast::Program,
+        program: Program,
         params: &ExecutionParameters,
     ) -> Result<ExecutionResult, error::Error> {
         program.execute(self, params).await
@@ -312,10 +317,7 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
     /// Returns [`crate::error::ErrorKind::EvalError`] if evaluation fails, for
     /// example on division by zero, a negative exponent, or an unset variable
     /// under `set -u`.
-    pub fn eval_arithmetic(
-        &mut self,
-        expr: &shrub_parser::ast::ArithmeticExpr,
-    ) -> Result<i64, error::Error> {
+    pub fn eval_arithmetic(&mut self, expr: &ArithmeticExpr) -> Result<i64, error::Error> {
         Ok(expr.eval(self)?)
     }
 }

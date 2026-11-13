@@ -4,11 +4,13 @@
 //! Run with: `cargo run --package shrub-parser --example serde --features
 //! serde`
 
+use std::error;
 use std::io::BufReader;
 
+use shrub_parser::ast::Program;
 use shrub_parser::{Parser, ParserOptions};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn error::Error>> {
     // Parse a simple shell command
     let input = "echo 'Hello, World!' && ls -la";
     let reader = BufReader::new(input.as_bytes());
@@ -24,7 +26,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Demonstrate round-trip: deserialize the JSON back to AST
     println!("\nRound-trip deserialization:");
-    let deserialized: shrub_parser::ast::Program = serde_json::from_str(&json)?;
+    let deserialized: Program = serde_json::from_str(&json)?;
     println!(
         "Successfully deserialized AST with {} command(s)",
         deserialized.complete_commands.len()

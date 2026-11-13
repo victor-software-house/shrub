@@ -1,6 +1,6 @@
 name: Test
 
-# The platforms CI's verify job, on ubuntu-latest (x86_64 Linux), does not
+# The platforms CI's verify job, on ubuntu-26.04 (x86_64 Linux), does not
 # cover. shrub-core's platform code lives under sys/, and the compatibility
 # suite compares shrub with each platform's own bash and tools.
 
@@ -31,7 +31,7 @@ concurrency:
 jobs:
   refresh:
     if: github.event_name == 'schedule'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 2
     permissions:
       actions: write

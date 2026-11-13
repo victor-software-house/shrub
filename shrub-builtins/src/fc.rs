@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::io::Write;
 
 use clap::Parser;
@@ -228,11 +229,11 @@ impl FcCommand {
         #[expect(clippy::cast_sign_loss)]
         #[expect(clippy::cast_possible_truncation)]
         let result = match num.cmp(&0) {
-            std::cmp::Ordering::Equal => {
+            Ordering::Equal => {
                 // 0 means -1 for listing (relative to effective count)
                 effective_count.saturating_sub(1)
             }
-            std::cmp::Ordering::Greater => {
+            Ordering::Greater => {
                 // Positive: 1-based index
                 let idx = (num - 1) as usize;
                 if idx < effective_count {
@@ -242,7 +243,7 @@ impl FcCommand {
                     0
                 }
             }
-            std::cmp::Ordering::Less => {
+            Ordering::Less => {
                 // Negative: offset from end (relative to effective count)
                 let offset = (-num) as usize;
                 effective_count.saturating_sub(offset)

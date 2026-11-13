@@ -17,7 +17,9 @@
 
 use std::ops::ControlFlow;
 
+use shrub_core::env::{EnvironmentLookup, EnvironmentScope};
 use shrub_core::variables::{ArrayLiteral, ShellValueLiteral};
+use shrub_parser::ast::{Command, Program};
 
 use crate::{InteractiveOptions, ShellError};
 
@@ -167,8 +169,7 @@ fn pending_hooks<SE: shrub_core::ShellExtensions>(
     // scalar *is* element 0 in bash.
     let hook_names = shell
         .env_var(array_var_name)
-        .map(|var| var.value().element_values(shell))
-        .unwrap_or_default();
+        .map_or_default(|var| var.value().element_values(shell));
 
     hook_names
         .iter()
@@ -199,14 +200,14 @@ fn line_runs_a_command<SE: shrub_core::ShellExtensions>(
 /// [`Program`](shrub_parser::ast::Program), but no command in it ever runs, so
 /// it must not count as running one -- while a line that defines a function
 /// *and* runs another command still does.
-fn program_runs_a_command(program: &shrub_parser::ast::Program) -> bool {
+fn program_runs_a_command(program: &Program) -> bool {
     program
         .complete_commands
         .iter()
         .flat_map(|complete_command| complete_command.0.iter())
         .flat_map(|item| item.0.iter())
         .flat_map(|(_operator, pipeline)| pipeline.seq.iter())
-        .any(|command| !matches!(command, shrub_parser::ast::Command::Function(_)))
+        .any(|command| !matches!(command, Command::Function(_)))
 }
 
 /// Invokes the named hooks. Each sees what the last command left in `$?`,
@@ -292,14 +293,16 @@ fn assign_global<SE: shrub_core::ShellExtensions>(
         name,
         value,
         |_| Ok(()),
-        shrub_core::env::EnvironmentLookup::Anywhere,
-        shrub_core::env::EnvironmentScope::Global,
+        EnvironmentLookup::Anywhere,
+        EnvironmentScope::Global,
     )
 }
 
 #[cfg(test)]
 #[allow(clippy::panic_in_result_fn, reason = "assertions in a fallible test")]
 mod tests {
+    use shrub_core::extensions::DefaultShellExtensions;
+
     use super::*;
 
     /// Builds a shell that zsh-style hooks would dispatch for, with
@@ -308,7 +311,7 @@ mod tests {
     async fn shell_with_readonly(
         interactive: bool,
         guard_readonly: &str,
-    ) -> Result<shrub_core::Shell<shrub_core::extensions::DefaultShellExtensions>, ShellError> {
+    ) -> Result<shrub_core::Shell<DefaultShellExtensions>, ShellError> {
         let mut shell = shrub_core::Shell::builder()
             .interactive(interactive)
             .profile(shrub_core::ProfileLoadBehavior::Skip)

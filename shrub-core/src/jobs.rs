@@ -2,7 +2,8 @@
 
 use std::borrow::Cow;
 use std::collections::VecDeque;
-use std::fmt::Display;
+use std::fmt;
+use std::fmt::{Display, Formatter};
 
 use futures::FutureExt;
 
@@ -232,7 +233,7 @@ pub enum JobState {
 }
 
 impl Display for JobState {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Unknown => write!(f, "Unknown"),
             Self::Running => write!(f, "Running"),
@@ -254,7 +255,7 @@ pub enum JobAnnotation {
 }
 
 impl Display for JobAnnotation {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::None => write!(f, ""),
             Self::Current => write!(f, "+"),
@@ -282,7 +283,7 @@ pub struct Job {
 }
 
 impl Display for Job {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "[{}]{:3}{}\t{}",

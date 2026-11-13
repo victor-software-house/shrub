@@ -10,6 +10,7 @@
 #![allow(clippy::panic_in_result_fn, clippy::expect_used)]
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fs;
 use std::path::Path;
 
 use anyhow::{Result, anyhow};
@@ -19,11 +20,12 @@ use proptest::test_runner::{Config, TestCaseError, TestRunner};
 use shrub_builtins::{BuiltinSet, ShellBuilderExt as _};
 use shrub_core::env::EnvironmentScope;
 use shrub_core::snapshot::{
-    NotKept, NotKeptKind, RestoreFailure, RestoreFailureReason, SavedValue, SavedVariable,
-    ShellSnapshot, SnapshotOptions, StateKind,
+    NotKept, NotKeptKind, RestoreFailure, RestoreFailureReason, SavedFunction, SavedValue,
+    SavedVariable, ShellSnapshot, SnapshotOptions, StateKind,
 };
 use shrub_core::variables::{ShellValueUnsetType, ShellVariableUpdateTransform};
 use shrub_core::{ProfileLoadBehavior, RcLoadBehavior, Shell, ShellValue, ShellVariable};
+use tokio::runtime::Builder;
 
 async fn new_shell(dir: &Path) -> Result<Shell> {
     Ok(Shell::builder()
@@ -54,7 +56,7 @@ async fn output(shell: &mut Shell, script: &str) -> Result<String> {
         ShellVariable::new(path.to_string_lossy().into_owned()),
     )?;
     run(shell, &format!("{{\n{script}\n}} >\"$OUT\" 2>&1")).await?;
-    Ok(std::fs::read_to_string(path)?)
+    Ok(fs::read_to_string(path)?)
 }
 
 /// Takes a snapshot of `shell` and restores it into a fresh shell, which it
@@ -127,7 +129,7 @@ count a skip 'b c'
 #[tokio::test]
 async fn a_restored_shell_prints_the_same_state() -> Result<()> {
     let dir = tempfile::tempdir()?;
-    std::fs::create_dir(dir.path().join("sub"))?;
+    fs::create_dir(dir.path().join("sub"))?;
     let mut shell = new_shell(dir.path()).await?;
     assert_eq!(run(&mut shell, SETUP).await?, 1);
 
@@ -311,7 +313,7 @@ async fn an_item_that_cannot_apply_is_reported_and_the_rest_apply() -> Result<()
     );
     snapshot.functions.insert(
         "broken".to_owned(),
-        shrub_core::snapshot::SavedFunction {
+        SavedFunction {
             body: "() { ".to_owned(),
             exported: false,
         },
@@ -394,7 +396,7 @@ async fn functions_parse_under_the_restored_options() -> Result<()> {
 #[tokio::test]
 async fn a_readonly_pwd_is_reported_as_readonly() -> Result<()> {
     let dir = tempfile::tempdir()?;
-    std::fs::create_dir(dir.path().join("sub"))?;
+    fs::create_dir(dir.path().join("sub"))?;
     let mut shell = new_shell(dir.path()).await?;
     run(&mut shell, "cd sub").await?;
     let snapshot = shell.snapshot(&SnapshotOptions::default())?;
@@ -553,9 +555,7 @@ async fn variables_round_trip(variables: BTreeMap<String, Drawn>) -> Result<()> 
 
 #[test]
 fn any_variables_round_trip() -> Result<()> {
-    let runtime = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()?;
+    let runtime = Builder::new_current_thread().enable_all().build()?;
     let mut runner = TestRunner::new(Config {
         cases: 64,
         ..Config::default()

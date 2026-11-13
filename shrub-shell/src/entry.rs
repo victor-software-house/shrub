@@ -1,23 +1,46 @@
 //! Implements the command-line interface for the `shrub` shell.
 
+#[cfg(feature = "experimental-load")]
+use std::fs::File;
+use std::fs::OpenOptions;
 use std::io::IsTerminal;
 use std::path::Path;
 use std::sync::{Arc, LazyLock};
+use std::{env, io, panic, process};
 
 use clap::CommandFactory;
+use clap::error::ErrorKind;
+#[cfg(any(unix, windows))]
+use crossterm::cursor::{MoveToNextLine, Show};
+#[cfg(any(unix, windows))]
+use crossterm::event::{DisableBracketedPaste, DisableMouseCapture};
+#[cfg(any(unix, windows))]
+use crossterm::style::ResetColor;
+#[cfg(any(unix, windows))]
+use crossterm::terminal;
+#[cfg(any(unix, windows))]
+use crossterm::terminal::{EnableLineWrap, LeaveAlternateScreen};
 use shrub_builtins::ShellBuilderExt as _;
+use shrub_core::builtins::try_parse_known;
+use shrub_core::extensions::ShellExtensionsImpl;
+use shrub_core::openfiles::OpenFile;
+#[cfg(feature = "experimental-parser")]
+use shrub_core::parser::ParserImpl;
+use shrub_core::sys::fd;
 #[cfg(feature = "experimental-builtins")]
 use shrub_experimental_builtins::ShellBuilderExt as _;
+#[cfg(any(unix, windows))]
+use tokio::runtime::Builder;
 use tokio::sync::Mutex;
 
 use crate::args::{CommandLineArgs, InputBackendType};
 use crate::shrubctl::ShellBuilderShrubBuiltinExt as _;
 use crate::{bundled, config, error_formatter, events, productinfo};
 
-static TRACE_EVENT_CONFIG: LazyLock<Arc<tokio::sync::Mutex<Option<events::TraceEventConfig>>>> =
-    LazyLock::new(|| Arc::new(tokio::sync::Mutex::new(None)));
+static TRACE_EVENT_CONFIG: LazyLock<Arc<Mutex<Option<events::TraceEventConfig>>>> =
+    LazyLock::new(|| Arc::new(Mutex::new(None)));
 
-type ShrubShellExtensions = shrub_core::extensions::ShellExtensionsImpl<error_formatter::Formatter>;
+type ShrubShellExtensions = ShellExtensionsImpl<error_formatter::Formatter>;
 type ShrubShell = shrub_core::Shell<ShrubShellExtensions>;
 
 // WARN: this implementation shadows `clap::Parser::parse_from` one so it must
@@ -27,7 +50,7 @@ impl CommandLineArgs {
     pub(crate) fn try_parse_from(
         itr: impl IntoIterator<Item = String>,
     ) -> Result<Self, clap::Error> {
-        let (mut this, script_args) = shrub_core::builtins::try_parse_known::<Self>(itr)?;
+        let (mut this, script_args) = try_parse_known::<Self>(itr)?;
 
         // Collect any args from after `--` (handled by try_parse_known) into
         // script_args, which become positional parameters ($0, $1, ...).
@@ -51,7 +74,7 @@ impl CommandLineArgs {
         if this.command_string_mode {
             if this.script_args.is_empty() {
                 return Err(Self::command().error(
-                    clap::error::ErrorKind::MissingRequiredArgument,
+                    ErrorKind::MissingRequiredArgument,
                     "-c: option requires an argument",
                 ));
             }
@@ -78,7 +101,7 @@ pub fn run() {
     // hot path for in-binary coreutils invocations.
     //
     if let Some(code) = bundled::maybe_dispatch() {
-        std::process::exit(code);
+        process::exit(code);
     }
 
     //
@@ -89,7 +112,7 @@ pub fn run() {
     //
     // Parse args.
     //
-    let mut args: Vec<_> = std::env::args().collect();
+    let mut args: Vec<_> = env::args().collect();
 
     // Work around clap's limitations handling +O options.
     for arg in &mut args {
@@ -106,12 +129,12 @@ pub fn run() {
             // Check for whether this is something we'd truly consider fatal.
             // clap returns errors for `--help`, `--version`, etc.
             let exit_code = match e.kind() {
-                clap::error::ErrorKind::DisplayVersion => 0,
-                clap::error::ErrorKind::DisplayHelp => 0,
+                ErrorKind::DisplayVersion => 0,
+                ErrorKind::DisplayHelp => 0,
                 _ => 2,
             };
 
-            std::process::exit(exit_code);
+            process::exit(exit_code);
         }
     };
 
@@ -119,13 +142,13 @@ pub fn run() {
     // Run.
     //
     #[cfg(any(unix, windows))]
-    let mut builder = tokio::runtime::Builder::new_multi_thread();
+    let mut builder = Builder::new_multi_thread();
     #[cfg(not(any(unix, windows)))]
     let mut builder = tokio::runtime::Builder::new_current_thread();
 
     let Ok(runtime) = builder.enable_all().build() else {
         tracing::error!("error: failed to create Tokio runtime");
-        std::process::exit(1);
+        process::exit(1);
     };
 
     let result = runtime.block_on(run_async(&args, parsed_args));
@@ -138,7 +161,7 @@ pub fn run() {
         }
     };
 
-    std::process::exit(i32::from(exit_code));
+    process::exit(i32::from(exit_code));
 }
 
 /// Installs panic handlers to report our panic and cleanly exit on panic.
@@ -161,9 +184,9 @@ fn install_panic_handlers() {
     // be the default handler; in release builds, it will be the one
     // registered by `human_panic`.
     //
-    if std::io::stdout().is_terminal() {
-        let original_panic_handler = std::panic::take_hook();
-        std::panic::set_hook(Box::new(move |panic_info| {
+    if io::stdout().is_terminal() {
+        let original_panic_handler = panic::take_hook();
+        panic::set_hook(Box::new(move |panic_info| {
             // Best-effort attempt to reset the terminal to defaults.
             let _ = try_reset_terminal_to_defaults();
 
@@ -200,7 +223,7 @@ async fn run_async(
     // Load configuration file.
     let file_config = config::load_config(args.no_config, args.config_file.as_deref())
         .into_config_or_log()
-        .map_err(|e| shrub_interactive::ShellError::IoError(std::io::Error::other(e)))?;
+        .map_err(|e| shrub_interactive::ShellError::IoError(io::Error::other(e)))?;
 
     // Instantiate an appropriately configured shell and wrap it in an `Arc`.
     // Note that we do *not* run any code in the shell yet. We'll delay
@@ -404,8 +427,8 @@ async fn instantiate_shell(
 fn instantiate_shell_from_file(
     file_path: &Path,
 ) -> Result<ShrubShell, shrub_interactive::ShellError> {
-    let mut shell: ShrubShell = serde_json::from_reader(std::fs::File::open(file_path)?)
-        .map_err(|e| shrub_interactive::ShellError::IoError(std::io::Error::other(e)))?;
+    let mut shell: ShrubShell = serde_json::from_reader(File::open(file_path)?)
+        .map_err(|e| shrub_interactive::ShellError::IoError(io::Error::other(e)))?;
 
     // NOTE: We need to manually register builtins because we can't
     // serialize/deserialize them. TODO(serde): we should consider whether
@@ -480,15 +503,15 @@ async fn instantiate_shell_from_args(
     let fds = args
         .inherited_fds
         .iter()
-        .filter_map(|&fd| shrub_core::sys::fd::try_get_file_for_open_fd(fd).map(|file| (fd, file)))
+        .filter_map(|&fd| fd::try_get_file_for_open_fd(fd).map(|file| (fd, file)))
         .collect();
 
     // Select parser implementation to use.
     #[cfg(feature = "experimental-parser")]
     let parser_impl = if args.experimental_parser {
-        shrub_core::parser::ParserImpl::Winnow
+        ParserImpl::Winnow
     } else {
-        shrub_core::parser::ParserImpl::Peg
+        ParserImpl::Peg
     };
 
     #[cfg(not(feature = "experimental-parser"))]
@@ -553,7 +576,7 @@ fn enable_xtrace_to_file(
     shell: &mut shrub_core::Shell<impl shrub_core::ShellExtensions>,
     file_path: &Path,
 ) -> Result<(), shrub_interactive::ShellError> {
-    let file = std::fs::OpenOptions::new()
+    let file = OpenOptions::new()
         .create(true)
         .write(true)
         .truncate(true)
@@ -562,7 +585,7 @@ fn enable_xtrace_to_file(
             shrub_interactive::ShellError::FailedToCreateXtraceFile(file_path.to_path_buf(), e)
         })?;
 
-    let file = shrub_core::openfiles::OpenFile::from(file);
+    let file = OpenFile::from(file);
     let file_fd = shell.open_files_mut().add(file)?;
 
     shell.options_mut().print_commands_and_arguments = true;
@@ -595,9 +618,7 @@ const fn is_input_backend_available(backend: InputBackendType) -> bool {
 }
 
 fn get_default_input_backend_type(args: &CommandLineArgs) -> InputBackendType {
-    default_input_backend_type(
-        std::io::stdin().is_terminal() && args.will_read_commands_from_stdin(),
-    )
+    default_input_backend_type(io::stdin().is_terminal() && args.will_read_commands_from_stdin())
 }
 
 /// Returns the input backend to use if none is requested: the first this build
@@ -625,26 +646,26 @@ fn default_input_backend_type(at_terminal: bool) -> InputBackendType {
         .unwrap_or(B::Minimal)
 }
 
-pub(crate) fn get_event_config() -> Arc<tokio::sync::Mutex<Option<events::TraceEventConfig>>> {
+pub(crate) fn get_event_config() -> Arc<Mutex<Option<events::TraceEventConfig>>> {
     TRACE_EVENT_CONFIG.clone()
 }
 
-fn try_reset_terminal_to_defaults() -> Result<(), std::io::Error> {
+fn try_reset_terminal_to_defaults() -> Result<(), io::Error> {
     #[cfg(any(unix, windows))]
     {
         // Reset the console.
         let exec_result = crossterm::execute!(
-            std::io::stdout(),
-            crossterm::terminal::LeaveAlternateScreen,
-            crossterm::terminal::EnableLineWrap,
-            crossterm::style::ResetColor,
-            crossterm::event::DisableMouseCapture,
-            crossterm::event::DisableBracketedPaste,
-            crossterm::cursor::Show,
-            crossterm::cursor::MoveToNextLine(1),
+            io::stdout(),
+            LeaveAlternateScreen,
+            EnableLineWrap,
+            ResetColor,
+            DisableMouseCapture,
+            DisableBracketedPaste,
+            Show,
+            MoveToNextLine(1),
         );
 
-        let raw_result = crossterm::terminal::disable_raw_mode();
+        let raw_result = terminal::disable_raw_mode();
 
         exec_result?;
         raw_result?;

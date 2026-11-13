@@ -13,11 +13,15 @@
 //! cargo run --package shrub-core --example custom-builtin
 //! ```
 
+use std::io;
 use std::io::Write;
 
 use anyhow::Result;
 use clap::Parser;
+use shrub_core::builtins::builtin;
+use shrub_core::extensions::DefaultShellExtensions;
 use shrub_core::{ExecutionResult, builtins};
+use tokio::runtime::Builder;
 
 //
 // Step 1 (optional): Define a custom error type for your builtin
@@ -39,7 +43,7 @@ enum GreetError {
 
     /// An I/O error occurred.
     #[error("I/O error occurred during greeting: {0}")]
-    IoError(#[from] std::io::Error),
+    IoError(#[from] io::Error),
 }
 
 // Mark your error type as a builtin error. This is required to use this error
@@ -120,12 +124,12 @@ impl builtins::Command for GreetCommand {
 // This example shows how to register and use your custom builtin.
 //
 
-type SE = shrub_core::extensions::DefaultShellExtensions;
+type SE = DefaultShellExtensions;
 
 async fn run_example() -> Result<()> {
     // Create a shell instance with custom builtin registered.
     let mut shell = shrub_core::Shell::builder()
-        .builtin("greet", shrub_core::builtins::builtin::<GreetCommand, SE>())
+        .builtin("greet", builtin::<GreetCommand, SE>())
         .build()
         .await?;
 
@@ -144,9 +148,7 @@ async fn run_example() -> Result<()> {
 
 fn main() -> Result<()> {
     // Construct a `tokio` runtime for async execution
-    let rt = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()?;
+    let rt = Builder::new_multi_thread().enable_all().build()?;
 
     rt.block_on(run_example())?;
 

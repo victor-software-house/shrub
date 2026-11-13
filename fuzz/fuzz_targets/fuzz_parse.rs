@@ -2,13 +2,15 @@
 #![allow(missing_docs)]
 #![allow(clippy::unwrap_used)]
 
+use std::process::Command;
 use std::sync::LazyLock;
+use std::time::Duration;
 
 use anyhow::Result;
 use libfuzzer_sys::fuzz_target;
+use tokio::runtime::Runtime;
 
-static TOKIO_RT: LazyLock<tokio::runtime::Runtime> =
-    LazyLock::new(|| tokio::runtime::Runtime::new().unwrap());
+static TOKIO_RT: LazyLock<Runtime> = LazyLock::new(|| Runtime::new().unwrap());
 
 static SHELL_TEMPLATE: LazyLock<shrub_core::Shell> = LazyLock::new(|| {
     TOKIO_RT
@@ -34,7 +36,7 @@ async fn parse_async(shell: shrub_core::Shell, input: String) -> Result<()> {
     // Now run it under 'bash -n -t' as a crude way to see if it's at least
     // valid syntax.
     //
-    let mut oracle_cmd = std::process::Command::new("bash");
+    let mut oracle_cmd = Command::new("bash");
     oracle_cmd
         .arg("--noprofile")
         .arg("--norc")
@@ -45,7 +47,7 @@ async fn parse_async(shell: shrub_core::Shell, input: String) -> Result<()> {
 
     let mut oracle_cmd = assert_cmd::Command::from_std(oracle_cmd);
 
-    oracle_cmd.timeout(std::time::Duration::from_secs(DEFAULT_TIMEOUT_IN_SECONDS));
+    oracle_cmd.timeout(Duration::from_secs(DEFAULT_TIMEOUT_IN_SECONDS));
 
     let mut input = input;
     input.push('\n');

@@ -1,9 +1,12 @@
 //! File descriptor polling utilities for timeout support.
 
+use std::io;
 use std::os::fd::BorrowedFd;
 use std::time::{Duration, Instant};
 
+use nix::errno::Errno;
 use nix::poll::{PollFd, PollFlags, PollTimeout, poll};
+use nix::sys::stat;
 
 use crate::openfiles::OpenFile;
 
@@ -25,10 +28,10 @@ use crate::openfiles::OpenFile;
 /// # Errors
 ///
 /// Returns an error if polling fails or the file descriptor cannot be borrowed.
-pub fn poll_for_input(file: &OpenFile, timeout: Duration) -> std::io::Result<bool> {
+pub fn poll_for_input(file: &OpenFile, timeout: Duration) -> io::Result<bool> {
     let fd = file
         .try_borrow_as_fd()
-        .map_err(|e| std::io::Error::other(e.to_string()))?;
+        .map_err(|e| io::Error::other(e.to_string()))?;
 
     // Regular files are always ready - timeout has no effect (bash behavior).
     if is_regular_file(fd) {
@@ -56,7 +59,7 @@ pub fn poll_for_input(file: &OpenFile, timeout: Duration) -> std::io::Result<boo
 ///
 /// * `fd` - File descriptor to poll
 /// * `deadline` - Optional deadline; `None` indicates no deadline.
-fn poll_fd_for_input(fd: BorrowedFd<'_>, deadline: Option<Instant>) -> std::io::Result<bool> {
+fn poll_fd_for_input(fd: BorrowedFd<'_>, deadline: Option<Instant>) -> io::Result<bool> {
     let mut poll_fds = [PollFd::new(fd, PollFlags::POLLIN)];
     let mut first_iteration = true;
 
@@ -89,8 +92,8 @@ fn poll_fd_for_input(fd: BorrowedFd<'_>, deadline: Option<Instant>) -> std::io::
                     revents.intersects(PollFlags::POLLIN | PollFlags::POLLHUP | PollFlags::POLLERR)
                 );
             }
-            Err(nix::errno::Errno::EINTR) => (), // Retry on signal with recalculated timeout.
-            Err(e) => return Err(std::io::Error::from_raw_os_error(e as i32)),
+            Err(Errno::EINTR) => (), // Retry on signal with recalculated timeout.
+            Err(e) => return Err(io::Error::from_raw_os_error(e as i32)),
         }
     }
 }
@@ -103,7 +106,7 @@ fn poll_fd_for_input(fd: BorrowedFd<'_>, deadline: Option<Instant>) -> std::io::
 ///
 /// * `fd` - File descriptor to check
 fn is_regular_file(fd: BorrowedFd<'_>) -> bool {
-    match nix::sys::stat::fstat(fd) {
+    match stat::fstat(fd) {
         Ok(stat) => {
             use nix::sys::stat::{SFlag, mode_t};
             mode_t::try_from(stat.st_mode)

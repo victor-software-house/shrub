@@ -2,6 +2,8 @@ use std::io::Write;
 
 use clap::Parser;
 use itertools::Itertools;
+use shrub_core::openfiles::OpenFiles;
+use shrub_core::patterns::Pattern;
 use shrub_core::{ExecutionResult, builtins};
 
 /// Display command help.
@@ -92,7 +94,7 @@ impl HelpCommand {
         context: &shrub_core::ExecutionContext<'_, impl shrub_core::ShellExtensions>,
         topic_pattern: &str,
     ) -> Result<bool, shrub_core::Error> {
-        let pattern = shrub_core::patterns::Pattern::from(topic_pattern)
+        let pattern = Pattern::from(topic_pattern)
             .set_extended_globbing(context.shell.options().extended_globbing)
             .set_case_insensitive(context.shell.options().case_insensitive_pathname_expansion);
 
@@ -131,7 +133,7 @@ impl HelpCommand {
             builtins::ContentType::DetailedHelp
         };
 
-        let Some(mut stdout) = context.try_fd(shrub_core::openfiles::OpenFiles::STDOUT_FD) else {
+        let Some(mut stdout) = context.try_fd(OpenFiles::STDOUT_FD) else {
             // If there's no stdout, nothing to do.
             return Ok(());
         };

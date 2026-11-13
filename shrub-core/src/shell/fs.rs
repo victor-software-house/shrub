@@ -1,14 +1,17 @@
 //! Filesystem interaction in the shell.
 
+use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
+use std::{fs, io, mem};
 
 use normalize_path::NormalizePath as _;
 
 use crate::env::{EnvironmentLookup, EnvironmentScope};
-use crate::sys::users;
+use crate::extensions::ShellExtensions;
+use crate::sys::{self, users};
 use crate::{ExecutionParameters, ShellFd, error, openfiles, pathsearch, variables};
 
-impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
+impl<SE: ShellExtensions> crate::Shell<SE> {
     /// Sets the shell's current working directory to the given path.
     ///
     /// # Arguments
@@ -26,7 +29,7 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
     pub fn set_working_dir(&mut self, target_dir: impl AsRef<Path>) -> Result<(), error::Error> {
         let abs_path = self.absolute_path(target_dir.as_ref());
 
-        match std::fs::metadata(&abs_path) {
+        match fs::metadata(&abs_path) {
             Ok(m) => {
                 if !m.is_dir() {
                     return Err(error::ErrorKind::NotADirectory(abs_path).into());
@@ -49,7 +52,7 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
             EnvironmentLookup::Anywhere,
             EnvironmentScope::Global,
         )?;
-        let oldpwd = std::mem::replace(self.working_dir_mut(), cleaned_path);
+        let oldpwd = mem::replace(self.working_dir_mut(), cleaned_path);
 
         self.env.update_or_add(
             "OLDPWD",
@@ -98,7 +101,7 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
         filename: &'a str,
     ) -> impl Iterator<Item = PathBuf> + 'a {
         let path_var = self.env.get_str("PATH", self).unwrap_or_default();
-        let paths = crate::sys::fs::split_paths(path_var.as_ref());
+        let paths = sys::fs::split_paths(path_var.as_ref());
 
         pathsearch::search_for_executable(paths, filename)
     }
@@ -115,7 +118,7 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
         case_insensitive: bool,
     ) -> impl Iterator<Item = PathBuf> {
         let path_var = self.env.get_str("PATH", self).unwrap_or_default();
-        let paths = crate::sys::fs::split_paths(path_var.as_ref());
+        let paths = sys::fs::split_paths(path_var.as_ref());
 
         pathsearch::search_for_executable_with_prefix(paths, filename_prefix, case_insensitive)
     }
@@ -173,7 +176,7 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
     /// * `candidate_name` - The name of the command to resolve.
     pub fn resolve_command_in_path<S: AsRef<str>>(&self, candidate_name: S) -> Option<PathBuf> {
         let path_var = self.env.get_str("PATH", self).unwrap_or_default();
-        let paths = crate::sys::fs::split_paths(path_var.as_ref());
+        let paths = sys::fs::split_paths(path_var.as_ref());
         pathsearch::resolve_command(paths, candidate_name.as_ref())
     }
 
@@ -226,15 +229,15 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
     /// * `params` - Execution parameters.
     pub(crate) fn open_file(
         &self,
-        options: &std::fs::OpenOptions,
+        options: &OpenOptions,
         path: impl AsRef<Path>,
         params: &ExecutionParameters,
-    ) -> Result<openfiles::OpenFile, std::io::Error> {
+    ) -> Result<openfiles::OpenFile, io::Error> {
         // Give platform-specific code a chance to handle special files
         // (e.g. /dev/null on Windows, which needs to open NUL instead).
         // This is checked before absolute_path so that paths like /dev/null
         // are intercepted on platforms where they aren't valid native paths.
-        if let Some(result) = crate::sys::fs::try_open_special_file(path.as_ref()) {
+        if let Some(result) = sys::fs::try_open_special_file(path.as_ref()) {
             return result.map(openfiles::OpenFile::from);
         }
 

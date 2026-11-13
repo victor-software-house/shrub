@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 use std::pin::Pin;
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::task::{Context, Poll};
 
 use futures::FutureExt as _;
@@ -165,7 +165,7 @@ impl ShellTasks {
 impl TasksInner {
     /// The state's lock. A task that panicked under it left the state as
     /// it was, whole, so a poisoned lock is taken as it is.
-    fn lock(&self) -> std::sync::MutexGuard<'_, TasksState> {
+    fn lock(&self) -> MutexGuard<'_, TasksState> {
         self.state.lock().unwrap_or_else(PoisonError::into_inner)
     }
 }
@@ -203,7 +203,10 @@ impl<T> TaskHandle<Result<T, Aborted>> {
 #[cfg(test)]
 #[allow(clippy::panic_in_result_fn, reason = "assertions in a fallible test")]
 mod tests {
+    use std::future::pending;
     use std::sync::atomic::{AtomicU64, Ordering};
+
+    use tokio::task;
 
     use super::*;
 
@@ -218,17 +221,17 @@ mod tests {
             let ticks = Arc::clone(&ticks);
             async move {
                 while ticks.fetch_add(1, Ordering::SeqCst) < u64::MAX {
-                    tokio::task::yield_now().await;
+                    task::yield_now().await;
                 }
             }
         });
         while ticks.load(Ordering::SeqCst) == 0 {
-            tokio::task::yield_now().await;
+            task::yield_now().await;
         }
 
         tasks.abort_and_wait().await;
         let seen = ticks.load(Ordering::SeqCst);
-        tokio::task::yield_now().await;
+        task::yield_now().await;
         assert_eq!(
             ticks.load(Ordering::SeqCst),
             seen,
@@ -256,7 +259,7 @@ mod tests {
     #[tokio::test]
     async fn abort_ends_running_tasks_without_waiting() {
         let tasks = ShellTasks::default();
-        let running = tasks.spawn(std::future::pending::<()>());
+        let running = tasks.spawn(pending::<()>());
         tasks.abort();
         assert!(running.await.is_err(), "the running task ends");
 

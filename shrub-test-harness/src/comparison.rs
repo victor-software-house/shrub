@@ -1,16 +1,18 @@
 //! Comparison types for test results.
 
+use std::fs::OpenOptions;
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
+use std::time::Duration;
 
 /// Comparison of durations between oracle and test runs.
 #[derive(Default)]
 pub struct DurationComparison {
     /// Duration of the oracle run.
-    pub oracle: std::time::Duration,
+    pub oracle: Duration,
     /// Duration of the test run.
-    pub test: std::time::Duration,
+    pub test: Duration,
 }
 
 /// Comparison of exit statuses.
@@ -238,7 +240,7 @@ pub struct TestComparison {
     /// Expectation comparison (if expectations were defined).
     pub expectation: ExpectationComparison,
     /// Duration of the test run.
-    pub duration: std::time::Duration,
+    pub duration: Duration,
 }
 
 impl TestComparison {
@@ -252,7 +254,7 @@ impl TestComparison {
         Self {
             oracle: None,
             expectation: ExpectationComparison::not_specified(),
-            duration: std::time::Duration::default(),
+            duration: Duration::default(),
         }
     }
 }
@@ -277,16 +279,11 @@ pub fn output_matches(oracle: &str, test: &str, ignore_whitespace: bool) -> bool
 ///
 /// Returns an error when a directory cannot be read or walked, or when a file
 /// present in both directories cannot be read.
-pub fn diff_dirs(
-    oracle_path: &std::path::Path,
-    test_path: &std::path::Path,
-) -> anyhow::Result<DirComparison> {
+pub fn diff_dirs(oracle_path: &Path, test_path: &Path) -> anyhow::Result<DirComparison> {
     use std::collections::HashMap;
     use std::fs;
 
-    fn get_dir_entries(
-        dir_path: &std::path::Path,
-    ) -> anyhow::Result<HashMap<String, fs::FileType>> {
+    fn get_dir_entries(dir_path: &Path) -> anyhow::Result<HashMap<String, fs::FileType>> {
         let mut entries = HashMap::new();
         for entry in fs::read_dir(dir_path)? {
             let entry = entry?;
@@ -325,15 +322,11 @@ pub fn diff_dirs(
         let test_file_path = test_path.join(filename);
 
         if file_type.is_file() {
-            let mut oracle_file = std::fs::OpenOptions::new()
-                .read(true)
-                .open(&oracle_file_path)?;
+            let mut oracle_file = OpenOptions::new().read(true).open(&oracle_file_path)?;
             let mut oracle_bytes = vec![];
             oracle_file.read_to_end(&mut oracle_bytes)?;
 
-            let mut test_file = std::fs::OpenOptions::new()
-                .read(true)
-                .open(&test_file_path)?;
+            let mut test_file = OpenOptions::new().read(true).open(&test_file_path)?;
             let mut test_bytes = vec![];
             test_file.read_to_end(&mut test_bytes)?;
 

@@ -3,7 +3,8 @@
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::ffi::OsString;
-use std::fmt::{Display, Write};
+use std::fmt;
+use std::fmt::{Display, Formatter, Write};
 
 use crate::shell::{Shell, ShellState};
 use crate::{error, escape, extensions};
@@ -697,7 +698,7 @@ pub enum ShellValueLiteral {
 }
 
 impl ShellValueLiteral {
-    pub(crate) fn fmt_for_tracing(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    pub(crate) fn fmt_for_tracing(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Scalar(s) => Self::fmt_scalar_for_tracing(s.as_str(), f),
             Self::Array(elements) => {
@@ -718,14 +719,14 @@ impl ShellValueLiteral {
         }
     }
 
-    fn fmt_scalar_for_tracing(s: &str, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt_scalar_for_tracing(s: &str, f: &mut Formatter<'_>) -> fmt::Result {
         let processed = escape::quote_if_needed(s, escape::QuoteMode::SingleQuote);
         write!(f, "{processed}")
     }
 }
 
 impl Display for ShellValueLiteral {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.fmt_for_tracing(f)
     }
 }

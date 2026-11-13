@@ -1,6 +1,7 @@
 //! Key bindings: readline's Emacs-mode defaults, and those made with `bind`.
 
 use std::collections::HashMap;
+use std::io;
 
 use indexmap::IndexMap;
 use shrub_core::interfaces::{self, InputFunction, Key, KeyAction, KeySequence, KeyStroke};
@@ -271,7 +272,7 @@ impl interfaces::KeyBindings for VtKeyBindings {
         }
     }
 
-    fn bind(&mut self, seq: KeySequence, action: KeyAction) -> Result<(), std::io::Error> {
+    fn bind(&mut self, seq: KeySequence, action: KeyAction) -> Result<(), io::Error> {
         self.set(seq, Target::Action(action));
         Ok(())
     }
@@ -280,11 +281,7 @@ impl interfaces::KeyBindings for VtKeyBindings {
         self.remove(&seq)
     }
 
-    fn define_macro(
-        &mut self,
-        seq: KeySequence,
-        target: KeySequence,
-    ) -> Result<(), std::io::Error> {
+    fn define_macro(&mut self, seq: KeySequence, target: KeySequence) -> Result<(), io::Error> {
         self.set(seq, Target::Macro(target));
         Ok(())
     }
@@ -303,6 +300,8 @@ impl interfaces::KeyBindings for VtKeyBindings {
 #[cfg(test)]
 #[allow(clippy::panic_in_result_fn, reason = "assertions in tests")]
 mod tests {
+    use std::io;
+
     use interfaces::KeyBindings as _;
 
     use super::*;
@@ -365,7 +364,7 @@ mod tests {
     }
 
     #[test]
-    fn finds_bindings_of_keys_as_strokes_or_bytes() -> Result<(), std::io::Error> {
+    fn finds_bindings_of_keys_as_strokes_or_bytes() -> Result<(), io::Error> {
         let mut bindings = VtKeyBindings::default();
         bindings.bind(KeySequence::Strokes(vec![ctrl('x')]), command("search"))?;
         bindings.bind(
@@ -388,7 +387,7 @@ mod tests {
     }
 
     #[test]
-    fn binds_keys_that_send_the_same_bytes_as_others() -> Result<(), std::io::Error> {
+    fn binds_keys_that_send_the_same_bytes_as_others() -> Result<(), io::Error> {
         // `bind` records \C-i, \C-m, and \C-? as Ctrl strokes, but terminals
         // send them as Tab, Enter, and Backspace; and \C-h is 0x08.
         let mut bindings = VtKeyBindings::default();
@@ -416,7 +415,7 @@ mod tests {
     }
 
     #[test]
-    fn binds_keys_beyond_the_editing_keys() -> Result<(), std::io::Error> {
+    fn binds_keys_beyond_the_editing_keys() -> Result<(), io::Error> {
         let mut bindings = VtKeyBindings::default();
         let keys = [
             (ctrl(']'), &b"\x1d"[..]),
@@ -444,7 +443,7 @@ mod tests {
     }
 
     #[test]
-    fn uses_the_latest_of_a_binding_and_a_macro() -> Result<(), std::io::Error> {
+    fn uses_the_latest_of_a_binding_and_a_macro() -> Result<(), io::Error> {
         let mut bindings = VtKeyBindings::default();
         let ctrl_o = KeySequence::Strokes(vec![ctrl('o')]);
 
@@ -484,7 +483,7 @@ mod tests {
     }
 
     #[test]
-    fn rebinds_and_unbinds_a_key_however_its_written() -> Result<(), std::io::Error> {
+    fn rebinds_and_unbinds_a_key_however_its_written() -> Result<(), io::Error> {
         // Enter is bound by default; \C-m is another way to write it.
         let mut bindings = VtKeyBindings::default();
         let ctrl_m = KeySequence::Strokes(vec![ctrl('m')]);
@@ -509,7 +508,7 @@ mod tests {
     }
 
     #[test]
-    fn keeps_bindings_and_macros_for_bind() -> Result<(), std::io::Error> {
+    fn keeps_bindings_and_macros_for_bind() -> Result<(), io::Error> {
         let mut bindings = VtKeyBindings::default();
         let ctrl_x = KeySequence::Strokes(vec![ctrl('x')]);
         let up = KeySequence::Bytes(vec![b"\x1b[A".to_vec()]);
@@ -529,7 +528,7 @@ mod tests {
     }
 
     #[test]
-    fn finds_sequences_and_macros() -> Result<(), std::io::Error> {
+    fn finds_sequences_and_macros() -> Result<(), io::Error> {
         let mut bindings = VtKeyBindings::default();
         // As atuin's bash integration binds them.
         let chained = KeySequence::Bytes(vec![
@@ -562,7 +561,7 @@ mod tests {
     }
 
     #[test]
-    fn reports_keys_both_bound_and_starting_a_longer_sequence() -> Result<(), std::io::Error> {
+    fn reports_keys_both_bound_and_starting_a_longer_sequence() -> Result<(), io::Error> {
         let mut bindings = VtKeyBindings::default();
         bindings.bind(KeySequence::Strokes(vec![ctrl('x')]), command("short"))?;
         bindings.bind(
@@ -583,7 +582,7 @@ mod tests {
     }
 
     #[test]
-    fn ignores_sequences_of_actions() -> Result<(), std::io::Error> {
+    fn ignores_sequences_of_actions() -> Result<(), io::Error> {
         let mut bindings = VtKeyBindings::default();
         bindings.bind(
             KeySequence::Strokes(vec![ctrl('x')]),

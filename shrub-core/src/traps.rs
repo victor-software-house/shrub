@@ -1,10 +1,14 @@
 //! Facilities for configuring trap handlers.
 
 use std::collections::HashMap;
-use std::fmt::Display;
+use std::fmt;
+use std::fmt::{Display, Formatter};
+use std::io::Write;
 use std::str::FromStr;
 
 use itertools::Itertools as _;
+#[cfg(feature = "serde")]
+use serde::de;
 
 use crate::{error, sys};
 
@@ -40,12 +44,12 @@ impl<'de> serde::Deserialize<'de> for TrapSignal {
         D: serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        Self::try_from(s.as_str()).map_err(serde::de::Error::custom)
+        Self::try_from(s.as_str()).map_err(de::Error::custom)
     }
 }
 
 impl Display for TrapSignal {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
     }
 }
@@ -87,7 +91,7 @@ impl TrapSignal {
 ///
 /// Returns [`crate::error::ErrorKind::IoError`] if writing to `f` fails.
 pub fn format_signals(
-    mut f: impl std::io::Write,
+    mut f: impl Write,
     it: impl Iterator<Item = TrapSignal>,
 ) -> Result<(), error::Error> {
     let it = it

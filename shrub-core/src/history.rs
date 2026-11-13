@@ -1,7 +1,9 @@
 //! Facilities for tracking and persisting the shell's command history.
 
 use std::collections::BTreeSet;
-use std::io::{BufRead, Read, Write};
+use std::fs::File;
+use std::io::{BufRead, BufReader, BufWriter, ErrorKind, IntoInnerError, Read, Write};
+use std::ops::Range;
 use std::path::Path;
 
 use chrono::Utc;
@@ -45,7 +47,7 @@ impl History {
         let mut history = Self::default();
         let read_time = Utc::now();
 
-        let buf_reader = std::io::BufReader::new(reader);
+        let buf_reader = BufReader::new(reader);
 
         let mut next_timestamp = None;
         for line_result in buf_reader.lines() {
@@ -54,7 +56,7 @@ impl History {
                 // If we couldn't decode the line due to invalid data (perhaps
                 // it wasn't valid UTF8?), skip it and make a best-effort
                 // attempt to proceed on. We'll later warn the user.
-                Err(err) if err.kind() == std::io::ErrorKind::InvalidData => {
+                Err(err) if err.kind() == ErrorKind::InvalidData => {
                     tracing::warn!("unreadable history line; {err}");
                     continue;
                 }
@@ -243,7 +245,7 @@ impl History {
         write_timestamps: bool,
     ) -> Result<(), error::Error> {
         // Open the file
-        let mut file_options = std::fs::File::options();
+        let mut file_options = File::options();
 
         if append {
             file_options.append(true);
@@ -251,8 +253,7 @@ impl History {
             file_options.write(true).truncate(true);
         }
 
-        let mut file =
-            std::io::BufWriter::new(file_options.create(true).open(history_file_path.as_ref())?);
+        let mut file = BufWriter::new(file_options.create(true).open(history_file_path.as_ref())?);
 
         let mut written = Vec::new();
         for (index, item) in self.items.iter().enumerate() {
@@ -273,8 +274,7 @@ impl History {
 
         // Only once they're all written out, mark the items saved: if writing
         // fails, they stay unsaved, so a later flush retries them.
-        file.into_inner()
-            .map_err(std::io::IntoInnerError::into_error)?;
+        file.into_inner().map_err(IntoInnerError::into_error)?;
         for index in written {
             if let Some(item) = self.items.get_mut(index) {
                 item.dirty = false;
@@ -543,7 +543,7 @@ pub struct Search<'a> {
     history: &'a History,
     /// The positions of the items left to search: those within the query's ID
     /// bounds.
-    positions: std::ops::Range<usize>,
+    positions: Range<usize>,
     /// The query to apply.
     query: Query,
     /// Count of items returned so far.
@@ -620,6 +620,9 @@ impl<'a> Iterator for Search<'a> {
 #[cfg(test)]
 #[allow(clippy::panic_in_result_fn, reason = "assertions in a fallible test")]
 mod tests {
+    use std::fs;
+    use std::fs::File;
+
     use super::*;
 
     fn history(lines: &[&str]) -> Result<History, error::Error> {
@@ -843,7 +846,7 @@ mod tests {
     fn flush_writes_unsaved_items_once() -> Result<(), error::Error> {
         let dir = tempfile::tempdir()?;
         let path = dir.path().join("history");
-        let read = || std::fs::read_to_string(&path);
+        let read = || fs::read_to_string(&path);
 
         // Imported items are already saved; added ones aren't.
         let mut history = History::import(&b"old\n"[..])?;
@@ -1002,7 +1005,7 @@ mod tests {
     fn flush_and_import_round_trip_with_timestamps() -> Result<(), error::Error> {
         let dir = tempfile::tempdir()?;
         let path = dir.path().join("history");
-        std::fs::write(&path, "existing\n")?;
+        fs::write(&path, "existing\n")?;
 
         let mut history = History::default();
         history.add(Item {
@@ -1014,12 +1017,9 @@ mod tests {
             ..Item::new("b")
         })?;
         history.flush(&path, true, true, true)?;
-        assert_eq!(
-            std::fs::read_to_string(&path)?,
-            "existing\n#1700000000\na\nb\n"
-        );
+        assert_eq!(fs::read_to_string(&path)?, "existing\n#1700000000\na\nb\n");
 
-        let reread = History::import(std::fs::File::open(&path)?)?;
+        let reread = History::import(File::open(&path)?)?;
         assert_eq!(command_lines(reread.iter()), ["existing", "a", "b"]);
         assert_eq!(
             reread.get(1).and_then(|item| item.timestamp),

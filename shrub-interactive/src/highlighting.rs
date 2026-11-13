@@ -4,6 +4,14 @@
 //! imposing any specific styling. Consumers can map the semantic categories
 //! to their own color schemes or styles.
 
+use std::iter;
+use std::ops::Range;
+use std::path::Path;
+
+use shrub_core::sys::fs;
+use shrub_parser::word;
+use shrub_parser::word::{WordPiece, WordPieceWithSource};
+
 /// Semantic category for a highlighted span.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HighlightKind {
@@ -45,7 +53,7 @@ pub enum HighlightKind {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HighlightSpan {
     /// Byte range of this span within the input string.
-    pub range: std::ops::Range<usize>,
+    pub range: Range<usize>,
     /// Semantic category of this span.
     pub kind: HighlightKind,
 }
@@ -53,7 +61,7 @@ pub struct HighlightSpan {
 impl HighlightSpan {
     /// Creates a new highlight span over the given byte range.
     #[must_use]
-    pub const fn new(range: std::ops::Range<usize>, kind: HighlightKind) -> Self {
+    pub const fn new(range: Range<usize>, kind: HighlightKind) -> Self {
         Self { range, kind }
     }
 }
@@ -181,7 +189,7 @@ impl<'a, SE: shrub_core::ShellExtensions> Highlighter<'a, SE> {
             let char_byte_offsets: Vec<usize> = line
                 .char_indices()
                 .map(|(byte_idx, _)| byte_idx)
-                .chain(std::iter::once(line.len()))
+                .chain(iter::once(line.len()))
                 .collect();
             let byte_offset = |char_offset: usize| {
                 char_byte_offsets
@@ -208,7 +216,7 @@ impl<'a, SE: shrub_core::ShellExtensions> Highlighter<'a, SE> {
                         // map onto `line`; offsets into the raw slice do.
                         let raw_word_text = line.get(start_byte..end_byte).unwrap_or("");
                         if let Ok(word_pieces) =
-                            shrub_parser::word::parse(raw_word_text, &self.shell.parser_options())
+                            word::parse(raw_word_text, &self.shell.parser_options())
                         {
                             let token_range =
                                 (global_offset + start_byte)..(global_offset + end_byte);
@@ -246,7 +254,7 @@ impl<'a, SE: shrub_core::ShellExtensions> Highlighter<'a, SE> {
 
     fn highlight_word_piece(
         &mut self,
-        word_piece: shrub_parser::word::WordPieceWithSource,
+        word_piece: WordPieceWithSource,
         default_text_kind: HighlightKind,
         global_offset: usize,
     ) {
@@ -255,24 +263,23 @@ impl<'a, SE: shrub_core::ShellExtensions> Highlighter<'a, SE> {
         self.skip_ahead(piece.start);
 
         match word_piece.piece {
-            shrub_parser::word::WordPiece::SingleQuotedText(_)
-            | shrub_parser::word::WordPiece::AnsiCQuotedText(_)
-            | shrub_parser::word::WordPiece::EscapeSequence(_) => {
+            WordPiece::SingleQuotedText(_)
+            | WordPiece::AnsiCQuotedText(_)
+            | WordPiece::EscapeSequence(_) => {
                 self.append_span(HighlightKind::Quoted, piece.clone());
             }
-            shrub_parser::word::WordPiece::DoubleQuotedSequence(subpieces)
-            | shrub_parser::word::WordPiece::GettextDoubleQuotedSequence(subpieces) => {
+            WordPiece::DoubleQuotedSequence(subpieces)
+            | WordPiece::GettextDoubleQuotedSequence(subpieces) => {
                 self.set_next_missing_kind(HighlightKind::Quoted);
                 for subpiece in subpieces {
                     self.highlight_word_piece(subpiece, HighlightKind::Quoted, global_offset);
                 }
                 self.set_next_missing_kind(HighlightKind::Quoted);
             }
-            shrub_parser::word::WordPiece::ParameterExpansion(_)
-            | shrub_parser::word::WordPiece::TildeExpansion(_) => {
+            WordPiece::ParameterExpansion(_) | WordPiece::TildeExpansion(_) => {
                 self.append_span(HighlightKind::Parameter, piece.clone());
             }
-            shrub_parser::word::WordPiece::BackquotedCommandSubstitution(command) => {
+            WordPiece::BackquotedCommandSubstitution(command) => {
                 self.set_next_missing_kind(HighlightKind::CommandSubstitution);
                 self.highlight_program(
                     command.as_str(),
@@ -280,17 +287,17 @@ impl<'a, SE: shrub_core::ShellExtensions> Highlighter<'a, SE> {
                 );
                 self.set_next_missing_kind(HighlightKind::CommandSubstitution);
             }
-            shrub_parser::word::WordPiece::CommandSubstitution(command) => {
+            WordPiece::CommandSubstitution(command) => {
                 self.set_next_missing_kind(HighlightKind::CommandSubstitution);
                 self.highlight_program(command.as_str(), piece.start + 2 /* opening $( */);
                 self.set_next_missing_kind(HighlightKind::CommandSubstitution);
             }
-            shrub_parser::word::WordPiece::ArithmeticExpression(_) => {
+            WordPiece::ArithmeticExpression(_) => {
                 // TODO(highlighting): Consider individually highlighting pieces
                 // of the expression itself.
                 self.append_span(HighlightKind::Arithmetic, piece.clone());
             }
-            shrub_parser::word::WordPiece::Text(_text) => {
+            WordPiece::Text(_text) => {
                 self.append_span(default_text_kind, piece.clone());
             }
         }
@@ -298,7 +305,7 @@ impl<'a, SE: shrub_core::ShellExtensions> Highlighter<'a, SE> {
         self.skip_ahead(piece.end);
     }
 
-    fn append_span(&mut self, kind: HighlightKind, range: std::ops::Range<usize>) {
+    fn append_span(&mut self, kind: HighlightKind, range: Range<usize>) {
         debug_assert!(
             self.input_line.is_char_boundary(range.start),
             "span start {} is not a UTF-8 char boundary in {:?}",
@@ -344,7 +351,7 @@ impl<'a, SE: shrub_core::ShellExtensions> Highlighter<'a, SE> {
     fn get_kind_for_word(
         &self,
         w: &str,
-        token_range: &std::ops::Range<usize>,
+        token_range: &Range<usize>,
         saw_command_token: &mut bool,
     ) -> HighlightKind {
         if !*saw_command_token {
@@ -373,11 +380,7 @@ impl<'a, SE: shrub_core::ShellExtensions> Highlighter<'a, SE> {
         }
     }
 
-    fn classify_possible_command(
-        &self,
-        name: &str,
-        token_range: &std::ops::Range<usize>,
-    ) -> CommandType {
+    fn classify_possible_command(&self, name: &str, token_range: &Range<usize>) -> CommandType {
         if self.shell.is_keyword(name) {
             return CommandType::Keyword;
         } else if self.shell.aliases().contains_key(name) {
@@ -395,9 +398,9 @@ impl<'a, SE: shrub_core::ShellExtensions> Highlighter<'a, SE> {
             return CommandType::Unknown;
         }
 
-        if shrub_core::sys::fs::contains_path_separator(name) {
+        if fs::contains_path_separator(name) {
             // TODO(highlighting): Should check for executable-ness.
-            let candidate_path = self.shell.absolute_path(std::path::Path::new(name));
+            let candidate_path = self.shell.absolute_path(Path::new(name));
             if candidate_path.exists() {
                 CommandType::External
             } else {
@@ -415,6 +418,8 @@ impl<'a, SE: shrub_core::ShellExtensions> Highlighter<'a, SE> {
 
 #[cfg(test)]
 mod tests {
+    use std::iter;
+
     use super::*;
 
     #[tokio::test]
@@ -560,10 +565,7 @@ mod tests {
         let shell = shrub_core::Shell::builder().build().await.unwrap();
         let full = ": 爸爸 /";
         // Every char-boundary prefix must highlight without panicking.
-        for (boundary, _) in full
-            .char_indices()
-            .chain(std::iter::once((full.len(), ' ')))
-        {
+        for (boundary, _) in full.char_indices().chain(iter::once((full.len(), ' '))) {
             // `boundary` is sourced from char_indices(), so slicing is on a
             // char boundary.
             #[allow(clippy::string_slice)]

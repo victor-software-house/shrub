@@ -23,12 +23,15 @@
 #![cfg(test)]
 #![allow(clippy::panic_in_result_fn)]
 
+use std::io;
+use std::io::Stdout;
+use std::process::Command;
 use std::time::Duration;
 
 use anyhow::Context;
 use expectrl::process::unix::{PtyStream, UnixProcess};
 use expectrl::stream::log::LogStream;
-use expectrl::{Expect, Session};
+use expectrl::{Expect, Session, session};
 
 const PROMPT: &str = "shrub> ";
 const DSR_QUERY: &str = "\x1b[6n";
@@ -214,7 +217,7 @@ fn unanswered_cursor_queries_still_yield_a_prompt() -> anyhow::Result<()> {
 // Helpers
 //
 
-type ShellSession = Session<UnixProcess, LogStream<PtyStream, std::io::Stdout>>;
+type ShellSession = Session<UnixProcess, LogStream<PtyStream, Stdout>>;
 
 /// Waits for the cursor-position query that precedes a prompt paint, answers
 /// it, and then waits for the prompt. The first `withhold` queries are left
@@ -241,11 +244,11 @@ fn start_reedline_session() -> anyhow::Result<ShellSession> {
 }
 
 fn start_reedline_session_with(
-    configure: impl FnOnce(&mut std::process::Command),
+    configure: impl FnOnce(&mut Command),
 ) -> anyhow::Result<ShellSession> {
     let shell_path = assert_cmd::cargo::cargo_bin!("shrub");
 
-    let mut cmd = std::process::Command::new(shell_path);
+    let mut cmd = Command::new(shell_path);
     cmd.args([
         "--norc",
         "--noprofile",
@@ -258,10 +261,10 @@ fn start_reedline_session_with(
     cmd.env("TERM", "xterm-256color");
     configure(&mut cmd);
 
-    let session = expectrl::session::Session::spawn(cmd)?;
+    let session = session::Session::spawn(cmd)?;
 
     // N.B. Replace with `session` directly to disable logging of the session.
-    let mut session = expectrl::session::log(session, std::io::stdout())?;
+    let mut session = session::log(session, io::stdout())?;
 
     // The timeout tests deliberately let ~2s crossterm timeouts elapse,
     // several in a row when the terminal never answers.

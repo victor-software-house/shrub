@@ -1,7 +1,12 @@
 //! Defines runtime options for the shell.
 
+use std::sync::Arc;
+
 use itertools::Itertools;
 
+use crate::listing::DirectoryLister;
+use crate::sys::fs;
+use crate::window::ReadWindow;
 use crate::{CreateOptions, extensions, namedoptions};
 
 /// The default for [`CreateOptions::max_kept_descriptors`].
@@ -228,12 +233,12 @@ pub struct RuntimeOptions {
     /// directories ask first; `None` lists every directory from the file
     /// system.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub directory_lister: Option<std::sync::Arc<dyn crate::listing::DirectoryLister>>,
+    pub directory_lister: Option<Arc<dyn DirectoryLister>>,
     /// The files the embedder serves from a later first byte, which the
     /// builtins that read files ask first; `None` reads every file from its
     /// start.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub read_window: Option<std::sync::Arc<dyn crate::window::ReadWindow>>,
+    pub read_window: Option<Arc<dyn ReadWindow>>,
     /// Maximum function call depth.
     pub max_function_call_depth: Option<usize>,
     /// The most file descriptors above standard error that the shell keeps
@@ -279,8 +284,7 @@ impl RuntimeOptions {
             save_multiline_cmds_in_history: true,
             extquote: true,
             force_fignore: true,
-            case_insensitive_pathname_expansion:
-                crate::sys::fs::default_case_insensitive_path_expansion(),
+            case_insensitive_pathname_expansion: fs::default_case_insensitive_path_expansion(),
             enable_hostname_completion: true,
             interactive_comments: true,
             expand_prompt_strings: true,

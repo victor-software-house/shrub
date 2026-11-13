@@ -2,6 +2,8 @@
 
 use std::borrow::Cow;
 use std::collections::{HashMap, hash_map};
+use std::fmt;
+use std::fmt::{Display, Formatter};
 
 use crate::variables::{self, ShellValue, ShellValueUnsetType, ShellVariable};
 use crate::{Shell, error, extensions};
@@ -50,8 +52,8 @@ pub enum EnvironmentScope {
     Command,
 }
 
-impl std::fmt::Display for EnvironmentScope {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for EnvironmentScope {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Local => write!(f, "local"),
             Self::Global => write!(f, "global"),

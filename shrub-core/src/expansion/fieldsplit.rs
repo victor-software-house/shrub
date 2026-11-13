@@ -16,6 +16,8 @@
 //! three. A hard delimiter at the very end closes the field before it but does
 //! not open an empty one after it.
 
+use std::mem;
+
 use super::{Expansion, ExpansionPiece, WordField};
 
 /// Where the splitter is relative to the field boundaries it has emitted.
@@ -108,7 +110,7 @@ pub(super) fn split_fields(ifs: &str, expansion: Expansion) -> Vec<WordField> {
                             // decides whether the run that follows can still
                             // absorb a hard delimiter.
                             (SplitState::InField, whitespace) => {
-                                fields.push(std::mem::take(&mut current_field));
+                                fields.push(mem::take(&mut current_field));
                                 if whitespace {
                                     SplitState::AfterWhitespace
                                 } else {
@@ -139,7 +141,7 @@ pub(super) fn split_fields(ifs: &str, expansion: Expansion) -> Vec<WordField> {
         // nothing, so a trailing `:` never yields a trailing empty
         // field.
         if matches!(state, SplitState::InField) {
-            fields.push(std::mem::take(&mut current_field));
+            fields.push(mem::take(&mut current_field));
         } else if preserve_empty_list_element && has_hard_delimiter {
             fields.push(WordField::new());
         }

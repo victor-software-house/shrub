@@ -1,9 +1,11 @@
 use std::collections::HashMap;
+use std::error;
 use std::fmt::Write as _;
 use std::io::Write;
+use std::str::FromStr;
 
 use clap::Parser;
-use clap::builder::TypedValueParser as _;
+use clap::builder::{PossibleValue, PossibleValuesParser, TypedValueParser};
 use shrub_core::completion::{self, CompleteAction, CompleteOption, Spec, SpecName, SpecialSpec};
 use shrub_core::{ExecutionExitCode, ExecutionResult, builtins, escape};
 use strum::{EnumMessage, IntoEnumIterator};
@@ -54,17 +56,17 @@ struct CommonCompleteCommandArgs {
 /// Returns a parser for the name of one of `E`'s variants (e.g. `alias` for
 /// [`CompleteAction::Alias`]), which lists the names, and describes each with
 /// its docs.
-fn name_parser<E>() -> impl clap::builder::TypedValueParser<Value = E>
+fn name_parser<E>() -> impl TypedValueParser<Value = E>
 where
-    E: IntoEnumIterator + EnumMessage + std::str::FromStr + Clone + Send + Sync + 'static,
+    E: IntoEnumIterator + EnumMessage + FromStr + Clone + Send + Sync + 'static,
     &'static str: From<E>,
-    E::Err: std::error::Error + Send + Sync + 'static,
+    E::Err: error::Error + Send + Sync + 'static,
 {
     let names = E::iter().map(|variant| {
         let help = help_for(&variant);
-        clap::builder::PossibleValue::new(<&'static str>::from(variant)).help(help)
+        PossibleValue::new(<&'static str>::from(variant)).help(help)
     });
-    clap::builder::PossibleValuesParser::new(names).try_map(|name| name.parse::<E>())
+    PossibleValuesParser::new(names).try_map(|name| name.parse::<E>())
 }
 
 /// Returns the help for `variant`: its docs, without a trailing period, as clap

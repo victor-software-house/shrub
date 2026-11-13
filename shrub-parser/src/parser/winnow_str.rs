@@ -1,12 +1,12 @@
 //! String-based winnow parser
 
-use winnow::error::ContextError;
+use winnow::error::{ContextError, ErrMode};
 
 use crate::ast;
 use crate::parser::{ParserOptions, SourceInfo};
 
 /// Type alias for parser error
-type PError = winnow::error::ErrMode<ContextError>;
+type PError = ErrMode<ContextError>;
 
 /// Parse a shell program from a string with full source location tracking
 ///

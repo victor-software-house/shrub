@@ -1,4 +1,8 @@
+use std::fmt::Display;
 use std::path::Path;
+
+use shrub_parser::prompt;
+use shrub_parser::prompt::{PromptDateFormat, PromptPiece, PromptTimeFormat};
 
 use crate::shell::Shell;
 use crate::sys::{self, users};
@@ -22,8 +26,7 @@ pub(crate) async fn expand_prompt(
         // Pieces that semantically represent a literal char (e.g. user wrote
         // `\$` meaning a literal `$`, not input for pass-2 expansion). We
         // prepend a `\` so pass 2 consumes it and leaves the char alone.
-        let semantically_literal =
-            matches!(piece, shrub_parser::prompt::PromptPiece::DollarOrPound);
+        let semantically_literal = matches!(piece, PromptPiece::DollarOrPound);
 
         let formatted_piece = format_prompt_piece(shell, piece)?;
 
@@ -60,40 +63,36 @@ pub(crate) async fn expand_prompt(
 }
 
 #[cached::macros::cached(max_size = 64, key = "String", convert = r#"{ spec.to_owned() }"#)]
-fn parse_prompt(
-    spec: &str,
-) -> Result<Vec<shrub_parser::prompt::PromptPiece>, shrub_parser::WordParseError> {
-    shrub_parser::prompt::parse(spec)
+fn parse_prompt(spec: &str) -> Result<Vec<PromptPiece>, shrub_parser::WordParseError> {
+    prompt::parse(spec)
 }
 
 fn format_prompt_piece(
     shell: &Shell<impl extensions::ShellExtensions>,
-    piece: shrub_parser::prompt::PromptPiece,
+    piece: PromptPiece,
 ) -> Result<String, error::Error> {
     let formatted = match piece {
-        shrub_parser::prompt::PromptPiece::EscapedSequence(s) => s,
-        shrub_parser::prompt::PromptPiece::Literal(l) => l,
-        shrub_parser::prompt::PromptPiece::AsciiCharacter(c) => {
+        PromptPiece::EscapedSequence(s) => s,
+        PromptPiece::Literal(l) => l,
+        PromptPiece::AsciiCharacter(c) => {
             char::from_u32(c).map_or_else(String::new, |c| c.to_string())
         }
-        shrub_parser::prompt::PromptPiece::Backslash => "\\".to_owned(),
-        shrub_parser::prompt::PromptPiece::BellCharacter => "\x07".to_owned(),
-        shrub_parser::prompt::PromptPiece::CarriageReturn => "\r".to_owned(),
-        shrub_parser::prompt::PromptPiece::CurrentCommandNumber => {
+        PromptPiece::Backslash => "\\".to_owned(),
+        PromptPiece::BellCharacter => "\x07".to_owned(),
+        PromptPiece::CarriageReturn => "\r".to_owned(),
+        PromptPiece::CurrentCommandNumber => {
             return error::unimp("prompt: current command number");
         }
-        shrub_parser::prompt::PromptPiece::CurrentHistoryNumber => {
+        PromptPiece::CurrentHistoryNumber => {
             return error::unimp("prompt: current history number");
         }
-        shrub_parser::prompt::PromptPiece::CurrentUser => users::get_current_username()?,
-        shrub_parser::prompt::PromptPiece::CurrentWorkingDirectory {
+        PromptPiece::CurrentUser => users::get_current_username()?,
+        PromptPiece::CurrentWorkingDirectory {
             tilde_replaced,
             basename,
         } => format_current_working_directory(shell, tilde_replaced, basename),
-        shrub_parser::prompt::PromptPiece::Date(format) => {
-            format_date(&chrono::Local::now(), &format)
-        }
-        shrub_parser::prompt::PromptPiece::DollarOrPound => {
+        PromptPiece::Date(format) => format_date(&chrono::Local::now(), &format),
+        PromptPiece::DollarOrPound => {
             if users::is_root() {
                 "#".to_owned()
             } else {
@@ -107,15 +106,15 @@ fn format_prompt_piece(
         // not concatenated together, potentially resulting in incompatible
         // variable expansions. Also, we *only* do this if the shell is
         // interactive.
-        shrub_parser::prompt::PromptPiece::EndNonPrintingSequence => {
+        PromptPiece::EndNonPrintingSequence => {
             if shell.options().interactive {
                 "\x02".to_owned()
             } else {
                 String::new()
             }
         }
-        shrub_parser::prompt::PromptPiece::EscapeCharacter => "\x1b".to_owned(),
-        shrub_parser::prompt::PromptPiece::Hostname {
+        PromptPiece::EscapeCharacter => "\x1b".to_owned(),
+        PromptPiece::Hostname {
             only_up_to_first_dot,
         } => {
             let hn = sys::network::get_hostname()
@@ -127,42 +126,35 @@ fn format_prompt_piece(
             }
             hn
         }
-        shrub_parser::prompt::PromptPiece::Newline => "\n".to_owned(),
-        shrub_parser::prompt::PromptPiece::NumberOfManagedJobs => {
-            shell.jobs().jobs.len().to_string()
-        }
-        shrub_parser::prompt::PromptPiece::ShellBaseName => {
+        PromptPiece::Newline => "\n".to_owned(),
+        PromptPiece::NumberOfManagedJobs => shell.jobs().jobs.len().to_string(),
+        PromptPiece::ShellBaseName => {
             if let Some(shell_name) = shell.current_shell_name() {
                 Path::new(shell_name.as_ref())
                     .file_name()
-                    .map(|name| name.to_string_lossy().to_string())
-                    .unwrap_or_default()
+                    .map_or_default(|name| name.to_string_lossy().to_string())
             } else {
                 String::new()
             }
         }
-        shrub_parser::prompt::PromptPiece::ShellRelease => {
+        PromptPiece::ShellRelease => {
             std::format!("{VERSION_MAJOR}.{VERSION_MINOR}.{VERSION_PATCH}")
         }
-        shrub_parser::prompt::PromptPiece::ShellVersion => {
+        PromptPiece::ShellVersion => {
             std::format!("{VERSION_MAJOR}.{VERSION_MINOR}")
         }
         // NOTE: See above note for EndNonPrintingSequence
-        shrub_parser::prompt::PromptPiece::StartNonPrintingSequence => {
+        PromptPiece::StartNonPrintingSequence => {
             if shell.options().interactive {
                 "\x01".to_owned()
             } else {
                 String::new()
             }
         }
-        shrub_parser::prompt::PromptPiece::TerminalDeviceBaseName => {
-            sys::terminal::try_get_terminal_device_path()
-                .and_then(|p| p.file_name().map(|s| s.to_string_lossy().to_string()))
-                .unwrap_or_default()
-        }
-        shrub_parser::prompt::PromptPiece::Time(time_fmt) => {
-            format_time(&chrono::Local::now(), &time_fmt)
-        }
+        PromptPiece::TerminalDeviceBaseName => sys::terminal::try_get_terminal_device_path()
+            .and_then(|p| p.file_name().map(|s| s.to_string_lossy().to_string()))
+            .unwrap_or_default(),
+        PromptPiece::Time(time_fmt) => format_time(&chrono::Local::now(), &time_fmt),
     };
 
     Ok(formatted)
@@ -193,16 +185,16 @@ fn format_current_working_directory(
 
 fn format_time<Tz: chrono::TimeZone>(
     datetime: &chrono::DateTime<Tz>,
-    format: &shrub_parser::prompt::PromptTimeFormat,
+    format: &PromptTimeFormat,
 ) -> String
 where
-    Tz::Offset: std::fmt::Display,
+    Tz::Offset: Display,
 {
     let formatted = match format {
-        shrub_parser::prompt::PromptTimeFormat::TwelveHourAM => datetime.format("%I:%M %p"),
-        shrub_parser::prompt::PromptTimeFormat::TwelveHourHHMMSS => datetime.format("%I:%M:%S"),
-        shrub_parser::prompt::PromptTimeFormat::TwentyFourHourHHMM => datetime.format("%H:%M"),
-        shrub_parser::prompt::PromptTimeFormat::TwentyFourHourHHMMSS => datetime.format("%H:%M:%S"),
+        PromptTimeFormat::TwelveHourAM => datetime.format("%I:%M %p"),
+        PromptTimeFormat::TwelveHourHHMMSS => datetime.format("%I:%M:%S"),
+        PromptTimeFormat::TwentyFourHourHHMM => datetime.format("%H:%M"),
+        PromptTimeFormat::TwentyFourHourHHMMSS => datetime.format("%H:%M:%S"),
     };
 
     formatted.to_string()
@@ -210,16 +202,14 @@ where
 
 fn format_date<Tz: chrono::TimeZone>(
     datetime: &chrono::DateTime<Tz>,
-    format: &shrub_parser::prompt::PromptDateFormat,
+    format: &PromptDateFormat,
 ) -> String
 where
-    Tz::Offset: std::fmt::Display,
+    Tz::Offset: Display,
 {
     match format {
-        shrub_parser::prompt::PromptDateFormat::WeekdayMonthDate => {
-            datetime.format("%a %b %d").to_string()
-        }
-        shrub_parser::prompt::PromptDateFormat::Custom(fmt) => {
+        PromptDateFormat::WeekdayMonthDate => datetime.format("%a %b %d").to_string(),
+        PromptDateFormat::Custom(fmt) => {
             let fmt_items = chrono::format::StrftimeItems::new(fmt);
             datetime.format_with_items(fmt_items).to_string()
         }
@@ -228,6 +218,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use shrub_parser::prompt::{PromptDateFormat, PromptTimeFormat};
+
     use super::*;
 
     #[test]
@@ -236,23 +228,17 @@ mod tests {
         let dt = chrono::DateTime::parse_from_rfc3339("2024-12-25T13:34:56.789Z").unwrap();
 
         assert_eq!(
-            format_time(&dt, &shrub_parser::prompt::PromptTimeFormat::TwelveHourAM),
+            format_time(&dt, &PromptTimeFormat::TwelveHourAM),
             "01:34 PM"
         );
 
         assert_eq!(
-            format_time(
-                &dt,
-                &shrub_parser::prompt::PromptTimeFormat::TwentyFourHourHHMMSS
-            ),
+            format_time(&dt, &PromptTimeFormat::TwentyFourHourHHMMSS),
             "13:34:56"
         );
 
         assert_eq!(
-            format_time(
-                &dt,
-                &shrub_parser::prompt::PromptTimeFormat::TwelveHourHHMMSS
-            ),
+            format_time(&dt, &PromptTimeFormat::TwelveHourHHMMSS),
             "01:34:56"
         );
     }
@@ -263,27 +249,19 @@ mod tests {
         let dt = chrono::DateTime::parse_from_rfc3339("2024-12-25T12:34:56.789Z").unwrap();
 
         assert_eq!(
-            format_date(
-                &dt,
-                &shrub_parser::prompt::PromptDateFormat::WeekdayMonthDate
-            ),
+            format_date(&dt, &PromptDateFormat::WeekdayMonthDate),
             "Wed Dec 25"
         );
 
         assert_eq!(
-            format_date(
-                &dt,
-                &shrub_parser::prompt::PromptDateFormat::Custom(String::from("%Y-%m-%d"))
-            ),
+            format_date(&dt, &PromptDateFormat::Custom(String::from("%Y-%m-%d"))),
             "2024-12-25"
         );
 
         assert_eq!(
             format_date(
                 &dt,
-                &shrub_parser::prompt::PromptDateFormat::Custom(String::from(
-                    "%Y-%m-%d %H:%M:%S.%f"
-                ))
+                &PromptDateFormat::Custom(String::from("%Y-%m-%d %H:%M:%S.%f"))
             ),
             "2024-12-25 12:34:56.789000000"
         );

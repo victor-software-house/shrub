@@ -1,7 +1,10 @@
+use std::fs::File;
 use std::path::Path;
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
+
+use crate::ast::Program;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct TestCaseSet {
@@ -28,7 +31,7 @@ fn test_parser_using_yaml_test_cases() {
 }
 
 fn test_parser_using_yaml(path: &Path) -> Result<()> {
-    let yaml_file = std::fs::File::open(path)?;
+    let yaml_file = File::open(path)?;
     let test_case_set: TestCaseSet = yaml_serde::from_reader(yaml_file)
         .context(format!("parsing {}", path.to_string_lossy()))?;
 
@@ -91,7 +94,7 @@ struct ParseSummary<'a> {
 
 #[cfg_attr(test, derive(serde::Serialize, serde::Deserialize))]
 enum ParseResult {
-    Success(crate::ast::Program),
+    Success(Program),
     Failure(String),
 }
 

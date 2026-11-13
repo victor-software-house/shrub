@@ -3,10 +3,14 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 
+use crate::callstack::CallStack;
 use crate::env::ShellEnvironment;
+use crate::history::History;
 use crate::options::RuntimeOptions;
 use crate::shell::KeyBindingsHelper;
+use crate::traps::TrapHandlerConfig;
 use crate::{completion, jobs, openfiles, pathcache};
 
 /// A dyn-safe trait for constrained access to shell state.
@@ -15,7 +19,7 @@ pub trait ShellState {
     fn is_subshell(&self) -> bool;
 
     /// Returns the last "SECONDS" captured time.
-    fn last_stopwatch_time(&self) -> std::time::SystemTime;
+    fn last_stopwatch_time(&self) -> SystemTime;
 
     /// Returns the last "SECONDS" offset requested.
     fn last_stopwatch_offset(&self) -> u32;
@@ -45,10 +49,10 @@ pub trait ShellState {
     fn jobs_mut(&mut self) -> &mut jobs::JobManager;
 
     /// Returns the shell's trap handler configuration.
-    fn traps(&self) -> &crate::traps::TrapHandlerConfig;
+    fn traps(&self) -> &TrapHandlerConfig;
 
     /// Returns a mutable reference to the shell's trap handler configuration.
-    fn traps_mut(&mut self) -> &mut crate::traps::TrapHandlerConfig;
+    fn traps_mut(&mut self) -> &mut TrapHandlerConfig;
 
     /// Returns the shell's directory stack.
     fn directory_stack(&self) -> &[PathBuf];
@@ -89,13 +93,13 @@ pub trait ShellState {
     fn depth(&self) -> usize;
 
     /// Returns the call stack for the shell.
-    fn call_stack(&self) -> &crate::callstack::CallStack;
+    fn call_stack(&self) -> &CallStack;
 
     /// Returns the shell's history, if it exists.
-    fn history(&self) -> Option<&crate::history::History>;
+    fn history(&self) -> Option<&History>;
 
     /// Returns a mutable reference to the shell's history, if it exists.
-    fn history_mut(&mut self) -> Option<&mut crate::history::History>;
+    fn history_mut(&mut self) -> Option<&mut History>;
 
     /// Returns the shell's official version string (if available).
     fn version(&self) -> Option<&str>;

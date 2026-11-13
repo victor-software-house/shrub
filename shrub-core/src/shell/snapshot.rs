@@ -10,7 +10,7 @@ use crate::snapshot::{
     NotKept, NotKeptKind, RestoreFailureReason, RestoreReport, SavedFunction, SavedValue,
     SavedVariable, ShellSnapshot, SnapshotOptions, StateKind,
 };
-use crate::traps::TrapSignal;
+use crate::traps::{TrapHandlerConfig, TrapSignal};
 use crate::variables::{ShellValue, ShellVariable, ShellVariableUpdateTransform};
 use crate::{SourceInfo, error, extensions, wellknownvars};
 
@@ -263,7 +263,7 @@ impl<SE: extensions::ShellExtensions> crate::Shell<SE> {
 
     /// Replaces every trap handler with `traps`.
     fn restore_traps(&mut self, traps: BTreeMap<String, String>, report: &mut RestoreReport) {
-        self.traps = crate::traps::TrapHandlerConfig::default();
+        self.traps = TrapHandlerConfig::default();
         for (signal, command) in traps {
             match TrapSignal::try_from(signal.as_str()) {
                 Ok(signal) => {

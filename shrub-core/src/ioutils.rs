@@ -1,6 +1,13 @@
 //! Internal I/O utilities.
 
-use crate::openfiles;
+use std::io;
+use std::io::{Read, Write};
+#[cfg(unix)] // ast-grep-ignore: platform-cfg-outside-sys
+use std::os::fd::{BorrowedFd, OwnedFd};
+
+#[cfg(unix)] // ast-grep-ignore: platform-cfg-outside-sys
+use crate::error::ErrorKind;
+use crate::{error, openfiles};
 
 /// Error type for `FailingReaderWriter`.
 #[derive(Clone, Debug, thiserror::Error)]
@@ -43,33 +50,29 @@ impl openfiles::Stream for FailingReaderWriter {
     }
 
     #[cfg(unix)] // ast-grep-ignore: platform-cfg-outside-sys
-    fn try_clone_to_owned(&self) -> Result<std::os::fd::OwnedFd, crate::error::Error> {
-        Err(crate::error::ErrorKind::CannotConvertToNativeFd.into())
+    fn try_clone_to_owned(&self) -> Result<OwnedFd, error::Error> {
+        Err(ErrorKind::CannotConvertToNativeFd.into())
     }
 
     #[cfg(unix)] // ast-grep-ignore: platform-cfg-outside-sys
-    fn try_borrow_as_fd(&self) -> Result<std::os::fd::BorrowedFd<'_>, crate::error::Error> {
-        Err(crate::error::ErrorKind::CannotConvertToNativeFd.into())
+    fn try_borrow_as_fd(&self) -> Result<BorrowedFd<'_>, error::Error> {
+        Err(ErrorKind::CannotConvertToNativeFd.into())
     }
 }
 
-impl std::io::Read for FailingReaderWriter {
-    fn read(&mut self, _buf: &mut [u8]) -> std::io::Result<usize> {
-        Err(std::io::Error::other(ReaderWriterError::Read(self.message)))
+impl Read for FailingReaderWriter {
+    fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize> {
+        Err(io::Error::other(ReaderWriterError::Read(self.message)))
     }
 }
 
-impl std::io::Write for FailingReaderWriter {
-    fn write(&mut self, _buf: &[u8]) -> std::io::Result<usize> {
-        Err(std::io::Error::other(ReaderWriterError::Write(
-            self.message,
-        )))
+impl Write for FailingReaderWriter {
+    fn write(&mut self, _buf: &[u8]) -> io::Result<usize> {
+        Err(io::Error::other(ReaderWriterError::Write(self.message)))
     }
 
-    fn flush(&mut self) -> std::io::Result<()> {
-        Err(std::io::Error::other(ReaderWriterError::Flush(
-            self.message,
-        )))
+    fn flush(&mut self) -> io::Result<()> {
+        Err(io::Error::other(ReaderWriterError::Flush(self.message)))
     }
 }
 

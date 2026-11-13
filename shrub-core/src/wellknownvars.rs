@@ -1,8 +1,15 @@
+use std::borrow::Cow;
 use std::collections::BTreeMap;
+use std::env::consts;
 use std::path::PathBuf;
+#[cfg(not(target_family = "wasm"))] // ast-grep-ignore: platform-cfg-outside-sys
+use std::process;
+use std::time::SystemTime;
+use std::{env, time};
 
 use rand::RngExt as _;
 
+use crate::callstack::{Frame, FrameType, ScriptCallType};
 use crate::shell::ShellState;
 use crate::{Shell, ShellValue, ShellVariable, error, extensions, sys, variables};
 
@@ -103,8 +110,7 @@ pub(crate) fn init_well_known_vars(
     // BASHPID
     #[cfg(not(target_family = "wasm"))] // ast-grep-ignore: platform-cfg-outside-sys
     {
-        let mut bashpid_var =
-            ShellVariable::new(ShellValue::String(std::process::id().to_string()));
+        let mut bashpid_var = ShellVariable::new(ShellValue::String(process::id().to_string()));
         bashpid_var.treat_as_integer();
         shell.env_mut().set_global("BASHPID", bashpid_var)?;
     }
@@ -263,10 +269,8 @@ pub(crate) fn init_well_known_vars(
         "EPOCHREALTIME",
         ShellVariable::new(ShellValue::Dynamic {
             getter: |_shell| {
-                let now = std::time::SystemTime::now();
-                let since_epoch = now
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap_or_default();
+                let now = SystemTime::now();
+                let since_epoch = now.duration_since(time::UNIX_EPOCH).unwrap_or_default();
                 // Match bash: seconds with exactly six fractional (microsecond)
                 // digits, zero-padded. Tools strip the dot and
                 // do integer math on the result (atuin computes
@@ -287,10 +291,8 @@ pub(crate) fn init_well_known_vars(
         "EPOCHSECONDS",
         ShellVariable::new(ShellValue::Dynamic {
             getter: |_shell| {
-                let now = std::time::SystemTime::now();
-                let since_epoch = now
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap_or_default();
+                let now = SystemTime::now();
+                let since_epoch = now.duration_since(time::UNIX_EPOCH).unwrap_or_default();
                 since_epoch.as_secs().to_string().into()
             },
             setter: |_| (),
@@ -365,10 +367,9 @@ pub(crate) fn init_well_known_vars(
     )?;
 
     // HOSTTYPE
-    shell.env_mut().set_global(
-        "HOSTTYPE",
-        ShellVariable::new(std::env::consts::ARCH.to_string()),
-    )?;
+    shell
+        .env_mut()
+        .set_global("HOSTTYPE", ShellVariable::new(consts::ARCH.to_string()))?;
 
     // IFS
     shell
@@ -413,7 +414,7 @@ pub(crate) fn init_well_known_vars(
     // shellenv, nvm, asdf, ...) take the expected path. Real bash includes a
     // kernel-version suffix on macOS/BSDs (e.g. `darwin24`); we omit the
     // suffix for now since the common patterns all use prefix matching.
-    let os_type = match std::env::consts::OS {
+    let os_type = match consts::OS {
         "linux" => "linux-gnu",
         "android" => "linux-android",
         "macos" | "ios" | "tvos" | "watchos" | "visionos" => "darwin",
@@ -431,7 +432,7 @@ pub(crate) fn init_well_known_vars(
 
     // PATH (if not already set)
     if !shell.env().is_set("PATH") {
-        let default_path_str = std::env::join_paths(sys::fs::get_default_executable_search_paths())
+        let default_path_str = env::join_paths(sys::fs::get_default_executable_search_paths())
             .unwrap_or_else(|_| PathBuf::from("").into());
         shell
             .env_mut()
@@ -474,7 +475,7 @@ pub(crate) fn init_well_known_vars(
         "SECONDS",
         ShellVariable::new(ShellValue::Dynamic {
             getter: |shell| {
-                let now = std::time::SystemTime::now();
+                let now = SystemTime::now();
                 let since_last = now
                     .duration_since(shell.last_stopwatch_time())
                     .unwrap_or_default();
@@ -610,19 +611,19 @@ fn get_funcname_value(shell: &dyn ShellState) -> variables::ShellValue {
         stack
             .iter()
             .filter_map(|frame| match &frame.frame_type {
-                crate::callstack::FrameType::Function(func) => Some(func.function_name.as_str()),
-                crate::callstack::FrameType::Script(script) => {
+                FrameType::Function(func) => Some(func.function_name.as_str()),
+                FrameType::Script(script) => {
                     // Only include sourced scripts, not run scripts
-                    if matches!(script.call_type, crate::callstack::ScriptCallType::Source) {
+                    if matches!(script.call_type, ScriptCallType::Source) {
                         Some("source")
                     } else {
                         None
                     }
                 }
-                crate::callstack::FrameType::TrapHandler(_)
-                | crate::callstack::FrameType::Eval
-                | crate::callstack::FrameType::CommandString
-                | crate::callstack::FrameType::InteractiveSession => None,
+                FrameType::TrapHandler(_)
+                | FrameType::Eval
+                | FrameType::CommandString
+                | FrameType::InteractiveSession => None,
             })
             .collect::<Vec<_>>()
             .into()
@@ -641,8 +642,7 @@ fn get_bash_lineno_value(shell: &dyn ShellState) -> variables::ShellValue {
             .iter()
             .enumerate()
             .filter_map(|(frame_idx, frame)| match &frame.frame_type {
-                crate::callstack::FrameType::Function(..)
-                | crate::callstack::FrameType::Script(..) => {
+                FrameType::Function(..) | FrameType::Script(..) => {
                     let caller_idx = frame_idx + 1;
                     if caller_idx < stack.depth() {
                         let caller_frame = &stack[caller_idx];
@@ -656,10 +656,10 @@ fn get_bash_lineno_value(shell: &dyn ShellState) -> variables::ShellValue {
                         None
                     }
                 }
-                crate::callstack::FrameType::TrapHandler(_)
-                | crate::callstack::FrameType::Eval
-                | crate::callstack::FrameType::CommandString
-                | crate::callstack::FrameType::InteractiveSession => None,
+                FrameType::TrapHandler(_)
+                | FrameType::Eval
+                | FrameType::CommandString
+                | FrameType::InteractiveSession => None,
             })
             .collect::<Vec<_>>()
             .into()
@@ -681,23 +681,18 @@ fn get_bash_source_value(shell: &dyn ShellState) -> variables::ShellValue {
         stack
             .iter()
             .filter_map(|frame| match &frame.frame_type {
-                crate::callstack::FrameType::Function(func) => {
-                    Some(func.function.source().source.clone())
-                }
-                crate::callstack::FrameType::Script(script) => {
+                FrameType::Function(func) => Some(func.function.source().source.clone()),
+                FrameType::Script(script) => {
                     // Only include sourced scripts (matching the "source" in
                     // FUNCNAME)
-                    if matches!(script.call_type, crate::callstack::ScriptCallType::Source) {
+                    if matches!(script.call_type, ScriptCallType::Source) {
                         Some(script.source_info.source.clone())
                     } else {
                         None
                     }
                 }
-                crate::callstack::FrameType::TrapHandler(_) | crate::callstack::FrameType::Eval => {
-                    None
-                }
-                crate::callstack::FrameType::CommandString
-                | crate::callstack::FrameType::InteractiveSession => None,
+                FrameType::TrapHandler(_) | FrameType::Eval => None,
+                FrameType::CommandString | FrameType::InteractiveSession => None,
             })
             .collect::<Vec<_>>()
             .into()
@@ -712,29 +707,21 @@ fn get_bash_source_value(shell: &dyn ShellState) -> variables::ShellValue {
 /// gated behind extended debugging mode. A sourced script invoked without
 /// explicit positional arguments contributes its own name (the path passed to
 /// `.`/`source`) as a single argument, matching bash.
-fn frame_bash_args(
-    frame: &crate::callstack::Frame,
-    extdebug: bool,
-) -> Option<std::borrow::Cow<'_, [String]>> {
+fn frame_bash_args(frame: &Frame, extdebug: bool) -> Option<Cow<'_, [String]>> {
     use std::borrow::Cow;
     match &frame.frame_type {
-        crate::callstack::FrameType::Script(call) => {
-            if matches!(call.call_type, crate::callstack::ScriptCallType::Source)
-                && frame.args.is_empty()
-            {
+        FrameType::Script(call) => {
+            if matches!(call.call_type, ScriptCallType::Source) && frame.args.is_empty() {
                 Some(Cow::Owned(vec![call.name().into_owned()]))
             } else {
                 Some(Cow::Borrowed(frame.args.as_slice()))
             }
         }
-        crate::callstack::FrameType::CommandString
-        | crate::callstack::FrameType::InteractiveSession => {
+        FrameType::CommandString | FrameType::InteractiveSession => {
             Some(Cow::Borrowed(frame.args.as_slice()))
         }
-        crate::callstack::FrameType::Function(..) => {
-            extdebug.then_some(Cow::Borrowed(frame.args.as_slice()))
-        }
-        crate::callstack::FrameType::TrapHandler(_) | crate::callstack::FrameType::Eval => None,
+        FrameType::Function(..) => extdebug.then_some(Cow::Borrowed(frame.args.as_slice())),
+        FrameType::TrapHandler(_) | FrameType::Eval => None,
     }
 }
 

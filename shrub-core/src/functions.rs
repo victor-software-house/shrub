@@ -3,6 +3,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use shrub_parser::ast::FunctionDefinition;
+
 /// An environment for defined, named functions.
 #[derive(Clone, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -65,15 +67,15 @@ impl FunctionEnv {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Registration {
     /// The parsed definition of the function.
-    definition: Arc<shrub_parser::ast::FunctionDefinition>,
+    definition: Arc<FunctionDefinition>,
     /// The source info for the function definition.
     source_info: crate::SourceInfo,
     /// Whether or not this function definition should be exported to children.
     exported: bool,
 }
 
-impl From<shrub_parser::ast::FunctionDefinition> for Registration {
-    fn from(definition: shrub_parser::ast::FunctionDefinition) -> Self {
+impl From<FunctionDefinition> for Registration {
+    fn from(definition: FunctionDefinition) -> Self {
         Self {
             definition: Arc::new(definition),
             source_info: crate::SourceInfo::default(),
@@ -89,10 +91,7 @@ impl Registration {
     ///
     /// * `definition` - The function definition.
     /// * `source_info` - Source information for the function definition.
-    pub fn new(
-        definition: shrub_parser::ast::FunctionDefinition,
-        source_info: &crate::SourceInfo,
-    ) -> Self {
+    pub fn new(definition: FunctionDefinition, source_info: &crate::SourceInfo) -> Self {
         Self {
             definition: Arc::new(definition),
             source_info: source_info.clone(),
@@ -101,7 +100,7 @@ impl Registration {
     }
 
     /// Returns a reference to the function definition.
-    pub fn definition(&self) -> &shrub_parser::ast::FunctionDefinition {
+    pub fn definition(&self) -> &FunctionDefinition {
         &self.definition
     }
 

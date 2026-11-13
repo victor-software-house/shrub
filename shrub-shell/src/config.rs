@@ -9,9 +9,11 @@
 
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
+use std::{fs, io};
 
 use etcetera::BaseStrategy;
 use shrub_interactive::UIOptions;
+use toml::de;
 
 use crate::args::CommandLineArgs;
 
@@ -182,11 +184,11 @@ impl ConfigLoadResult {
 pub enum ConfigLoadError {
     /// Failed to read the configuration file.
     #[error("failed to read config file: {0}")]
-    Io(#[from] std::io::Error),
+    Io(#[from] io::Error),
 
     /// Failed to parse the TOML content.
     #[error("failed to parse config file: {0}")]
-    Parse(#[from] toml::de::Error),
+    Parse(#[from] de::Error),
 }
 
 const CONFIG_SUBDIR_NAME: &str = "shrub";
@@ -218,7 +220,7 @@ pub fn default_config_path() -> Option<PathBuf> {
 /// Note: This function sets `explicit_path` to `false`. Use `load_config` for
 /// proper handling of explicit vs. default paths.
 pub fn load_from_path(path: &Path) -> ConfigLoadResult {
-    let content = match std::fs::read_to_string(path) {
+    let content = match fs::read_to_string(path) {
         Ok(content) => content,
         Err(e) => {
             return ConfigLoadResult {
@@ -290,6 +292,7 @@ pub fn load_config(disabled: bool, explicit_path: Option<&Path>) -> ConfigLoadRe
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::entry;
 
     #[test]
     fn empty_config() {
@@ -435,10 +438,7 @@ mod tests {
         // A flag that matches its default can't be told apart from an unset
         // one, so where highlighting is on by default (the `experimental`
         // feature) the config wins.
-        assert_eq!(
-            ui.disable_highlighting,
-            crate::entry::DEFAULT_ENABLE_HIGHLIGHTING
-        );
+        assert_eq!(ui.disable_highlighting, entry::DEFAULT_ENABLE_HIGHLIGHTING);
         assert!(ui.zsh_style_hooks); // CLI enabled
     }
 

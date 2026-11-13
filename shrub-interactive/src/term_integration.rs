@@ -1,6 +1,8 @@
 use std::borrow::Cow;
 use std::fmt::Write;
+use std::io;
 use std::io::Write as _;
+use std::path::Path;
 
 use crate::term_detection;
 
@@ -18,7 +20,7 @@ impl TerminalIntegration {
     /// # Arguments
     ///
     /// * `term_info` - Information about the terminal capabilities.
-    pub fn init(term_info: term_detection::TerminalInfo) -> std::io::Result<Self> {
+    pub fn init(term_info: term_detection::TerminalInfo) -> io::Result<Self> {
         let integration = Self { term: term_info };
         Self::write(integration.initialize().as_ref())?;
         Ok(integration)
@@ -46,7 +48,7 @@ impl TerminalIntegration {
     /// # Arguments
     ///
     /// * `command` - The command that is about to be executed.
-    pub fn on_pre_exec_command(&self, command: &str) -> std::io::Result<()> {
+    pub fn on_pre_exec_command(&self, command: &str) -> io::Result<()> {
         Self::write(self.pre_exec_command(command).as_ref())
     }
 
@@ -55,7 +57,7 @@ impl TerminalIntegration {
     /// # Arguments
     ///
     /// * `exit_code` - The exit code the command left behind.
-    pub fn on_post_exec_command(&self, exit_code: i32) -> std::io::Result<()> {
+    pub fn on_post_exec_command(&self, exit_code: i32) -> io::Result<()> {
         Self::write(self.post_exec_command(exit_code).as_ref())
     }
 
@@ -63,8 +65,8 @@ impl TerminalIntegration {
     /// before whatever the shell does next. Writing nothing still flushes;
     /// that costs nothing and keeps the inert case from being a separate
     /// path.
-    fn write(seq: &str) -> std::io::Result<()> {
-        let mut stdout = std::io::stdout();
+    fn write(seq: &str) -> io::Result<()> {
+        let mut stdout = io::stdout();
         stdout.write_all(seq.as_bytes())?;
         stdout.flush()
     }
@@ -89,7 +91,7 @@ impl TerminalIntegration {
     ///
     /// * `prompt` - The prompt as composed by the shell.
     /// * `working_dir` - The shell's current working directory.
-    pub fn decorate_prompt(&self, prompt: String, working_dir: &std::path::Path) -> String {
+    pub fn decorate_prompt(&self, prompt: String, working_dir: &Path) -> String {
         if !self.term.supports_osc_633 {
             return prompt;
         }
@@ -115,7 +117,7 @@ impl TerminalIntegration {
 
     /// Returns the terminal escape sequence to report the current working
     /// directory.
-    pub fn report_cwd(&self, cwd: &std::path::Path) -> Cow<'_, str> {
+    pub fn report_cwd(&self, cwd: &Path) -> Cow<'_, str> {
         if self.term.supports_osc_633 {
             let escaped_cwd_str = osc_633_escape(cwd.to_string_lossy().as_ref());
             format!("\x1b]633;P;Cwd={escaped_cwd_str}\x1b\\").into()

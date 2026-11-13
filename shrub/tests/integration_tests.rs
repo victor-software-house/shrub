@@ -6,10 +6,12 @@
 #![cfg(any(unix, windows))]
 
 use std::path::{Path, PathBuf};
+use std::{env, process};
 
 use anyhow::Result;
 use clap::Parser;
 use shrub_test_harness::{RunnerConfig, TestMode, TestOptions, TestRunner};
+use tokio::runtime::Builder;
 
 async fn run_shrub_tests(mut options: TestOptions) -> Result<bool> {
     // Resolve path to the shell-under-test.
@@ -47,17 +49,17 @@ async fn run_shrub_tests(mut options: TestOptions) -> Result<bool> {
 }
 
 fn main() -> Result<()> {
-    let unparsed_args: Vec<_> = std::env::args().collect();
+    let unparsed_args: Vec<_> = env::args().collect();
     let options = TestOptions::parse_from(unparsed_args);
 
-    let success = tokio::runtime::Builder::new_multi_thread()
+    let success = Builder::new_multi_thread()
         .enable_all()
         .worker_threads(32)
         .build()?
         .block_on(run_shrub_tests(options))?;
 
     if !success {
-        std::process::exit(1);
+        process::exit(1);
     }
 
     Ok(())

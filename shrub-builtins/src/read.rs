@@ -1,9 +1,13 @@
 use std::collections::VecDeque;
-use std::io::{Read, Write};
+use std::io::{BufReader, Read, Write};
 use std::time::{Duration, Instant};
+use std::{io, mem};
 
 use clap::Parser;
 use itertools::Itertools;
+use shrub_core::openfiles::{OpenFile, OpenFiles};
+use shrub_core::sys::poll;
+use shrub_core::terminal::{AutoModeGuard, Settings};
 use shrub_core::{ErrorKind, builtins, env, error, variables};
 use utf8_chars::BufReadCharsExt;
 
@@ -96,10 +100,9 @@ impl builtins::Command for ReadCommand {
         }
 
         // Find the input stream to use.
-        let fd_num = self.fd_num_to_read.map_or(
-            shrub_core::openfiles::OpenFiles::STDIN_FD,
-            shrub_core::ShellFd::from,
-        );
+        let fd_num = self
+            .fd_num_to_read
+            .map_or(OpenFiles::STDIN_FD, shrub_core::ShellFd::from);
 
         // Retrieve the file.
         let input_stream = context
@@ -211,7 +214,7 @@ fn assign_to_named_variables(
             String::new()
         } else if is_last {
             // Last variable gets all remaining fields joined by space.
-            std::mem::take(&mut fields).into_iter().join(" ")
+            mem::take(&mut fields).into_iter().join(" ")
         } else {
             fields.pop_front().unwrap_or_default()
         };
@@ -294,7 +297,7 @@ enum ReadResult {
 /// from the higher-level logic of line building and escape processing.
 struct InputReader {
     /// The input source.
-    input: std::io::BufReader<PolledInput>,
+    input: BufReader<PolledInput>,
     /// Bytes from a malformed UTF-8 sequence, still owed to the caller one at a
     /// time.
     pending: VecDeque<char>,
@@ -305,7 +308,7 @@ struct InputReader {
     /// The leading underscore suppresses the "unused field" warning while
     /// making it explicit this field exists solely for its `Drop`
     /// implementation.
-    _term_mode: Option<shrub_core::terminal::AutoModeGuard>,
+    _term_mode: Option<AutoModeGuard>,
 }
 
 /// Events that can occur when reading input.
@@ -324,13 +327,9 @@ enum InputEvent {
 
 impl InputReader {
     /// Creates a new input reader with optional timeout.
-    fn new(
-        input: shrub_core::openfiles::OpenFile,
-        timeout: Option<Duration>,
-        term_mode: Option<shrub_core::terminal::AutoModeGuard>,
-    ) -> Self {
+    fn new(input: OpenFile, timeout: Option<Duration>, term_mode: Option<AutoModeGuard>) -> Self {
         Self {
-            input: std::io::BufReader::with_capacity(
+            input: BufReader::with_capacity(
                 1,
                 PolledInput {
                     input,
@@ -345,8 +344,7 @@ impl InputReader {
     /// Checks if input is immediately available (for `-t 0`). Returns `false`
     /// if an error occurs while checking for available input.
     fn check_input_available(&self) -> bool {
-        shrub_core::sys::poll::poll_for_input(&self.input.get_ref().input, Duration::ZERO)
-            .unwrap_or(false)
+        poll::poll_for_input(&self.input.get_ref().input, Duration::ZERO).unwrap_or(false)
     }
 
     /// Reads the next input event, handling timeout and control characters.
@@ -368,7 +366,7 @@ impl InputReader {
                     // can't round-trip; bash preserves it
                     // verbatim, we re-encode it.
                     if e.as_bytes().is_empty() {
-                        if e.as_io_error().kind() == std::io::ErrorKind::TimedOut {
+                        if e.as_io_error().kind() == io::ErrorKind::TimedOut {
                             return Ok(InputEvent::Timeout);
                         }
                         return Err(e.into_io_error().into());
@@ -397,19 +395,17 @@ impl InputReader {
 /// for -- whatever runs next may want the rest.
 struct PolledInput {
     /// The input source.
-    input: shrub_core::openfiles::OpenFile,
+    input: OpenFile,
     /// Optional deadline for timeout.
     deadline: Option<Instant>,
 }
 
 impl Read for PolledInput {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         if let Some(deadline) = self.deadline {
             let remaining = deadline.saturating_duration_since(Instant::now());
-            if remaining.is_zero()
-                || !shrub_core::sys::poll::poll_for_input(&self.input, remaining)?
-            {
-                return Err(std::io::ErrorKind::TimedOut.into());
+            if remaining.is_zero() || !poll::poll_for_input(&self.input, remaining)? {
+                return Err(io::ErrorKind::TimedOut.into());
             }
         }
         self.input.read(buf)
@@ -554,8 +550,8 @@ impl ReadCommand {
     /// - With `-r`: backslash is treated as a literal character
     fn read_line(
         &self,
-        input_file: shrub_core::openfiles::OpenFile,
-        mut stderr_file: impl std::io::Write,
+        input_file: OpenFile,
+        mut stderr_file: impl Write,
         timeout: Option<Duration>,
     ) -> Result<ReadResult, shrub_core::Error> {
         let term_mode = self.setup_terminal_settings(&input_file)?;
@@ -611,11 +607,11 @@ impl ReadCommand {
 
     fn setup_terminal_settings(
         &self,
-        file: &shrub_core::openfiles::OpenFile,
-    ) -> Result<Option<shrub_core::terminal::AutoModeGuard>, shrub_core::Error> {
-        let mode = shrub_core::terminal::AutoModeGuard::new(file.to_owned()).ok();
+        file: &OpenFile,
+    ) -> Result<Option<AutoModeGuard>, shrub_core::Error> {
+        let mode = AutoModeGuard::new(file.to_owned()).ok();
         if let Some(mode) = &mode {
-            let config = shrub_core::terminal::Settings::builder()
+            let config = Settings::builder()
                 .line_input(false)
                 .interrupt_signals(false)
                 .echo_input(!self.silent)
@@ -705,7 +701,7 @@ fn split_line_by_ifs(ifs: &str, line: &str, max_fields: Option<usize>) -> VecDeq
 
         if !at_field_limit && is_delimiter {
             // Normal case: delimiter ends current field, start new one.
-            fields.push_back(std::mem::take(&mut current_field));
+            fields.push_back(mem::take(&mut current_field));
             consuming_whitespace_run = is_ifs_whitespace(c);
             prev_was_non_ws_delim = !consuming_whitespace_run;
         } else if at_field_limit && !collecting_remainder && is_delimiter {
@@ -739,6 +735,8 @@ fn split_line_by_ifs(ifs: &str, line: &str, max_fields: Option<usize>) -> VecDeq
 
 #[cfg(test)]
 mod tests {
+    use std::io;
+
     use itertools::assert_equal;
 
     use super::*;
@@ -754,7 +752,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn test_read_times_out_mid_sequence_without_losing_the_partial_bytes() {
-        let (rx, mut tx) = std::io::pipe().unwrap();
+        let (rx, mut tx) = io::pipe().unwrap();
         tx.write_all(b"\xc3").unwrap();
 
         let mut reader = InputReader::new(rx.into(), Some(Duration::from_millis(100)), None);

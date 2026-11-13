@@ -12,9 +12,12 @@
 #![cfg(test)]
 #![allow(clippy::panic_in_result_fn, clippy::expect_used)]
 
+use std::process::Command;
 use std::time::{Duration, Instant};
+use std::{fs, thread};
 
 use anyhow::Result;
+use tokio::runtime::Builder;
 
 /// How long to wait for a polled condition to come true.
 const TIMEOUT: Duration = Duration::from_secs(10);
@@ -25,7 +28,7 @@ const TIMEOUT: Duration = Duration::from_secs(10);
 /// success for one, so this inspects the process *state* and treats `Z` as not
 /// running.
 fn is_running(pid: u32) -> bool {
-    let output = std::process::Command::new("ps")
+    let output = Command::new("ps")
         .args(["-o", "state=", "-p", pid.to_string().as_str()])
         .output()
         .expect("failed to run `ps`");
@@ -46,7 +49,7 @@ fn poll_until(mut condition: impl FnMut() -> bool) -> bool {
         if Instant::now() >= deadline {
             return false;
         }
-        std::thread::sleep(Duration::from_millis(25));
+        thread::sleep(Duration::from_millis(25));
     }
 }
 
@@ -59,7 +62,7 @@ fn spawn_child_then_tear_down(kill_on_drop: bool) -> Result<u32> {
 
     // A multi-threaded runtime is required: the backgrounded command runs on a
     // separate task, and the pid poll below blocks a worker.
-    let runtime = tokio::runtime::Builder::new_multi_thread()
+    let runtime = Builder::new_multi_thread()
         .worker_threads(2)
         .enable_io()
         .build()?;
@@ -89,7 +92,7 @@ fn spawn_child_then_tear_down(kill_on_drop: bool) -> Result<u32> {
         // Wait for the child to report its own pid.
         let mut pid = None;
         poll_until(|| {
-            pid = std::fs::read_to_string(pid_file.as_path())
+            pid = fs::read_to_string(pid_file.as_path())
                 .ok()
                 .and_then(|contents| contents.trim().parse::<u32>().ok());
             pid.is_some()
@@ -130,12 +133,12 @@ fn child_outlives_teardown_by_default() -> Result<()> {
 
     // Give the child every chance to die, so a regression to
     // kill-on-drop-by-default is caught rather than raced past.
-    std::thread::sleep(Duration::from_millis(500));
+    thread::sleep(Duration::from_millis(500));
     let survived = is_running(pid);
 
     // This test intentionally leaves a live process behind, so clean it up
     // regardless of the assertion's outcome.
-    let _ = std::process::Command::new("kill")
+    let _ = Command::new("kill")
         .args(["-9", pid.to_string().as_str()])
         .status();
 

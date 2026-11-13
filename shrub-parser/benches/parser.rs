@@ -10,8 +10,12 @@
 
 #[cfg(unix)]
 mod unix {
+    use std::fs;
+    use std::path::{Path, PathBuf};
+
     use criterion::Criterion;
     use shrub_parser::Token;
+    use shrub_parser::ast::Program;
 
     fn uncached_tokenize(content: &str) -> Vec<shrub_parser::Token> {
         shrub_parser::uncached_tokenize_str(content, &shrub_parser::TokenizerOptions::default())
@@ -23,19 +27,19 @@ mod unix {
             .unwrap()
     }
 
-    fn parse_peg(tokens: &[Token]) -> shrub_parser::ast::Program {
+    fn parse_peg(tokens: &[Token]) -> Program {
         shrub_parser::parse_tokens(tokens, &shrub_parser::ParserOptions::default()).unwrap()
     }
 
     #[cfg(feature = "winnow-parser")]
-    fn parse_winnow_str(content: &str) -> shrub_parser::ast::Program {
+    fn parse_winnow_str(content: &str) -> Program {
         use shrub_parser::{ParserOptions, SourceInfo, winnow_str};
         winnow_str::parse_program(content, &ParserOptions::default(), &SourceInfo::default())
             .unwrap()
     }
 
     // Combined tokenize + parse functions for full pipeline comparison
-    fn tokenize_and_parse_peg(content: &str) -> shrub_parser::ast::Program {
+    fn tokenize_and_parse_peg(content: &str) -> Program {
         let tokens = uncached_tokenize(content);
         parse_peg(&tokens)
     }
@@ -111,8 +115,8 @@ backtick=`echo (nested parens)`
     const EXTENDED_TEST_COMPLEX: &str =
         "[[ ! ( $a -eq 5 && $b -gt 10 ) || ( $c =~ pattern && -f $file ) ]]";
 
-    fn benchmark_parsing_script_using_caches(c: &mut Criterion, script_path: &std::path::Path) {
-        let contents = std::fs::read_to_string(script_path).unwrap();
+    fn benchmark_parsing_script_using_caches(c: &mut Criterion, script_path: &Path) {
+        let contents = fs::read_to_string(script_path).unwrap();
         let filename = script_path.file_name().unwrap().to_string_lossy();
 
         c.bench_function(std::format!("parse_peg_{filename}").as_str(), |b| {
@@ -168,8 +172,7 @@ backtick=`echo (nested parens)`
         });
 
         // Real-world bash completion script (if available)
-        let well_known_complicated_script =
-            std::path::PathBuf::from(POSSIBLE_BASH_COMPLETION_SCRIPT_PATH);
+        let well_known_complicated_script = PathBuf::from(POSSIBLE_BASH_COMPLETION_SCRIPT_PATH);
 
         if well_known_complicated_script.exists() {
             benchmark_parsing_script_using_caches(c, &well_known_complicated_script);

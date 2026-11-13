@@ -1,3 +1,6 @@
+use peg::error;
+use peg::str::LineCol;
+
 use crate::tokenizer;
 
 /// Represents an error that occurred while parsing tokens.
@@ -70,7 +73,7 @@ pub mod miette {
 #[error(transparent)]
 pub struct ParseErrorLocation {
     #[from]
-    inner: peg::error::ParseError<peg::str::LineCol>,
+    inner: error::ParseError<LineCol>,
 }
 
 /// Represents an error that occurred while parsing a word.
@@ -105,7 +108,7 @@ pub enum WordParseError {
 /// command.
 #[derive(Debug, thiserror::Error)]
 #[error(transparent)]
-pub struct TestCommandParseError(#[from] peg::error::ParseError<usize>);
+pub struct TestCommandParseError(#[from] error::ParseError<usize>);
 
 /// Represents an error that occurred while parsing a key-binding specification.
 #[derive(Debug, thiserror::Error)]
@@ -120,7 +123,7 @@ pub enum BindingParseError {
 }
 
 pub(crate) fn convert_peg_parse_error(
-    err: &peg::error::ParseError<usize>,
+    err: &error::ParseError<usize>,
     tokens: &[crate::Token],
 ) -> ParseError {
     let approx_token_index = err.location;

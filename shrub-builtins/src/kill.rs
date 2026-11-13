@@ -1,8 +1,9 @@
 use std::io::Write;
 
 use clap::Parser;
+use nix::sys::signal::Signal;
 use shrub_core::traps::TrapSignal;
-use shrub_core::{ExecutionExitCode, ExecutionResult, builtins, sys};
+use shrub_core::{ExecutionExitCode, ExecutionResult, builtins, int_utils, sys, traps};
 
 /// Signal a job or process.
 #[derive(Parser)]
@@ -36,7 +37,7 @@ impl builtins::Command for KillCommand {
         let mut signal_zero = false;
 
         // Default signal is SIGKILL.
-        let mut trap_signal = TrapSignal::Signal(nix::sys::signal::Signal::SIGKILL);
+        let mut trap_signal = TrapSignal::Signal(Signal::SIGKILL);
 
         // Try parsing the signal name (if specified).
         if let Some(signal_name) = &self.signal_name {
@@ -133,7 +134,7 @@ impl builtins::Command for KillCommand {
                     return Ok(ExecutionResult::general_error());
                 }
             } else {
-                let pid = shrub_core::int_utils::parse(pid_or_job_spec.as_str(), 10)?;
+                let pid = int_utils::parse(pid_or_job_spec.as_str(), 10)?;
 
                 // It's a pid.
                 if signal_zero {
@@ -186,7 +187,7 @@ fn print_signals(
             }
         }
     } else {
-        return shrub_core::traps::format_signals(
+        return traps::format_signals(
             context.stdout(),
             TrapSignal::iterator().filter(|s| !matches!(s, TrapSignal::Exit)),
         )

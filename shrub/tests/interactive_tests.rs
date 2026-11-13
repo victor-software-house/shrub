@@ -10,13 +10,17 @@
 #![cfg(test)]
 #![allow(clippy::panic_in_result_fn)]
 
+use std::io::Stdout;
 use std::os::unix::process::CommandExt as _;
+use std::process::Command;
+use std::time::{Duration, Instant};
+use std::{io, thread};
 
 use anyhow::Context;
 use expectrl::process::unix::{PtyStream, UnixProcess};
 use expectrl::repl::ReplSession;
 use expectrl::stream::log::LogStream;
-use expectrl::{Expect, Session};
+use expectrl::{Expect, Session, session};
 
 #[test_with::executable(ping)]
 #[test]
@@ -559,7 +563,7 @@ fn stop_signal_to_shell_leaves_background_jobs_alone() -> anyhow::Result<()> {
     Ok(())
 }
 
-type ShellSession = ReplSession<Session<UnixProcess, LogStream<PtyStream, std::io::Stdout>>>;
+type ShellSession = ReplSession<Session<UnixProcess, LogStream<PtyStream, Stdout>>>;
 // N.B. Comment out the above line and uncomment out the following line to
 // disable logging of the session. type ShellSession =
 // ReplSession<Session<UnixProcess, PtyStream>>;
@@ -618,9 +622,9 @@ fn wait_for_state(shell_pid: u32, name: &str, state: ProcessState) -> anyhow::Re
         ProcessState::Sleeping => 'S',
         ProcessState::Stopped => 'T',
     };
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(10);
     loop {
-        let ps = std::process::Command::new("ps")
+        let ps = Command::new("ps")
             .args(["-A", "-o", "pid=,ppid=,stat=,comm="])
             .output()?;
         let ps = String::from_utf8(ps.stdout)?;
@@ -653,10 +657,10 @@ fn wait_for_state(shell_pid: u32, name: &str, state: ProcessState) -> anyhow::Re
         }
 
         anyhow::ensure!(
-            std::time::Instant::now() < deadline,
+            Instant::now() < deadline,
             "{name} isn't {state:?}: {named:?}"
         );
-        std::thread::sleep(std::time::Duration::from_millis(20));
+        thread::sleep(Duration::from_millis(20));
     }
 }
 
@@ -688,13 +692,11 @@ fn start_shell_session() -> anyhow::Result<ShellSession> {
 /// environment come from beyond the fixed set below, so a session says for
 /// itself what it wants -- notably `--norc`, or the `--rcfile` that a session
 /// wanting an rc file passes instead.
-fn start_shell_session_with(
-    configure: impl FnOnce(&mut std::process::Command),
-) -> anyhow::Result<ShellSession> {
+fn start_shell_session_with(configure: impl FnOnce(&mut Command)) -> anyhow::Result<ShellSession> {
     const DEFAULT_PROMPT: &str = "shrub> ";
     let shell_path = assert_cmd::cargo::cargo_bin!("shrub");
 
-    let mut cmd = std::process::Command::new(shell_path);
+    let mut cmd = Command::new(shell_path);
     cmd.args([
         "--noprofile",
         "--no-config",
@@ -706,13 +708,13 @@ fn start_shell_session_with(
     cmd.env("TERM", "linux");
     configure(&mut cmd);
 
-    let session = expectrl::session::Session::spawn(cmd)?;
+    let session = session::Session::spawn(cmd)?;
 
     // N.B. Comment out this line to disable logging of the session (along with
     // a similar line above).
-    let session = expectrl::session::log(session, std::io::stdout())?;
+    let session = session::log(session, io::stdout())?;
 
-    let mut session = expectrl::repl::ReplSession::new(session, DEFAULT_PROMPT);
+    let mut session = ReplSession::new(session, DEFAULT_PROMPT);
     session.set_echo(true);
 
     Ok(session)

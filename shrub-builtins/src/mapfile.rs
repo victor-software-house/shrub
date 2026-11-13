@@ -1,6 +1,8 @@
 use std::io::{Read, Write};
 
 use clap::Parser;
+use shrub_core::openfiles::OpenFile;
+use shrub_core::terminal::{AutoModeGuard, Settings};
 use shrub_core::{ErrorKind, ExecutionExitCode, ExecutionResult, builtins, env, error, variables};
 
 /// Read lines from standard input into an indexed array variable.
@@ -118,7 +120,7 @@ impl builtins::Command for MapFileCommand {
 impl MapFileCommand {
     fn read_entries(
         &self,
-        mut input_file: shrub_core::openfiles::OpenFile,
+        mut input_file: OpenFile,
     ) -> Result<variables::ArrayLiteral, shrub_core::Error> {
         let _term_mode = setup_terminal_settings(&input_file)?;
 
@@ -177,12 +179,10 @@ impl MapFileCommand {
     }
 }
 
-fn setup_terminal_settings(
-    file: &shrub_core::openfiles::OpenFile,
-) -> Result<Option<shrub_core::terminal::AutoModeGuard>, shrub_core::Error> {
-    let mode = shrub_core::terminal::AutoModeGuard::new(file.to_owned()).ok();
+fn setup_terminal_settings(file: &OpenFile) -> Result<Option<AutoModeGuard>, shrub_core::Error> {
+    let mode = AutoModeGuard::new(file.to_owned()).ok();
     if let Some(mode) = &mode {
-        let config = shrub_core::terminal::Settings::builder()
+        let config = Settings::builder()
             .line_input(false)
             .interrupt_signals(false)
             .build();

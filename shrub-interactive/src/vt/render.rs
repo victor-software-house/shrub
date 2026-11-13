@@ -3,6 +3,7 @@
 use std::borrow::Cow;
 use std::fmt::Write as _;
 use std::io::Write;
+use std::{io, iter};
 
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
@@ -40,7 +41,7 @@ impl Renderer {
         text: &str,
         cursor: usize,
         columns: usize,
-    ) -> std::io::Result<()> {
+    ) -> io::Result<()> {
         let (text, cursor) = shown_text(text, cursor);
         match self {
             Self::Vt(r) => r.draw(out, prompt, &text, cursor, columns),
@@ -56,7 +57,7 @@ impl Renderer {
         prompt: &str,
         text: &str,
         columns: usize,
-    ) -> std::io::Result<()> {
+    ) -> io::Result<()> {
         let (text, _) = shown_text(text, text.len());
         match self {
             Self::Vt(r) => r.finish(out, prompt, &text, columns),
@@ -73,7 +74,7 @@ impl Renderer {
     ///
     /// * `out` - The terminal.
     /// * `columns` - The terminal's width.
-    pub fn start_on_own_row(&self, out: &mut impl Write, columns: usize) -> std::io::Result<()> {
+    pub fn start_on_own_row(&self, out: &mut impl Write, columns: usize) -> io::Result<()> {
         match self {
             Self::Vt(_) => VtRenderer::start_on_own_row(out, columns),
             Self::Backspace(_) => Ok(()),
@@ -119,7 +120,7 @@ impl VtRenderer {
         text: &str,
         cursor: usize,
         columns: usize,
-    ) -> std::io::Result<()> {
+    ) -> io::Result<()> {
         let columns = columns.max(1);
         let mut seq = String::new();
 
@@ -171,7 +172,7 @@ impl VtRenderer {
         prompt: &str,
         text: &str,
         columns: usize,
-    ) -> std::io::Result<()> {
+    ) -> io::Result<()> {
         self.draw(out, prompt, text, text.len(), columns)?;
 
         // If the line ended at the right margin, the cursor is already on a new
@@ -189,7 +190,7 @@ impl VtRenderer {
 
     /// Erases what was drawn, leaving the cursor where the prompt started, for
     /// the next draw to start from.
-    pub fn erase(&mut self, out: &mut impl Write) -> std::io::Result<()> {
+    pub fn erase(&mut self, out: &mut impl Write) -> io::Result<()> {
         let mut seq = String::new();
         move_up(&mut seq, self.cursor_row);
         seq.push_str("\r\x1b[J");
@@ -204,7 +205,7 @@ impl VtRenderer {
     /// at the right margin of that row, waiting to wrap, so a carriage
     /// return goes back to its start; from any later column, they wrap onto
     /// the next row, leaving what was before them in place.
-    pub fn start_on_own_row(out: &mut impl Write, columns: usize) -> std::io::Result<()> {
+    pub fn start_on_own_row(out: &mut impl Write, columns: usize) -> io::Result<()> {
         let mut seq = " ".repeat(columns.max(1));
         seq.push('\r');
         out.write_all(seq.as_bytes())
@@ -242,7 +243,7 @@ impl BackspaceRenderer {
         prompt: &str,
         text: &str,
         cursor: usize,
-    ) -> std::io::Result<()> {
+    ) -> io::Result<()> {
         let mut seq = String::new();
 
         // Only the cursor moved: move it there, over the text.
@@ -314,7 +315,7 @@ impl BackspaceRenderer {
     /// Leaves the line as drawn (bringing it up to date if need be) and moves
     /// to the next row from wherever the cursor is, as readline does on a
     /// terminal like this.
-    fn finish(&mut self, out: &mut impl Write, prompt: &str, text: &str) -> std::io::Result<()> {
+    fn finish(&mut self, out: &mut impl Write, prompt: &str, text: &str) -> io::Result<()> {
         if self
             .shown
             .as_ref()
@@ -363,7 +364,7 @@ fn cells(text: &str) -> usize {
 }
 
 fn push_backspaces(seq: &mut String, count: usize) {
-    seq.extend(std::iter::repeat_n('\x08', count));
+    seq.extend(iter::repeat_n('\x08', count));
 }
 
 /// Returns where the cursor is, as a row and column, after writing `chars` from
@@ -489,6 +490,8 @@ fn visible_text(s: &str) -> String {
 #[cfg(test)]
 #[allow(clippy::panic_in_result_fn, reason = "assertions in tests")]
 mod tests {
+    use std::{io, str};
+
     use super::*;
 
     /// Returns a terminal `columns` wide to play what's drawn on.
@@ -499,7 +502,7 @@ mod tests {
     /// Plays `output` on `terminal`, translating newlines to CR LF, as
     /// terminals do in raw mode.
     fn play(terminal: &mut vt100::Parser, output: &[u8]) {
-        let output = std::str::from_utf8(output).unwrap().replace('\n', "\r\n");
+        let output = str::from_utf8(output).unwrap().replace('\n', "\r\n");
         terminal.process(output.as_bytes());
     }
 
@@ -521,7 +524,7 @@ mod tests {
     /// Starts lines below output that didn't end with a newline, and where
     /// output that did end with one left the cursor.
     #[test]
-    fn starts_lines_on_their_own_rows() -> std::io::Result<()> {
+    fn starts_lines_on_their_own_rows() -> io::Result<()> {
         const COLUMNS: usize = 8;
         for (output, expected) in [
             ("", vec!["$ ab"]),
@@ -548,7 +551,7 @@ mod tests {
     /// Draws `text` after a prompt on a narrow screen, as a sequence of edits,
     /// and checks the screen and cursor after each.
     #[test]
-    fn redraws_in_place_across_wrapped_rows() -> std::io::Result<()> {
+    fn redraws_in_place_across_wrapped_rows() -> io::Result<()> {
         const COLUMNS: usize = 5;
         let prompt = "\x01\x1b[1m\x02$\x1b[0m ";
         let mut terminal = terminal(COLUMNS);
@@ -622,7 +625,7 @@ mod tests {
     /// it's at: where the terminal draws that char, which for a wide char
     /// that doesn't fit on what's left of a row is the start of the next.
     #[test]
-    fn places_the_cursor_on_wide_and_combining_chars_across_rows() -> std::io::Result<()> {
+    fn places_the_cursor_on_wide_and_combining_chars_across_rows() -> io::Result<()> {
         for prompt in ["$ ", "界> ", "\x01\x1b[1m\x02$\x1b[0m "] {
             for text in [
                 "abc界d",
@@ -679,7 +682,7 @@ mod tests {
     /// shorter, longer, changed mid-line, with chars that take two cells or
     /// none, or with a different prompt.
     #[test]
-    fn redraws_with_backspaces() -> std::io::Result<()> {
+    fn redraws_with_backspaces() -> io::Result<()> {
         let mut renderer = BackspaceRenderer::default();
         let mut terminal = terminal(80);
 
@@ -723,7 +726,7 @@ mod tests {
     /// Moving the cursor, and finishing the line, write no more than they must:
     /// what test harnesses expect, having been written for readline.
     #[test]
-    fn moves_with_backspaces_and_finishes_in_place() -> std::io::Result<()> {
+    fn moves_with_backspaces_and_finishes_in_place() -> io::Result<()> {
         let mut renderer = BackspaceRenderer::default();
         let drawn = |renderer: &mut BackspaceRenderer, text: &str, cursor: usize| {
             let mut out = vec![];
@@ -758,7 +761,7 @@ mod tests {
         renderer: &mut Renderer,
         lines: &[(&str, usize)],
         finish: &str,
-    ) -> std::io::Result<(Vec<String>, (usize, usize))> {
+    ) -> io::Result<(Vec<String>, (usize, usize))> {
         let mut out = vec![];
         for (text, cursor) in lines {
             renderer.draw(&mut out, "$ ", text, *cursor, 80)?;
@@ -770,7 +773,7 @@ mod tests {
     }
 
     #[test]
-    fn draws_in_either_style() -> std::io::Result<()> {
+    fn draws_in_either_style() -> io::Result<()> {
         for style in [Style::Vt, Style::Basic] {
             let mut renderer = Renderer::new(style);
             let (rows, position) = draw_all(&mut renderer, &[("ab", 2), ("abc", 1)], "abcd")?;
@@ -781,7 +784,7 @@ mod tests {
     }
 
     #[test]
-    fn starts_afresh_after_a_reset() -> std::io::Result<()> {
+    fn starts_afresh_after_a_reset() -> io::Result<()> {
         for style in [Style::Vt, Style::Basic] {
             let mut renderer = Renderer::new(style);
             let mut out = vec![];
@@ -798,7 +801,7 @@ mod tests {
     }
 
     #[test]
-    fn finishes_with_backspaces_by_drawing_what_changed() -> std::io::Result<()> {
+    fn finishes_with_backspaces_by_drawing_what_changed() -> io::Result<()> {
         let mut renderer = BackspaceRenderer::default();
         let mut out = vec![];
         renderer.draw(&mut out, "$ ", "ab", 1)?;
@@ -814,7 +817,7 @@ mod tests {
     }
 
     #[test]
-    fn shows_control_characters_in_caret_notation() -> std::io::Result<()> {
+    fn shows_control_characters_in_caret_notation() -> io::Result<()> {
         assert_eq!(shown_text("plain", 2), (Cow::Borrowed("plain"), 2));
         assert_eq!(
             shown_text("a\nb\t\x1b[m\x7f\u{85}é", 2),
@@ -839,7 +842,7 @@ mod tests {
     }
 
     #[test]
-    fn treats_a_zero_width_terminal_as_one_column_wide() -> std::io::Result<()> {
+    fn treats_a_zero_width_terminal_as_one_column_wide() -> io::Result<()> {
         let mut renderer = VtRenderer::default();
         let mut out = vec![];
         renderer.draw(&mut out, "", "ab", 1, 0)?;

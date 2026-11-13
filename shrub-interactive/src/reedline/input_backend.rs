@@ -1,5 +1,9 @@
+use std::{mem, thread};
+
 use nu_ansi_term::Style;
 use reedline::MenuBuilder;
+use tokio::runtime::Handle;
+use tokio::task;
 
 use super::{completer, edit_mode, highlighter, history, validator};
 use crate::input_backend::InteractivePrompt;
@@ -130,9 +134,7 @@ impl ReedlineInputBackend {
             };
         }
 
-        let mut shell = tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(shell_ref.lock())
-        });
+        let mut shell = task::block_in_place(|| Handle::current().block_on(shell_ref.lock()));
 
         shell.set_key_bindings(Some(updatable_bindings));
         drop(shell);
@@ -155,9 +157,9 @@ impl Drop for ReedlineInputBackend {
         // some not-yet-flushed terminal control sequences. This isn't
         // theoretical; we've actively seen this in various cases where
         // a panic occurs with Reedline::read_line() on the stack.
-        if std::thread::panicking() {
-            let reedline = std::mem::take(&mut self.reedline);
-            std::mem::forget(reedline);
+        if thread::panicking() {
+            let reedline = mem::take(&mut self.reedline);
+            mem::forget(reedline);
         }
     }
 }

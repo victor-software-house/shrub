@@ -3,11 +3,18 @@
 use std::borrow::Cow;
 use std::cmp::min;
 use std::io::Write as _;
+use std::{mem, process};
 
 use itertools::Itertools;
-use shrub_parser::word::{ParameterTransformOp, SubstringMatchKind};
+use shrub_parser::ast::UnexpandedArithmeticExpr;
+use shrub_parser::word;
+use shrub_parser::word::{
+    Parameter, ParameterExpr, ParameterTestType, ParameterTransformOp, SpecialParameter,
+    SubstringMatchKind, TildeExpr, WordPiece, WordPieceWithSource,
+};
 
 use crate::arithmetic::ExpandAndEvaluate;
+use crate::regex::{Regex, RegexPiece};
 use crate::shell::Shell;
 use crate::variables::{self, ShellValue, ShellValueUnsetType, ShellVariable};
 use crate::{
@@ -423,7 +430,7 @@ impl From<ExpansionPiece> for patterns::PatternPiece {
     }
 }
 
-impl From<ExpansionPiece> for crate::regex::RegexPiece {
+impl From<ExpansionPiece> for RegexPiece {
     fn from(piece: ExpansionPiece) -> Self {
         match piece {
             ExpansionPiece::Unsplittable(s) => Self::Literal(s),
@@ -504,7 +511,7 @@ pub(crate) async fn basic_expand_regex(
     shell: &mut Shell<impl extensions::ShellExtensions>,
     params: &ExecutionParameters,
     word_str: impl AsRef<str>,
-) -> Result<crate::regex::Regex, error::Error> {
+) -> Result<Regex, error::Error> {
     let mut expander = WordExpander::new(shell, params);
 
     // Brace expansion does not appear to be used in regexes.
@@ -655,7 +662,7 @@ pub async fn assign_to_named_parameter(
 ) -> Result<(), error::Error> {
     let parser_options = shell.parser_options();
     let mut expander = WordExpander::new(shell, params);
-    let parameter = shrub_parser::word::parse_parameter(name, &parser_options)?;
+    let parameter = word::parse_parameter(name, &parser_options)?;
     expander.assign_to_parameter(&parameter, value).await
 }
 
@@ -800,10 +807,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
         Ok(pattern)
     }
 
-    async fn basic_expand_regex(
-        &mut self,
-        word: &str,
-    ) -> Result<crate::regex::Regex, error::Error> {
+    async fn basic_expand_regex(&mut self, word: &str) -> Result<Regex, error::Error> {
         let expansion = self.basic_expand(word).await?;
 
         // TODO(IFS): Use IFS instead for separator?
@@ -815,14 +819,14 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                 field
                     .0
                     .into_iter()
-                    .map(crate::regex::RegexPiece::from)
+                    .map(RegexPiece::from)
                     .collect::<Vec<_>>()
             })
-            .intersperse(vec![crate::regex::RegexPiece::Literal(String::from(" "))])
+            .intersperse(vec![RegexPiece::Literal(String::from(" "))])
             .flatten()
             .collect();
 
-        Ok(crate::regex::Regex::from(regex_pieces)
+        Ok(Regex::from(regex_pieces)
             .set_case_insensitive(self.shell.options().case_insensitive_conditionals))
     }
 
@@ -887,9 +891,9 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
         // ${var:-"default"}) uses normal semantics.
         let pieces = if self.heredoc_mode {
             self.heredoc_mode = false;
-            shrub_parser::word::parse_heredoc(word, &self.parser_options)?
+            word::parse_heredoc(word, &self.parser_options)?
         } else {
-            shrub_parser::word::parse(word, &self.parser_options)?
+            word::parse(word, &self.parser_options)?
         };
 
         let mut expansions = Vec::with_capacity(pieces.len());
@@ -945,7 +949,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
         for field in &mut expansion.fields {
             for piece in &mut field.0 {
                 if let ExpansionPiece::UnquotedLiteral(s) = piece {
-                    *piece = ExpansionPiece::Splittable(std::mem::take(s));
+                    *piece = ExpansionPiece::Splittable(mem::take(s));
                 }
             }
         }
@@ -966,15 +970,15 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
             return None;
         }
 
-        let brace_expansion_pieces =
-            match shrub_parser::word::parse_brace_expansions(word, &self.parser_options) {
-                Ok(Some(pieces)) => pieces,
-                Ok(None) => return None,
-                Err(err) => {
-                    tracing::error!("failed to parse for brace expansion: {err:?}");
-                    return None;
-                }
-            };
+        let brace_expansion_pieces = match word::parse_brace_expansions(word, &self.parser_options)
+        {
+            Ok(Some(pieces)) => pieces,
+            Ok(None) => return None,
+            Err(err) => {
+                tracing::error!("failed to parse for brace expansion: {err:?}");
+                return None;
+            }
+        };
 
         tracing::debug!(target: trace_categories::EXPANSION, "Brace expansion pieces: {brace_expansion_pieces:?}");
 
@@ -1064,16 +1068,12 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
     #[async_recursion::async_recursion]
     async fn expand_word_piece(
         &mut self,
-        word_piece: shrub_parser::word::WordPiece,
+        word_piece: WordPiece,
     ) -> Result<Expansion, error::Error> {
         let expansion: Expansion = match word_piece {
-            shrub_parser::word::WordPiece::Text(s) => {
-                Expansion::from(ExpansionPiece::UnquotedLiteral(s))
-            }
-            shrub_parser::word::WordPiece::SingleQuotedText(s) => {
-                Expansion::from(ExpansionPiece::Unsplittable(s))
-            }
-            shrub_parser::word::WordPiece::AnsiCQuotedText(s) => {
+            WordPiece::Text(s) => Expansion::from(ExpansionPiece::UnquotedLiteral(s)),
+            WordPiece::SingleQuotedText(s) => Expansion::from(ExpansionPiece::Unsplittable(s)),
+            WordPiece::AnsiCQuotedText(s) => {
                 let (expanded, _) = escape::expand_backslash_escapes(
                     s.as_str(),
                     escape::EscapeExpansionMode::AnsiCQuotes,
@@ -1082,8 +1082,8 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                     String::from_utf8_lossy(expanded.as_slice()).into_owned(),
                 ))
             }
-            shrub_parser::word::WordPiece::DoubleQuotedSequence(pieces)
-            | shrub_parser::word::WordPiece::GettextDoubleQuotedSequence(pieces) => {
+            WordPiece::DoubleQuotedSequence(pieces)
+            | WordPiece::GettextDoubleQuotedSequence(pieces) => {
                 let pieces_is_empty = pieces.is_empty();
 
                 // Save the previous state and set the flag
@@ -1115,16 +1115,11 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                     kind: ExpansionKind::String,
                 }
             }
-            shrub_parser::word::WordPiece::TildeExpansion(tilde_expr) => {
-                Expansion::from(ExpansionPiece::Unsplittable(
-                    self.expand_tilde_expression(&tilde_expr)?.to_string(),
-                ))
-            }
-            shrub_parser::word::WordPiece::ParameterExpansion(p) => {
-                self.expand_parameter_expr(p).await?
-            }
-            shrub_parser::word::WordPiece::BackquotedCommandSubstitution(s)
-            | shrub_parser::word::WordPiece::CommandSubstitution(s) => {
+            WordPiece::TildeExpansion(tilde_expr) => Expansion::from(ExpansionPiece::Unsplittable(
+                self.expand_tilde_expression(&tilde_expr)?.to_string(),
+            )),
+            WordPiece::ParameterExpansion(p) => self.expand_parameter_expr(p).await?,
+            WordPiece::BackquotedCommandSubstitution(s) | WordPiece::CommandSubstitution(s) => {
                 let mut cmd_output = if !self.disable_command_substitutions {
                     commands::invoke_command_in_subshell_and_get_output(self.shell, self.params, s)
                         .await?
@@ -1148,7 +1143,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
 
                 Expansion::from(ExpansionPiece::Splittable(cmd_output))
             }
-            shrub_parser::word::WordPiece::EscapeSequence(s) => {
+            WordPiece::EscapeSequence(s) => {
                 let Some(escaped) = s.strip_prefix('\\') else {
                     // We don't ever expect this case, as it breaks our
                     // invariant--but we handle it to avoid
@@ -1189,9 +1184,9 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                     }
                 }
             }
-            shrub_parser::word::WordPiece::ArithmeticExpression(e) => Expansion::from(
-                ExpansionPiece::Splittable(self.expand_arithmetic_expr(e).await?),
-            ),
+            WordPiece::ArithmeticExpression(e) => Expansion::from(ExpansionPiece::Splittable(
+                self.expand_arithmetic_expr(e).await?,
+            )),
         };
 
         Ok(expansion)
@@ -1199,33 +1194,30 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
 
     fn expand_tilde_expression(
         &self,
-        tilde_expr: &shrub_parser::word::TildeExpr,
+        tilde_expr: &TildeExpr,
     ) -> Result<Cow<'_, str>, error::Error> {
         match tilde_expr {
-            shrub_parser::word::TildeExpr::Home => {
+            TildeExpr::Home => {
                 if let Some(home_dir) = self.shell.home_dir() {
                     Ok(Cow::Owned(home_dir.to_string_lossy().to_string()))
                 } else {
                     Err(error::ErrorKind::TildeWithoutValidHome.into())
                 }
             }
-            shrub_parser::word::TildeExpr::UserHome(username) => {
-                Ok(sys::users::get_user_home_dir(username).map_or_else(
+            TildeExpr::UserHome(username) => Ok(sys::users::get_user_home_dir(username)
+                .map_or_else(
                     || Cow::Owned(std::format!("~{username}")),
                     |p| Cow::Owned(p.to_string_lossy().to_string()),
-                ))
-            }
-            shrub_parser::word::TildeExpr::WorkingDir => {
-                Ok(self.shell.working_dir().to_string_lossy())
-            }
-            shrub_parser::word::TildeExpr::OldWorkingDir => {
+                )),
+            TildeExpr::WorkingDir => Ok(self.shell.working_dir().to_string_lossy()),
+            TildeExpr::OldWorkingDir => {
                 if let Some(old_pwd) = self.shell.env_str("OLDPWD") {
                     Ok(old_pwd)
                 } else {
                     Ok(Cow::Borrowed("~-"))
                 }
             }
-            shrub_parser::word::TildeExpr::NthDirFromBottomOfDirStack { n } => {
+            TildeExpr::NthDirFromBottomOfDirStack { n } => {
                 let dir_stack_count = self.shell.directory_stack().len();
 
                 if let Some(dir) = self.shell.directory_stack().get(*n) {
@@ -1236,7 +1228,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                     Ok(Cow::Owned(std::format!("~-{n}")))
                 }
             }
-            shrub_parser::word::TildeExpr::NthDirFromTopOfDirStack { n, plus_used } => {
+            TildeExpr::NthDirFromTopOfDirStack { n, plus_used } => {
                 if *n == 0 {
                     return Ok(self.shell.working_dir().to_string_lossy());
                 }
@@ -1258,7 +1250,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
     /// This ensures proper handling of concatenation and field building.
     async fn process_double_quoted_pieces(
         &mut self,
-        pieces: Vec<shrub_parser::word::WordPieceWithSource>,
+        pieces: Vec<WordPieceWithSource>,
     ) -> Result<Vec<WordField>, error::Error> {
         let mut fields: Vec<WordField> = vec![];
         let concatenation_joiner = self.shell.ifs_joiner();
@@ -1321,15 +1313,15 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
     #[expect(clippy::too_many_lines)]
     async fn expand_parameter_expr(
         &mut self,
-        expr: shrub_parser::word::ParameterExpr,
+        expr: ParameterExpr,
     ) -> Result<Expansion, error::Error> {
         #[expect(clippy::cast_possible_truncation)]
         match expr {
-            shrub_parser::word::ParameterExpr::Parameter {
+            ParameterExpr::Parameter {
                 parameter,
                 indirect,
             } => self.expand_parameter(&parameter, indirect).await,
-            shrub_parser::word::ParameterExpr::UseDefaultValues {
+            ParameterExpr::UseDefaultValues {
                 parameter,
                 indirect,
                 test_type,
@@ -1342,14 +1334,13 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
 
                 match (test_type, expanded_parameter.classify()) {
                     (_, ParameterState::NonZeroLength)
-                    | (
-                        shrub_parser::word::ParameterTestType::Unset,
-                        ParameterState::DefinedEmptyString,
-                    ) => Ok(expanded_parameter),
+                    | (ParameterTestType::Unset, ParameterState::DefinedEmptyString) => {
+                        Ok(expanded_parameter)
+                    }
                     _ => Ok(self.expand_parameter_word(default_value).await?),
                 }
             }
-            shrub_parser::word::ParameterExpr::AssignDefaultValues {
+            ParameterExpr::AssignDefaultValues {
                 parameter,
                 indirect,
                 test_type,
@@ -1362,10 +1353,9 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
 
                 match (test_type, expanded_parameter.classify()) {
                     (_, ParameterState::NonZeroLength)
-                    | (
-                        shrub_parser::word::ParameterTestType::Unset,
-                        ParameterState::DefinedEmptyString,
-                    ) => Ok(expanded_parameter),
+                    | (ParameterTestType::Unset, ParameterState::DefinedEmptyString) => {
+                        Ok(expanded_parameter)
+                    }
                     _ => {
                         let expanded_default = self.expand_parameter_word(default_value).await?;
                         let expanded_default_value = self.fields_to_string(expanded_default);
@@ -1375,7 +1365,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                     }
                 }
             }
-            shrub_parser::word::ParameterExpr::IndicateErrorIfNullOrUnset {
+            ParameterExpr::IndicateErrorIfNullOrUnset {
                 parameter,
                 indirect,
                 test_type,
@@ -1388,10 +1378,9 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
 
                 match (test_type, expanded_parameter.classify()) {
                     (_, ParameterState::NonZeroLength)
-                    | (
-                        shrub_parser::word::ParameterTestType::Unset,
-                        ParameterState::DefinedEmptyString,
-                    ) => Ok(expanded_parameter),
+                    | (ParameterTestType::Unset, ParameterState::DefinedEmptyString) => {
+                        Ok(expanded_parameter)
+                    }
                     _ => {
                         let result = self.basic_expand_to_str(error_message).await?;
                         let err: error::Error =
@@ -1402,7 +1391,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                     }
                 }
             }
-            shrub_parser::word::ParameterExpr::UseAlternativeValue {
+            ParameterExpr::UseAlternativeValue {
                 parameter,
                 indirect,
                 test_type,
@@ -1415,14 +1404,13 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
 
                 match (test_type, expanded_parameter.classify()) {
                     (_, ParameterState::NonZeroLength)
-                    | (
-                        shrub_parser::word::ParameterTestType::Unset,
-                        ParameterState::DefinedEmptyString,
-                    ) => Ok(self.expand_parameter_word(alternative_value).await?),
+                    | (ParameterTestType::Unset, ParameterState::DefinedEmptyString) => {
+                        Ok(self.expand_parameter_word(alternative_value).await?)
+                    }
                     _ => Ok(Expansion::from(String::new())),
                 }
             }
-            shrub_parser::word::ParameterExpr::ParameterLength {
+            ParameterExpr::ParameterLength {
                 parameter,
                 indirect,
             } => {
@@ -1431,8 +1419,8 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                 // errors. Allow unset only for array element/all-indices
                 // access on variables that exist.
                 let allow_unset = match &parameter {
-                    shrub_parser::word::Parameter::NamedWithIndex { name, .. }
-                    | shrub_parser::word::Parameter::NamedWithAllIndices { name, .. } => {
+                    Parameter::NamedWithIndex { name, .. }
+                    | Parameter::NamedWithAllIndices { name, .. } => {
                         self.shell.env().get(name).is_some()
                     }
                     _ => false,
@@ -1445,7 +1433,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                 };
                 Ok(Expansion::from(expansion.polymorphic_len().to_string()))
             }
-            shrub_parser::word::ParameterExpr::RemoveSmallestSuffixPattern {
+            ParameterExpr::RemoveSmallestSuffixPattern {
                 parameter,
                 indirect,
                 pattern,
@@ -1458,7 +1446,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                 })
                 .await
             }
-            shrub_parser::word::ParameterExpr::RemoveLargestSuffixPattern {
+            ParameterExpr::RemoveLargestSuffixPattern {
                 parameter,
                 indirect,
                 pattern,
@@ -1471,7 +1459,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                 })
                 .await
             }
-            shrub_parser::word::ParameterExpr::RemoveSmallestPrefixPattern {
+            ParameterExpr::RemoveSmallestPrefixPattern {
                 parameter,
                 indirect,
                 pattern,
@@ -1485,7 +1473,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                 })
                 .await
             }
-            shrub_parser::word::ParameterExpr::RemoveLargestPrefixPattern {
+            ParameterExpr::RemoveLargestPrefixPattern {
                 parameter,
                 indirect,
                 pattern,
@@ -1499,7 +1487,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                 })
                 .await
             }
-            shrub_parser::word::ParameterExpr::Substring {
+            ParameterExpr::Substring {
                 parameter,
                 indirect,
                 offset,
@@ -1511,11 +1499,9 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                 // sliced.
                 if matches!(
                     parameter,
-                    shrub_parser::word::Parameter::Special(
-                        shrub_parser::word::SpecialParameter::AllPositionalParameters {
-                            concatenate: _
-                        },
-                    )
+                    Parameter::Special(SpecialParameter::AllPositionalParameters {
+                        concatenate: _
+                    },)
                 ) {
                     let shell_name = self.shell.current_shell_name().unwrap_or_else(|| "".into());
 
@@ -1595,7 +1581,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                 Ok(expanded_parameter
                     .polymorphic_subslice(expanded_offset as usize, end_offset as usize))
             }
-            shrub_parser::word::ParameterExpr::Transform {
+            ParameterExpr::Transform {
                 parameter,
                 indirect,
                 op: ParameterTransformOp::ToAttributeFlags,
@@ -1609,7 +1595,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                     Ok(String::new().into())
                 }
             }
-            shrub_parser::word::ParameterExpr::Transform {
+            ParameterExpr::Transform {
                 parameter,
                 indirect,
                 op: ParameterTransformOp::ToAssignmentLogic,
@@ -1654,7 +1640,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                     Ok(String::new().into())
                 }
             }
-            shrub_parser::word::ParameterExpr::Transform {
+            ParameterExpr::Transform {
                 parameter,
                 indirect,
                 op,
@@ -1684,7 +1670,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                     undefined: expanded_parameter.undefined,
                 })
             }
-            shrub_parser::word::ParameterExpr::UppercaseFirstChar {
+            ParameterExpr::UppercaseFirstChar {
                 parameter,
                 indirect,
                 pattern,
@@ -1697,7 +1683,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                 })
                 .await
             }
-            shrub_parser::word::ParameterExpr::UppercasePattern {
+            ParameterExpr::UppercasePattern {
                 parameter,
                 indirect,
                 pattern,
@@ -1712,7 +1698,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                 })
                 .await
             }
-            shrub_parser::word::ParameterExpr::LowercaseFirstChar {
+            ParameterExpr::LowercaseFirstChar {
                 parameter,
                 indirect,
                 pattern,
@@ -1725,7 +1711,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                 })
                 .await
             }
-            shrub_parser::word::ParameterExpr::LowercasePattern {
+            ParameterExpr::LowercasePattern {
                 parameter,
                 indirect,
                 pattern,
@@ -1740,7 +1726,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                 })
                 .await
             }
-            shrub_parser::word::ParameterExpr::ReplaceSubstring {
+            ParameterExpr::ReplaceSubstring {
                 parameter,
                 indirect,
                 pattern,
@@ -1760,8 +1746,8 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                 let expanded_replacement = self.basic_expand_to_str(&replacement).await?;
 
                 let regex = expanded_pattern.to_regex(
-                    matches!(match_kind, shrub_parser::word::SubstringMatchKind::Prefix),
-                    matches!(match_kind, shrub_parser::word::SubstringMatchKind::Suffix),
+                    matches!(match_kind, SubstringMatchKind::Prefix),
+                    matches!(match_kind, SubstringMatchKind::Suffix),
                 )?;
 
                 transform_expansion(expanded_parameter, async |s| {
@@ -1774,7 +1760,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                 })
                 .await
             }
-            shrub_parser::word::ParameterExpr::VariableNames {
+            ParameterExpr::VariableNames {
                 prefix,
                 concatenate,
             } => {
@@ -1805,7 +1791,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                     })
                 }
             }
-            shrub_parser::word::ParameterExpr::MemberKeys {
+            ParameterExpr::MemberKeys {
                 variable_name,
                 concatenate,
             } => {
@@ -1830,12 +1816,12 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
 
     async fn assign_to_parameter<T: Into<String>>(
         &mut self,
-        parameter: &shrub_parser::word::Parameter,
+        parameter: &Parameter,
         value: T,
     ) -> Result<(), error::Error> {
         let (variable_name, index) = match parameter {
-            shrub_parser::word::Parameter::Named(name) => (name, None),
-            shrub_parser::word::Parameter::NamedWithIndex { name, index } => {
+            Parameter::Named(name) => (name, None),
+            Parameter::NamedWithIndex { name, index } => {
                 let is_set_assoc_array = if let Some((_, var)) = self.shell.env().get(name) {
                     matches!(
                         var.value(),
@@ -1851,12 +1837,12 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                     .await?;
                 (name, Some(index_to_use))
             }
-            shrub_parser::word::Parameter::Positional(_)
-            | shrub_parser::word::Parameter::NamedWithAllIndices {
+            Parameter::Positional(_)
+            | Parameter::NamedWithAllIndices {
                 name: _,
                 concatenate: _,
             }
-            | shrub_parser::word::Parameter::Special(_) => {
+            | Parameter::Special(_) => {
                 return Err(error::ErrorKind::CannotAssignToSpecialParameter.into());
             }
         };
@@ -1885,7 +1871,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
 
     async fn try_resolve_parameter_to_variable(
         &mut self,
-        parameter: &shrub_parser::word::Parameter,
+        parameter: &Parameter,
         indirect: bool,
     ) -> Result<(Option<String>, Option<String>, Option<ShellVariable>), error::Error> {
         if !indirect {
@@ -1894,23 +1880,22 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
             let expansion = self.expand_parameter(parameter, false).await?;
             let parameter_str: String = self.fields_to_string(expansion);
             let inner_parameter =
-                shrub_parser::word::parse_parameter(parameter_str.as_str(), &self.parser_options)?;
+                word::parse_parameter(parameter_str.as_str(), &self.parser_options)?;
             Ok(self.try_resolve_parameter_to_variable_without_indirect(&inner_parameter))
         }
     }
 
     fn try_resolve_parameter_to_variable_without_indirect(
         &self,
-        parameter: &shrub_parser::word::Parameter,
+        parameter: &Parameter,
     ) -> (Option<String>, Option<String>, Option<ShellVariable>) {
         let (name, index) = match parameter {
-            shrub_parser::word::Parameter::Positional(_)
-            | shrub_parser::word::Parameter::Special(_) => (None, None),
-            shrub_parser::word::Parameter::Named(name) => (Some(name.to_owned()), Some("0".into())),
-            shrub_parser::word::Parameter::NamedWithIndex { name, index } => {
+            Parameter::Positional(_) | Parameter::Special(_) => (None, None),
+            Parameter::Named(name) => (Some(name.to_owned()), Some("0".into())),
+            Parameter::NamedWithIndex { name, index } => {
                 (Some(name.to_owned()), Some(index.to_owned()))
             }
-            shrub_parser::word::Parameter::NamedWithAllIndices {
+            Parameter::NamedWithAllIndices {
                 name,
                 concatenate: _concatenate,
             } => (Some(name.to_owned()), None),
@@ -1925,7 +1910,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
 
     fn undefined_expansion(
         &self,
-        parameter: &shrub_parser::word::Parameter,
+        parameter: &Parameter,
         allow_unset_vars: bool,
     ) -> Result<Expansion, error::Error> {
         if allow_unset_vars || !self.shell.options().treat_unset_variables_as_error {
@@ -1939,7 +1924,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
 
     async fn expand_parameter(
         &mut self,
-        parameter: &shrub_parser::word::Parameter,
+        parameter: &Parameter,
         indirect: bool,
     ) -> Result<Expansion, error::Error> {
         self.expand_parameter_internal(parameter, indirect, false)
@@ -1948,7 +1933,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
 
     async fn expand_parameter_allowing_unset(
         &mut self,
-        parameter: &shrub_parser::word::Parameter,
+        parameter: &Parameter,
         indirect: bool,
     ) -> Result<Expansion, error::Error> {
         self.expand_parameter_internal(parameter, indirect, true)
@@ -1957,7 +1942,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
 
     async fn expand_parameter_internal(
         &mut self,
-        parameter: &shrub_parser::word::Parameter,
+        parameter: &Parameter,
         indirect: bool,
         allow_unset_vars: bool,
     ) -> Result<Expansion, error::Error> {
@@ -1969,7 +1954,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
         } else {
             let parameter_str: String = self.fields_to_string(expansion);
             let inner_parameter =
-                shrub_parser::word::parse_parameter(parameter_str.as_str(), &self.parser_options)?;
+                word::parse_parameter(parameter_str.as_str(), &self.parser_options)?;
 
             self.expand_parameter_without_indirect(&inner_parameter, allow_unset_vars)
                 .await
@@ -1978,14 +1963,13 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
 
     async fn expand_parameter_without_indirect(
         &mut self,
-        parameter: &shrub_parser::word::Parameter,
+        parameter: &Parameter,
         allow_unset_vars: bool,
     ) -> Result<Expansion, error::Error> {
         match parameter {
-            shrub_parser::word::Parameter::Positional(p) => {
+            Parameter::Positional(p) => {
                 if *p == 0 {
-                    Ok(self
-                        .expand_special_parameter(&shrub_parser::word::SpecialParameter::ShellName))
+                    Ok(self.expand_special_parameter(&SpecialParameter::ShellName))
                 } else if let Some(parameter) =
                     self.shell.current_shell_args().get((p - 1) as usize)
                 {
@@ -1994,8 +1978,8 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                     self.undefined_expansion(parameter, allow_unset_vars)
                 }
             }
-            shrub_parser::word::Parameter::Special(s) => Ok(self.expand_special_parameter(s)),
-            shrub_parser::word::Parameter::Named(n) => {
+            Parameter::Special(s) => Ok(self.expand_special_parameter(s)),
+            Parameter::Named(n) => {
                 if !env::valid_variable_name(n.as_str()) {
                     Err(error::ErrorKind::BadSubstitution(n.clone()).into())
                 } else if let Some((_, var)) = self.shell.env().get(n) {
@@ -2013,7 +1997,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                     self.undefined_expansion(parameter, allow_unset_vars)
                 }
             }
-            shrub_parser::word::Parameter::NamedWithIndex { name, index } => {
+            Parameter::NamedWithIndex { name, index } => {
                 // First check to see if it's an associative array.
                 let is_set_assoc_array = if let Some((_, var)) = self.shell.env().get(name) {
                     matches!(
@@ -2039,7 +2023,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                     self.undefined_expansion(parameter, allow_unset_vars)
                 }
             }
-            shrub_parser::word::Parameter::NamedWithAllIndices { name, concatenate } => {
+            Parameter::NamedWithAllIndices { name, concatenate } => {
                 if let Some((_, var)) = self.shell.env().get(name) {
                     // Resolve a dynamic value once, so the kind and the element
                     // values can't disagree: a getter like
@@ -2105,32 +2089,25 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
         Ok(index_to_use)
     }
 
-    fn expand_special_parameter(
-        &self,
-        parameter: &shrub_parser::word::SpecialParameter,
-    ) -> Expansion {
+    fn expand_special_parameter(&self, parameter: &SpecialParameter) -> Expansion {
         match parameter {
-            shrub_parser::word::SpecialParameter::AllPositionalParameters { concatenate } => {
-                Expansion {
-                    fields: list_element_fields(self.shell.current_shell_args().to_vec(), true),
-                    concatenate: *concatenate,
-                    kind: ExpansionKind::ElementList,
-                    undefined: false,
-                }
-            }
-            shrub_parser::word::SpecialParameter::PositionalParameterCount => {
+            SpecialParameter::AllPositionalParameters { concatenate } => Expansion {
+                fields: list_element_fields(self.shell.current_shell_args().to_vec(), true),
+                concatenate: *concatenate,
+                kind: ExpansionKind::ElementList,
+                undefined: false,
+            },
+            SpecialParameter::PositionalParameterCount => {
                 Expansion::from(self.shell.current_shell_args().len().to_string())
             }
-            shrub_parser::word::SpecialParameter::LastExitStatus => {
+            SpecialParameter::LastExitStatus => {
                 Expansion::from(self.shell.last_exit_status().to_string())
             }
-            shrub_parser::word::SpecialParameter::CurrentOptionFlags => {
+            SpecialParameter::CurrentOptionFlags => {
                 Expansion::from(self.shell.options().option_flags())
             }
-            shrub_parser::word::SpecialParameter::ProcessId => {
-                Expansion::from(std::process::id().to_string())
-            }
-            shrub_parser::word::SpecialParameter::LastBackgroundProcessId => {
+            SpecialParameter::ProcessId => Expansion::from(process::id().to_string()),
+            SpecialParameter::LastBackgroundProcessId => {
                 if let Some(job) = self.shell.jobs().current_job()
                     && let Some(pid) = job.representative_pid()
                 {
@@ -2138,7 +2115,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                 }
                 Expansion::from(String::new())
             }
-            shrub_parser::word::SpecialParameter::ShellName => Expansion::from(
+            SpecialParameter::ShellName => Expansion::from(
                 self.shell
                     .current_shell_name()
                     .map_or_else(String::new, |name| name.to_string()),
@@ -2148,7 +2125,7 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
 
     async fn expand_arithmetic_expr(
         &mut self,
-        expr: shrub_parser::ast::UnexpandedArithmeticExpr,
+        expr: UnexpandedArithmeticExpr,
     ) -> Result<String, error::Error> {
         let value = expr.eval(self.shell, self.params, false).await?;
         Ok(value.to_string())
@@ -2213,15 +2190,11 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
         match_kind: &SubstringMatchKind,
     ) -> String {
         match match_kind {
-            shrub_parser::word::SubstringMatchKind::Prefix
-            | shrub_parser::word::SubstringMatchKind::Suffix
-            | shrub_parser::word::SubstringMatchKind::FirstOccurrence => {
-                regex.replace(s, replacement).into_owned()
-            }
+            SubstringMatchKind::Prefix
+            | SubstringMatchKind::Suffix
+            | SubstringMatchKind::FirstOccurrence => regex.replace(s, replacement).into_owned(),
 
-            shrub_parser::word::SubstringMatchKind::Anywhere => {
-                regex.replace_all(s, replacement).into_owned()
-            }
+            SubstringMatchKind::Anywhere => regex.replace_all(s, replacement).into_owned(),
         }
     }
 
@@ -2232,18 +2205,16 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
         came_from_undefined: bool,
     ) -> Result<String, error::Error> {
         match op {
-            shrub_parser::word::ParameterTransformOp::PromptExpand => {
+            ParameterTransformOp::PromptExpand => {
                 prompt::expand_prompt(self.shell, self.params, s).await
             }
-            shrub_parser::word::ParameterTransformOp::CapitalizeInitial => {
-                Ok(to_initial_capitals(s))
-            }
-            shrub_parser::word::ParameterTransformOp::ExpandEscapeSequences => {
+            ParameterTransformOp::CapitalizeInitial => Ok(to_initial_capitals(s)),
+            ParameterTransformOp::ExpandEscapeSequences => {
                 let (result, _) =
                     escape::expand_backslash_escapes(s, escape::EscapeExpansionMode::AnsiCQuotes)?;
                 Ok(String::from_utf8_lossy(result.as_slice()).into_owned())
             }
-            shrub_parser::word::ParameterTransformOp::PossiblyQuoteWithArraysExpanded {
+            ParameterTransformOp::PossiblyQuoteWithArraysExpanded {
                 separate_words: _separate_words,
             } => {
                 if came_from_undefined {
@@ -2254,17 +2225,16 @@ impl<'a, SE: extensions::ShellExtensions> WordExpander<'a, SE> {
                     Ok(escape::force_quote(s, escape::QuoteMode::SingleQuote))
                 }
             }
-            shrub_parser::word::ParameterTransformOp::Quoted => {
+            ParameterTransformOp::Quoted => {
                 if came_from_undefined {
                     Ok(String::new())
                 } else {
                     Ok(escape::force_quote(s, escape::QuoteMode::SingleQuote))
                 }
             }
-            shrub_parser::word::ParameterTransformOp::ToLowerCase => Ok(s.to_lowercase()),
-            shrub_parser::word::ParameterTransformOp::ToUpperCase => Ok(s.to_uppercase()),
-            shrub_parser::word::ParameterTransformOp::ToAssignmentLogic
-            | shrub_parser::word::ParameterTransformOp::ToAttributeFlags => {
+            ParameterTransformOp::ToLowerCase => Ok(s.to_lowercase()),
+            ParameterTransformOp::ToUpperCase => Ok(s.to_uppercase()),
+            ParameterTransformOp::ToAssignmentLogic | ParameterTransformOp::ToAttributeFlags => {
                 unreachable!("covered in caller")
             }
         }
@@ -2388,10 +2358,11 @@ mod tests {
     use anyhow::Result;
 
     use super::*;
+    use crate::shell::Shell;
 
     #[tokio::test]
     async fn test_full_expansion() -> Result<()> {
-        let mut shell = crate::shell::Shell::builder().build().await?;
+        let mut shell = Shell::builder().build().await?;
         let params = shell.default_exec_params();
 
         assert_eq!(
@@ -2434,7 +2405,7 @@ mod tests {
     /// `expand_pathnames_in_field` to silently discard the empty-string field.
     #[tokio::test]
     async fn test_quoted_empty_string_with_nullglob() -> Result<()> {
-        let mut shell = crate::shell::Shell::builder().build().await?;
+        let mut shell = Shell::builder().build().await?;
         shell.options_mut().expand_non_matching_patterns_to_null = true; // shopt -s nullglob
         let params = shell.default_exec_params();
 
@@ -2456,7 +2427,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_brace_expansion() -> Result<()> {
-        let mut shell = crate::shell::Shell::builder().build().await?;
+        let mut shell = Shell::builder().build().await?;
         let params = shell.default_exec_params();
         let expander = WordExpander::new(&mut shell, &params);
 

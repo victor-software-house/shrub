@@ -1,14 +1,16 @@
 //! Facilities for configuring event tracing in the shrub shell.
 
 use std::collections::HashSet;
-use std::fmt::Display;
+use std::fmt::{Display, Formatter, Result as StdResult};
+use std::io;
 
 use shrub_core::Error;
+use tracing::level_filters::LevelFilter;
 use tracing_subscriber::filter::Targets;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::reload::Handle;
 use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::{Layer, Registry};
+use tracing_subscriber::{Layer, Registry, filter, fmt, reload};
 
 /// Type of event to trace.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, clap::ValueEnum)]
@@ -49,7 +51,7 @@ pub enum TraceEvent {
 }
 
 impl Display for TraceEvent {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> StdResult {
         match self {
             Self::Arithmetic => write!(f, "arithmetic"),
             Self::Commands => write!(f, "commands"),
@@ -89,10 +91,10 @@ impl TraceEventConfig {
 
         // Make the filter reloadable so that we can change the log level at
         // runtime.
-        let (reload_filter, handle) = tracing_subscriber::reload::Layer::new(filter);
+        let (reload_filter, handle) = reload::Layer::new(filter);
 
-        let layer = tracing_subscriber::fmt::layer()
-            .with_writer(std::io::stderr)
+        let layer = fmt::layer()
+            .with_writer(io::stderr)
             .without_time()
             .with_target(false)
             .with_filter(reload_filter);
@@ -111,9 +113,8 @@ impl TraceEventConfig {
         config
     }
 
-    fn compose_filter(&self) -> tracing_subscriber::filter::Targets {
-        let mut filter = tracing_subscriber::filter::Targets::new()
-            .with_default(tracing_subscriber::filter::LevelFilter::INFO);
+    fn compose_filter(&self) -> Targets {
+        let mut filter = Targets::new().with_default(filter::LevelFilter::INFO);
 
         for event in &self.enabled_debug_events {
             let targets = Self::event_to_tracing_targets(event);
@@ -126,11 +127,8 @@ impl TraceEventConfig {
 
         for event in &self.disabled_events {
             let targets = Self::event_to_tracing_targets(event);
-            filter = filter.with_targets(
-                targets
-                    .into_iter()
-                    .map(|target| (target, tracing::level_filters::LevelFilter::OFF)),
-            );
+            filter =
+                filter.with_targets(targets.into_iter().map(|target| (target, LevelFilter::OFF)));
         }
 
         filter

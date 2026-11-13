@@ -1,5 +1,7 @@
+use std::fs::File;
 use std::io::{self, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
+use std::thread;
 
 use clap::Parser;
 use shrub_core::openfiles::OpenFile;
@@ -155,7 +157,7 @@ async fn cat(
     let (reader, mut writer) = io::pipe()?;
     // `-` names the builtin's own standard input, as it does for `cat`.
     let mut stdin = context.stdin();
-    let feeder = std::thread::spawn(move || {
+    let feeder = thread::spawn(move || {
         let mut errors = Vec::new();
         for operand in operands {
             let copied = if operand.word == "-" && operand.start.is_none() {
@@ -190,8 +192,8 @@ async fn cat(
 }
 
 /// The file at `path`, opened for reading at byte `start`.
-fn open_at(path: &Path, start: u64) -> io::Result<std::fs::File> {
-    let mut file = std::fs::File::open(path)?;
+fn open_at(path: &Path, start: u64) -> io::Result<File> {
+    let mut file = File::open(path)?;
     file.seek(SeekFrom::Start(start))?;
     Ok(file)
 }

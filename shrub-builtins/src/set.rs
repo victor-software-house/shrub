@@ -3,7 +3,9 @@ use std::io::Write;
 
 use clap::Parser;
 use itertools::Itertools;
-use shrub_core::{ExecutionExitCode, ExecutionResult, builtins, variables};
+use shrub_core::builtins::try_parse_known;
+use shrub_core::namedoptions::ShellOptionKind;
+use shrub_core::{ExecutionExitCode, ExecutionResult, builtins, namedoptions, variables};
 
 crate::minus_or_plus_flag_arg!(
     ExportVariablesOnModification,
@@ -179,7 +181,7 @@ impl builtins::Command for SetCommand {
             }
         }
 
-        let (mut this, rest_args) = shrub_core::builtins::try_parse_known::<Self>(updated_args)?;
+        let (mut this, rest_args) = try_parse_known::<Self>(updated_args)?;
         if let Some(args) = rest_args {
             this.positional_args.extend(args);
         }
@@ -326,11 +328,9 @@ impl builtins::Command for SetCommand {
         if let Some(option_names) = &self.set_option.disable {
             saw_option = true;
             if option_names.is_empty() {
-                for option in shrub_core::namedoptions::options(
-                    shrub_core::namedoptions::ShellOptionKind::SetO,
-                )
-                .iter()
-                .sorted_by_key(|option| option.name)
+                for option in namedoptions::options(ShellOptionKind::SetO)
+                    .iter()
+                    .sorted_by_key(|option| option.name)
                 {
                     let option_value = option.definition.get(context.shell.options());
                     let option_value_str = if option_value { "-o" } else { "+o" };
@@ -345,11 +345,9 @@ impl builtins::Command for SetCommand {
         if let Some(option_names) = &self.set_option.enable {
             saw_option = true;
             if option_names.is_empty() {
-                for option in shrub_core::namedoptions::options(
-                    shrub_core::namedoptions::ShellOptionKind::SetO,
-                )
-                .iter()
-                .sorted_by_key(|option| option.name)
+                for option in namedoptions::options(ShellOptionKind::SetO)
+                    .iter()
+                    .sorted_by_key(|option| option.name)
                 {
                     let option_value = option.definition.get(context.shell.options());
                     let option_value_str = if option_value { "on" } else { "off" };
@@ -364,8 +362,7 @@ impl builtins::Command for SetCommand {
 
         for (option_name, value) in named_options {
             if let Some(option_def) =
-                shrub_core::namedoptions::options(shrub_core::namedoptions::ShellOptionKind::SetO)
-                    .get(option_name.as_str())
+                namedoptions::options(ShellOptionKind::SetO).get(option_name.as_str())
             {
                 option_def.set(context.shell.options_mut(), value);
             } else {

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io;
 use std::sync::Arc;
 
 use radix_trie::Trie;
@@ -6,7 +7,9 @@ use shrub_core::interfaces::{
     self, InputFunction, Key, KeyAction, KeyBindings as _, KeySequence, KeyStroke,
 };
 use shrub_core::trace_categories;
+use tokio::runtime::Handle;
 use tokio::sync::Mutex;
+use tokio::task;
 
 #[derive(thiserror::Error, Debug)]
 pub enum KeyError {
@@ -37,17 +40,13 @@ impl MutableEditMode {
 
 impl reedline::EditMode for MutableEditMode {
     fn parse_event(&mut self, event: reedline::ReedlineRawEvent) -> reedline::ReedlineEvent {
-        let mut inner = tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(self.inner.lock())
-        });
+        let mut inner = task::block_in_place(|| Handle::current().block_on(self.inner.lock()));
 
         inner.parse_event(event)
     }
 
     fn edit_mode(&self) -> reedline::PromptEditMode {
-        let inner = tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(self.inner.lock())
-        });
+        let inner = task::block_in_place(|| Handle::current().block_on(self.inner.lock()));
 
         inner.edit_mode()
     }
@@ -139,7 +138,7 @@ impl interfaces::KeyBindings for UpdatableBindings {
         self.raw_mappings.get(bytes)
     }
 
-    fn bind(&mut self, seq: KeySequence, action: KeyAction) -> Result<(), std::io::Error> {
+    fn bind(&mut self, seq: KeySequence, action: KeyAction) -> Result<(), io::Error> {
         self.do_bind(seq, action, true)
     }
 
@@ -147,11 +146,7 @@ impl interfaces::KeyBindings for UpdatableBindings {
         self.try_unbind_impl(&seq, true)
     }
 
-    fn define_macro(
-        &mut self,
-        seq: KeySequence,
-        target: KeySequence,
-    ) -> Result<(), std::io::Error> {
+    fn define_macro(&mut self, seq: KeySequence, target: KeySequence) -> Result<(), io::Error> {
         self.macros.insert(seq, target);
         self.update(|_| {});
 
@@ -205,11 +200,9 @@ impl UpdatableBindings {
         seq: KeySequence,
         action: KeyAction,
         rebuild_for_reedline: bool,
-    ) -> Result<(), std::io::Error> {
+    ) -> Result<(), io::Error> {
         let Some(event) = translate_action_to_reedline_event(&action) else {
-            return Err(std::io::Error::other(KeyError::UnsupportedKeyAction(
-                action,
-            )));
+            return Err(io::Error::other(KeyError::UnsupportedKeyAction(action)));
         };
 
         match seq {
@@ -226,7 +219,7 @@ impl UpdatableBindings {
 
                     Ok(())
                 } else {
-                    Err(std::io::Error::other(KeyError::UnsupportedKeySequence(seq)))
+                    Err(io::Error::other(KeyError::UnsupportedKeySequence(seq)))
                 }
             }
             interfaces::KeySequence::Bytes(ref bytes) => {
@@ -249,7 +242,7 @@ impl UpdatableBindings {
         &mut self,
         seq: KeySequence,
         target: KeySequence,
-    ) -> Result<(), std::io::Error> {
+    ) -> Result<(), io::Error> {
         match target {
             // TODO(input): We acknowledge that this implementation eagerly
             // resolves the macro and what it will do. Subsequent changes to
@@ -261,7 +254,7 @@ impl UpdatableBindings {
                     // sequence.
                     self.try_unbind(seq);
                 } else {
-                    return Err(std::io::Error::other(
+                    return Err(io::Error::other(
                         "binding key sequence to readline macro with strokes",
                     ));
                 }

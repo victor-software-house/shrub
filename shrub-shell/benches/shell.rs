@@ -4,12 +4,19 @@
 #![allow(clippy::unwrap_used)]
 
 #[cfg(unix)]
+use std::time::Duration;
+
+#[cfg(unix)]
 mod unix {
     use std::hint::black_box;
 
     use criterion::Criterion;
     use shrub_builtins::ShellBuilderExt;
-    use shrub_parser::SourceSpan;
+    use shrub_parser::ast::{
+        BraceGroupCommand, CompoundCommand, CompoundList, FunctionBody, FunctionDefinition,
+    };
+    use shrub_parser::{SourceSpan, arithmetic};
+    use tokio::runtime::Builder;
 
     async fn instantiate_shell() -> shrub_core::Shell {
         shrub_core::Shell::builder()
@@ -46,17 +53,14 @@ mod unix {
     }
 
     fn eval_arithmetic_expr(shell: &mut shrub_core::Shell, expr: &str) {
-        let parsed_expr = shrub_parser::arithmetic::parse(expr).unwrap();
+        let parsed_expr = arithmetic::parse(expr).unwrap();
         let _ = shell.eval_arithmetic(&parsed_expr).unwrap();
     }
 
     /// This function defines core shell benchmarks.
     pub(crate) fn criterion_benchmark(c: &mut Criterion) {
         // Construct a runtime for us to run async code on.
-        let rt = tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .build()
-            .unwrap();
+        let rt = Builder::new_multi_thread().enable_all().build().unwrap();
 
         // Benchmark shell instantiation.
         c.bench_function("instantiate_shell", |b| {
@@ -122,15 +126,13 @@ mod unix {
         let mut shell = rt.block_on(instantiate_shell());
         shell.define_func(
             String::from("testfunc"),
-            shrub_parser::ast::FunctionDefinition {
+            FunctionDefinition {
                 fname: String::from("testfunc").into(),
-                body: shrub_parser::ast::FunctionBody(
-                    shrub_parser::ast::CompoundCommand::BraceGroup(
-                        shrub_parser::ast::BraceGroupCommand {
-                            list: shrub_parser::ast::CompoundList(vec![]),
-                            loc: SourceSpan::default(),
-                        },
-                    ),
+                body: FunctionBody(
+                    CompoundCommand::BraceGroup(BraceGroupCommand {
+                        list: CompoundList(vec![]),
+                        loc: SourceSpan::default(),
+                    }),
                     None,
                 ),
             },
@@ -164,7 +166,7 @@ mod unix {
 criterion::criterion_group! {
     name = benches;
     config = criterion::Criterion::default()
-                .measurement_time(std::time::Duration::from_secs(10));
+                .measurement_time(Duration::from_secs(10));
     targets = unix::criterion_benchmark
 }
 

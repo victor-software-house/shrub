@@ -2,7 +2,8 @@ use std::io::Write;
 
 use clap::Parser;
 use itertools::Itertools;
-use shrub_core::{ExecutionExitCode, ExecutionResult, builtins};
+use shrub_core::namedoptions::ShellOptionKind;
+use shrub_core::{ExecutionExitCode, ExecutionResult, builtins, namedoptions};
 
 /// Manage shopt-style options.
 #[derive(Parser)]
@@ -54,11 +55,11 @@ impl builtins::Command for ShoptCommand {
 
             // Enumerate all options of the selected type.
             let options = if self.set_o_names_only {
-                shrub_core::namedoptions::options(shrub_core::namedoptions::ShellOptionKind::SetO)
+                namedoptions::options(ShellOptionKind::SetO)
                     .iter()
                     .sorted_by_key(|opt| opt.name)
             } else {
-                shrub_core::namedoptions::options(shrub_core::namedoptions::ShellOptionKind::Shopt)
+                namedoptions::options(ShellOptionKind::Shopt)
                     .iter()
                     .sorted_by_key(|opt| opt.name)
             };
@@ -93,15 +94,9 @@ impl builtins::Command for ShoptCommand {
             // Enumerate only the specified options.
             for option_name in &self.options {
                 let option_definition = if self.set_o_names_only {
-                    shrub_core::namedoptions::options(
-                        shrub_core::namedoptions::ShellOptionKind::SetO,
-                    )
-                    .get(option_name.as_str())
+                    namedoptions::options(ShellOptionKind::SetO).get(option_name.as_str())
                 } else {
-                    shrub_core::namedoptions::options(
-                        shrub_core::namedoptions::ShellOptionKind::Shopt,
-                    )
-                    .get(option_name.as_str())
+                    namedoptions::options(ShellOptionKind::Shopt).get(option_name.as_str())
                 };
 
                 if let Some(option_definition) = option_definition {

@@ -1,8 +1,13 @@
 //! Call stack management for the shell.
 
+use std::ops::{Deref, DerefMut};
+
+use crate::callstack::FrameType;
+use crate::extensions::ShellExtensions;
+use crate::traps::{TrapHandler, TrapSignal};
 use crate::{callstack, env, error, functions, trace_categories};
 
-impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
+impl<SE: ShellExtensions> crate::Shell<SE> {
     /// Returns whether or not the shell is actively executing in a sourced
     /// script.
     pub fn in_sourced_script(&self) -> bool {
@@ -79,8 +84,8 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
     /// change the status that triggered it.
     pub(crate) fn enter_trap_handler(
         &mut self,
-        signal: crate::traps::TrapSignal,
-        handler: Option<&crate::traps::TrapHandler>,
+        signal: TrapSignal,
+        handler: Option<&TrapHandler>,
     ) -> ShellGuard<'_, SE> {
         let last_exit_status = self.last_exit_status;
         self.call_stack.push_trap_handler(signal, handler);
@@ -163,7 +168,7 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
         for frame in self.call_stack.iter() {
             match frame.frame_type {
                 // Function calls always shadow positional parameters.
-                crate::callstack::FrameType::Function(..) => return &frame.args,
+                FrameType::Function(..) => return &frame.args,
                 // Executed scripts always shadow positional parameters.
                 _ if frame.frame_type.is_run_script() => return &frame.args,
                 // Sourced scripts shadow positional parameters if they have
@@ -184,7 +189,7 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
         for frame in self.call_stack.iter_mut() {
             match frame.frame_type {
                 // Function calls always shadow positional parameters.
-                crate::callstack::FrameType::Function(..) => return &mut frame.args,
+                FrameType::Function(..) => return &mut frame.args,
                 // Executed scripts always shadow positional parameters.
                 _ if frame.frame_type.is_run_script() => return &mut frame.args,
                 // Sourced scripts shadow positional parameters if they have
@@ -210,7 +215,7 @@ fn repeated_char_str(c: char, count: usize) -> String {
 /// future dropped, as when the user hits Ctrl-C during completion).
 ///
 /// It dereferences to the shell, for running whatever's entered.
-pub(crate) struct ShellGuard<'a, SE: crate::extensions::ShellExtensions> {
+pub(crate) struct ShellGuard<'a, SE: ShellExtensions> {
     shell: &'a mut crate::Shell<SE>,
     leave: Leave,
 }
@@ -237,13 +242,13 @@ enum Leave {
     TrapBlock,
 }
 
-impl<'a, SE: crate::extensions::ShellExtensions> ShellGuard<'a, SE> {
+impl<'a, SE: ShellExtensions> ShellGuard<'a, SE> {
     const fn new(shell: &'a mut crate::Shell<SE>, leave: Leave) -> Self {
         Self { shell, leave }
     }
 }
 
-impl<SE: crate::extensions::ShellExtensions> std::ops::Deref for ShellGuard<'_, SE> {
+impl<SE: ShellExtensions> Deref for ShellGuard<'_, SE> {
     type Target = crate::Shell<SE>;
 
     fn deref(&self) -> &Self::Target {
@@ -251,13 +256,13 @@ impl<SE: crate::extensions::ShellExtensions> std::ops::Deref for ShellGuard<'_, 
     }
 }
 
-impl<SE: crate::extensions::ShellExtensions> std::ops::DerefMut for ShellGuard<'_, SE> {
+impl<SE: ShellExtensions> DerefMut for ShellGuard<'_, SE> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.shell
     }
 }
 
-impl<SE: crate::extensions::ShellExtensions> ShellGuard<'_, SE> {
+impl<SE: ShellExtensions> ShellGuard<'_, SE> {
     /// Returns whether this guard's frame is on top of the call stack, `depth`
     /// frames deep.
     fn frame_on_top(&self, depth: usize, is_expected: fn(&callstack::FrameType) -> bool) -> bool {
@@ -295,7 +300,7 @@ impl<SE: crate::extensions::ShellExtensions> ShellGuard<'_, SE> {
     }
 }
 
-impl<SE: crate::extensions::ShellExtensions> Drop for ShellGuard<'_, SE> {
+impl<SE: ShellExtensions> Drop for ShellGuard<'_, SE> {
     fn drop(&mut self) {
         // Whatever was entered on top of this has been left already, since its
         // guard borrowed this one; so unless something left the shell
@@ -343,6 +348,8 @@ impl<SE: crate::extensions::ShellExtensions> Drop for ShellGuard<'_, SE> {
 #[cfg(test)]
 #[allow(clippy::panic_in_result_fn, reason = "assertions in a fallible test")]
 mod tests {
+    use std::iter;
+
     use super::*;
 
     /// Guards pop nothing -- not even part of what they entered -- if what ran
@@ -368,7 +375,7 @@ mod tests {
         let scopes = shell.env.scope_depth();
 
         // A function whose scope has another left on top of it.
-        let mut function = shell.enter_function("f", &f, std::iter::empty())?;
+        let mut function = shell.enter_function("f", &f, iter::empty())?;
         function.env_mut().push_scope(env::EnvironmentScope::Local);
         drop(function);
         assert_eq!(shell.call_stack.depth(), frames + 1);
@@ -378,7 +385,7 @@ mod tests {
         let mut script = shell.enter_script(
             callstack::ScriptCallType::Source,
             &crate::SourceInfo::default(),
-            std::iter::empty(),
+            iter::empty(),
         );
         script.call_stack.pop();
         script.start_command_string_mode();

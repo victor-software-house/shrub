@@ -1,4 +1,5 @@
-use std::fmt::Display;
+use std::fmt;
+use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
 /// Represents a position in source text.
@@ -18,7 +19,7 @@ pub struct SourcePosition {
 }
 
 impl Display for SourcePosition {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.write_fmt(format_args!("{},{}", self.line, self.column))
     }
 }

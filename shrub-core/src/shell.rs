@@ -2,13 +2,23 @@
 
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::env as std_env;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::SystemTime;
 
+use shrub_parser::ast::Node;
 use tokio::sync::Mutex;
 
-use crate::env::ShellEnvironment;
+use crate::callstack::CallStack;
+use crate::completion::{Config, State};
+use crate::env::{EnvironmentLookup, ShellEnvironment};
+use crate::history::History;
 use crate::options::RuntimeOptions;
+use crate::parser::ParserImpl;
+use crate::tasks::ShellTasks;
+use crate::traps::TrapHandlerConfig;
+use crate::variables::ShellVariable;
 use crate::{
     ExecutionControlFlow, ExecutionResult, builtins, error, extensions, functions, interfaces,
     jobs, keywords, openfiles, pathcache, wellknownvars,
@@ -66,7 +76,7 @@ pub struct Shell<SE: extensions::ShellExtensions = extensions::DefaultShellExten
     error_formatter: SE::ErrorFormatter,
 
     /// Trap handler configuration for the shell.
-    traps: crate::traps::TrapHandlerConfig,
+    traps: TrapHandlerConfig,
 
     /// Manages files opened and accessible via redirection operators.
     open_files: openfiles::OpenFiles,
@@ -90,7 +100,7 @@ pub struct Shell<SE: extensions::ShellExtensions = extensions::DefaultShellExten
 
     /// Every task this shell and its subshells start.
     #[cfg_attr(feature = "serde", serde(skip))]
-    tasks: crate::tasks::ShellTasks,
+    tasks: ShellTasks,
 
     /// Shell aliases.
     aliases: HashMap<String, String>,
@@ -122,13 +132,13 @@ pub struct Shell<SE: extensions::ShellExtensions = extensions::DefaultShellExten
     product_display_str: Option<String>,
 
     /// Function/script call stack.
-    call_stack: crate::callstack::CallStack,
+    call_stack: CallStack,
 
     /// Directory stack used by pushd et al.
     directory_stack: Vec<PathBuf>,
 
     /// Programmable completion state.
-    completion: crate::completion::State,
+    completion: State,
 
     /// Shell built-in commands.
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -138,14 +148,14 @@ pub struct Shell<SE: extensions::ShellExtensions = extensions::DefaultShellExten
     program_location_cache: pathcache::PathCache,
 
     /// Last "SECONDS" captured time.
-    last_stopwatch_time: std::time::SystemTime,
+    last_stopwatch_time: SystemTime,
 
     /// Last "SECONDS" offset requested.
     last_stopwatch_offset: u32,
 
     /// Parser implementation to use.
     #[cfg_attr(feature = "serde", serde(skip))]
-    parser_impl: crate::parser::ParserImpl,
+    parser_impl: ParserImpl,
 
     /// Key bindings for the shell, optionally implemented by an interactive
     /// shell.
@@ -153,7 +163,7 @@ pub struct Shell<SE: extensions::ShellExtensions = extensions::DefaultShellExten
     key_bindings: Option<KeyBindingsHelper>,
 
     /// History of commands executed in the shell.
-    history: Option<crate::history::History>,
+    history: Option<History>,
 }
 
 impl<SE: extensions::ShellExtensions> Clone for Shell<SE> {
@@ -183,7 +193,7 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
     #[must_use]
     pub fn fork_state(&self) -> Self {
         Self {
-            tasks: crate::tasks::ShellTasks::default(),
+            tasks: ShellTasks::default(),
             ..self.copy_at_depth(self.depth)
         }
     }
@@ -194,7 +204,7 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
     /// An abort is final, so abort the tasks of a copy made with
     /// [`Self::fork_state`] for the one command, never a shell that runs
     /// more commands.
-    pub const fn tasks(&self) -> &crate::tasks::ShellTasks {
+    pub const fn tasks(&self) -> &ShellTasks {
         &self.tasks
     }
 
@@ -276,7 +286,7 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
             args: options.shell_args.unwrap_or_default(),
             version: options.shell_version,
             product_display_str: options.shell_product_display_str,
-            working_dir: options.working_dir.map_or_else(std::env::current_dir, Ok)?,
+            working_dir: options.working_dir.map_or_else(std_env::current_dir, Ok)?,
             builtins: options.builtins,
             parser_impl: options.parser,
             key_bindings: options.key_bindings,
@@ -308,7 +318,7 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
         // Set up history, if relevant. The history file itself is loaded later,
         // once startup files have run, since they may change HISTFILE.
         if shell.options.enable_command_history {
-            shell.history = Some(crate::history::History::default());
+            shell.history = Some(History::default());
         }
 
         Ok(shell)
@@ -327,7 +337,7 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
     }
 
     /// Updates the currently executing command in the shell.
-    pub fn set_current_cmd(&mut self, cmd: &impl shrub_parser::ast::Node) {
+    pub fn set_current_cmd(&mut self, cmd: &impl Node) {
         self.call_stack
             .set_current_pos(cmd.location().map(|span| span.start));
     }
@@ -349,7 +359,7 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
         // diagnostics are harmless.
         if self
             .env
-            .get_using_policy("_", crate::env::EnvironmentLookup::Anywhere)
+            .get_using_policy("_", EnvironmentLookup::Anywhere)
             .is_some_and(|v| v.is_readonly())
         {
             return;
@@ -360,9 +370,7 @@ impl<SE: extensions::ShellExtensions> Shell<SE> {
         // clears any previously-set attributes (except readonly, handled
         // above).
         let value = last_arg.unwrap_or_default();
-        let _ = self
-            .env
-            .set_global("_", crate::variables::ShellVariable::new(value));
+        let _ = self.env.set_global("_", ShellVariable::new(value));
     }
 
     /// Captures the state the last command left behind; see
@@ -457,7 +465,7 @@ impl<SE: extensions::ShellExtensions> ShellState for Shell<SE> {
     }
 
     /// Returns the last "SECONDS" captured time.
-    pub fn last_stopwatch_time(&self) -> std::time::SystemTime {
+    pub fn last_stopwatch_time(&self) -> SystemTime {
         self.last_stopwatch_time
     }
 
@@ -507,12 +515,12 @@ impl<SE: extensions::ShellExtensions> ShellState for Shell<SE> {
     }
 
     /// Returns the shell's trap handler configuration.
-    pub fn traps(&self) -> &crate::traps::TrapHandlerConfig {
+    pub fn traps(&self) -> &TrapHandlerConfig {
         &self.traps
     }
 
     /// Returns a mutable reference to the shell's trap handler configuration.
-    pub fn traps_mut(&mut self) -> &mut crate::traps::TrapHandlerConfig {
+    pub fn traps_mut(&mut self) -> &mut TrapHandlerConfig {
         &mut self.traps
     }
 
@@ -548,12 +556,12 @@ impl<SE: extensions::ShellExtensions> ShellState for Shell<SE> {
     }
 
     /// Returns the shell's completion configuration.
-    pub fn completion_config(&self) -> &crate::completion::Config {
+    pub fn completion_config(&self) -> &Config {
         &self.completion.config
     }
 
     /// Returns a mutable reference to the shell's completion configuration.
-    pub fn completion_config_mut(&mut self) -> &mut crate::completion::Config {
+    pub fn completion_config_mut(&mut self) -> &mut Config {
         &mut self.completion.config
     }
 
@@ -587,17 +595,17 @@ impl<SE: extensions::ShellExtensions> ShellState for Shell<SE> {
     }
 
     /// Returns the call stack for the shell.
-    pub fn call_stack(&self) -> &crate::callstack::CallStack {
+    pub fn call_stack(&self) -> &CallStack {
         &self.call_stack
     }
 
     /// Returns the shell's history, if it exists.
-    pub fn history(&self) -> Option<&crate::history::History> {
+    pub fn history(&self) -> Option<&History> {
         self.history.as_ref()
     }
 
     /// Returns a mutable reference to the shell's history, if it exists.
-    pub fn history_mut(&mut self) -> Option<&mut crate::history::History> {
+    pub fn history_mut(&mut self) -> Option<&mut History> {
         self.history.as_mut()
     }
 
@@ -654,7 +662,12 @@ fn default_error_formatter<EF: extensions::ErrorFormatter>() -> EF {
 #[cfg(test)]
 #[allow(clippy::panic_in_result_fn, reason = "assertions in a fallible test")]
 mod tests {
+    use std::time::{Duration, Instant};
+
+    use tokio::time;
+
     use super::*;
+    use crate::variables::ShellValueUnsetType;
 
     /// `$_` round-trips through a snapshot, unset included, so an embedder that
     /// saves before running commands of its own gets back exactly what was
@@ -708,16 +721,13 @@ mod tests {
             .run_string("touch shell.txt &", &source, &params)
             .await?;
 
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        let deadline = Instant::now() + Duration::from_secs(10);
         while !dir.path().join("shell.txt").exists() {
-            assert!(
-                std::time::Instant::now() < deadline,
-                "the shell's own job did not run"
-            );
-            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            assert!(Instant::now() < deadline, "the shell's own job did not run");
+            time::sleep(Duration::from_millis(10)).await;
         }
         // The copy's job, had it started, ran beside the shell's.
-        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        time::sleep(Duration::from_millis(200)).await;
         assert!(
             !dir.path().join("copy.txt").exists(),
             "the aborted copy's job ran"
@@ -735,9 +745,7 @@ mod tests {
 
         shell.env.set_global(
             "IFS",
-            crate::ShellVariable::new(crate::ShellValue::Unset(
-                crate::variables::ShellValueUnsetType::Untyped,
-            )),
+            crate::ShellVariable::new(crate::ShellValue::Unset(ShellValueUnsetType::Untyped)),
         )?;
         assert_eq!(shell.env_str("IFS").as_deref(), Some(""));
         assert_eq!(shell.ifs(), " \t\n");

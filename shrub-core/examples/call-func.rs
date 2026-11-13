@@ -1,6 +1,11 @@
 //! Example of instantiating a shell and calling a shell function in it.
 
+use std::iter;
+
 use anyhow::Result;
+use shrub_core::openfiles;
+use shrub_core::openfiles::OpenFiles;
+use tokio::runtime::Builder;
 
 async fn instantiate_shell() -> Result<shrub_core::Shell> {
     let shell = shrub_core::Shell::builder().build().await?;
@@ -28,14 +33,11 @@ async fn run_func(shell: &mut shrub_core::Shell, suppress_stdout: bool) -> Resul
     let mut params = shell.default_exec_params();
 
     if suppress_stdout {
-        params.set_fd(
-            shrub_core::openfiles::OpenFiles::STDOUT_FD,
-            shrub_core::openfiles::null()?,
-        );
+        params.set_fd(OpenFiles::STDOUT_FD, openfiles::null()?);
     }
 
     let result = shell
-        .invoke_function("hello", std::iter::once("arg"), params)
+        .invoke_function("hello", iter::once("arg"), params)
         .await?;
 
     eprintln!(
@@ -64,9 +66,7 @@ fn main() -> Result<()> {
     const SUPPRESS_STDOUT: bool = true;
 
     // Construct a runtime for us to run async code on.
-    let rt = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()?;
+    let rt = Builder::new_multi_thread().enable_all().build()?;
 
     rt.block_on(run(SUPPRESS_STDOUT))?;
 

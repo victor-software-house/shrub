@@ -1,10 +1,14 @@
 //! Configuration types for the test harness.
 
 use std::collections::HashSet;
+use std::env;
+use std::env::consts;
 use std::ffi::OsString;
 use std::path::PathBuf;
 
 use clap::Parser;
+
+use crate::util;
 
 /// Which shell to use for a test.
 #[derive(Clone, Debug)]
@@ -37,7 +41,7 @@ impl ShellConfig {
 
         // Start with any default we were provided.
         if let Some(default_path_var) = &self.default_path_var {
-            dirs.extend(std::env::split_paths(default_path_var));
+            dirs.extend(env::split_paths(default_path_var));
         }
 
         // Add hard-coded paths that will work on *most* Unix-like systems.
@@ -53,15 +57,15 @@ impl ShellConfig {
         // Handle systems that store their standard POSIX binaries elsewhere.
         // For example, NixOS has an interesting set of paths that must be
         // consulted.
-        if let Some(host_path) = std::env::var_os("PATH") {
-            for path in std::env::split_paths(&host_path) {
+        if let Some(host_path) = env::var_os("PATH") {
+            for path in env::split_paths(&host_path) {
                 if !dirs.contains(&path) && path.join("sh").is_file() {
                     dirs.push(path);
                 }
             }
         }
 
-        std::env::join_paths(dirs).unwrap_or_else(|_| PathBuf::from("").into())
+        env::join_paths(dirs).unwrap_or_else(|_| PathBuf::from("").into())
     }
 }
 
@@ -133,7 +137,7 @@ impl RunnerConfig {
             },
             test_cases_dir,
             snapshot_dir_name: String::from("snaps"),
-            host_os_id: crate::util::get_host_os_id(),
+            host_os_id: util::get_host_os_id(),
             platform_tags: HashSet::new(),
         }
     }
@@ -294,7 +298,7 @@ impl TestOptions {
     /// "macos", "windows").
     pub fn platform_tags(&self) -> HashSet<String> {
         if self.shrub_platform_tags.is_empty() {
-            HashSet::from([std::env::consts::OS.to_owned()])
+            HashSet::from([consts::OS.to_owned()])
         } else {
             self.shrub_platform_tags.iter().cloned().collect()
         }
@@ -342,7 +346,7 @@ impl TestOptions {
                 .split_whitespace()
                 .map(Into::into)
                 .collect();
-            crate::util::resolve_launcher_path(&mut tokens)?;
+            util::resolve_launcher_path(&mut tokens)?;
             Some(tokens)
         };
 

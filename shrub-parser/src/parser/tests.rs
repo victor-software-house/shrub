@@ -14,6 +14,8 @@ mod pipelines;
 mod redirections;
 mod simple_commands;
 
+use std::io::Cursor;
+
 use anyhow::Result;
 #[cfg(feature = "winnow-parser")]
 use serde_json::Value;
@@ -152,7 +154,7 @@ pub fn parse_with_config(input: &str, config: &ParserConfig) -> Result<Program, 
         ..Default::default()
     };
 
-    let mut parser = Parser::new(std::io::Cursor::new(input), &options);
+    let mut parser = Parser::new(Cursor::new(input), &options);
     parser.parse_program()
 }
 
