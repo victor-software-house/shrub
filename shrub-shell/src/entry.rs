@@ -10,10 +10,15 @@ use std::{env, io, panic, process};
 
 use clap::CommandFactory;
 use clap::error::ErrorKind;
+#[cfg(any(unix, windows))]
 use crossterm::cursor::{MoveToNextLine, Show};
+#[cfg(any(unix, windows))]
 use crossterm::event::{DisableBracketedPaste, DisableMouseCapture};
+#[cfg(any(unix, windows))]
 use crossterm::style::ResetColor;
+#[cfg(any(unix, windows))]
 use crossterm::terminal;
+#[cfg(any(unix, windows))]
 use crossterm::terminal::{EnableLineWrap, LeaveAlternateScreen};
 use shrub_builtins::ShellBuilderExt as _;
 use shrub_core::builtins::try_parse_known;
@@ -24,6 +29,7 @@ use shrub_core::parser::ParserImpl;
 use shrub_core::sys::fd;
 #[cfg(feature = "experimental-builtins")]
 use shrub_experimental_builtins::ShellBuilderExt as _;
+#[cfg(any(unix, windows))]
 use tokio::runtime::Builder;
 use tokio::sync::Mutex;
 

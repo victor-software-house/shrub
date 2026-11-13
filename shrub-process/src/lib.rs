@@ -34,6 +34,7 @@ use std::ffi::{CString, OsStr, OsString};
 use std::fmt::{Debug, Formatter};
 use std::fs::File;
 use std::io::ErrorKind;
+#[cfg(unix)]
 use std::os::fd::{OwnedFd, RawFd};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};

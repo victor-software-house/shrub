@@ -11,6 +11,7 @@
 //! 3. The unsafe operation is that `pre_exec` registration, in
 //!    `run_command_with_stdin`.
 
+#[cfg(pty)]
 use std::io::Cursor;
 #[cfg(pty)]
 use std::os::unix::process::ExitStatusExt;
@@ -23,8 +24,11 @@ use std::{env, fs};
 
 use anyhow::{Context, Result};
 use assert_fs::fixture::{FileWriteStr, PathChild};
+#[cfg(pty)]
 use expectrl::process::unix::{Signal, WaitStatus};
+#[cfg(pty)]
 use expectrl::session;
+#[cfg(unix)]
 use nix::unistd;
 
 use crate::config::{ShellConfig, WhichShell};

@@ -13,10 +13,10 @@
 //!    `si_status` reads in `siginfo_to_wait_status`.
 
 use nix::errno::Errno;
+use nix::sys::signal;
 pub(crate) use nix::sys::signal::Signal;
 use nix::sys::signal::{SaFlags, SigAction, SigHandler, SigSet};
 use nix::sys::wait::{WaitPidFlag, WaitStatus};
-use nix::sys::{signal, wait};
 use nix::unistd::Pid;
 use nix::{libc, unistd};
 use tokio::signal::unix;
@@ -222,7 +222,7 @@ fn waitid_for(
 
 #[cfg(not(any(target_os = "macos", target_os = "netbsd", target_os = "openbsd")))]
 fn waitid_one(pid: sys::process::ProcessId, flags: WaitPidFlag) -> Result<WaitStatus, Errno> {
-    use nix::sys::wait::Id;
+    use nix::sys::wait::{self, Id};
 
     wait::waitid(Id::Pid(Pid::from_raw(pid)), flags)
 }

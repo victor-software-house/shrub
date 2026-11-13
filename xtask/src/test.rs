@@ -21,7 +21,9 @@ use clap::{Args, Parser, Subcommand};
 use xshell::{Shell, cmd};
 
 use crate::common::{BuildProfile, find_workspace_root};
+#[cfg(unix)]
 use crate::e2e::E2eArgs;
+#[cfg(unix)]
 use crate::{common, e2e};
 
 /// Integration test binaries that are excluded from unit tests.

@@ -2,8 +2,10 @@
 
 use std::io;
 use std::io::{Read, Write};
+#[cfg(unix)] // ast-grep-ignore: platform-cfg-outside-sys
 use std::os::fd::{BorrowedFd, OwnedFd};
 
+#[cfg(unix)] // ast-grep-ignore: platform-cfg-outside-sys
 use crate::error::ErrorKind;
 use crate::{error, openfiles};
 

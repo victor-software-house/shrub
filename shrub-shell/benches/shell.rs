@@ -3,6 +3,7 @@
 #![allow(missing_docs)]
 #![allow(clippy::unwrap_used)]
 
+#[cfg(unix)]
 use std::time::Duration;
 
 #[cfg(unix)]

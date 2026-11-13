@@ -29,6 +29,7 @@ use std::time::{Duration, Instant};
 use anyhow::Result;
 use nix::sys::resource;
 use nix::sys::resource::{RLIM_INFINITY, Resource, rlim_t};
+#[cfg(target_os = "linux")]
 use nix::unistd;
 use shrub_core::options::{PidsLimit, SpawnOptions, SpawnedProcess};
 use tokio::time;

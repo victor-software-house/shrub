@@ -11,16 +11,22 @@
 
 use std::borrow::Cow;
 use std::env::SplitPaths;
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsStr;
+#[cfg(not(target_os = "android"))]
+use std::ffi::OsString;
 use std::fs::{File, FileType};
 use std::os::unix::ffi::OsStringExt;
 use std::os::unix::fs::FileTypeExt;
 pub use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
-use std::{env, io, ptr};
+#[cfg(not(target_os = "android"))]
+use std::ptr;
+use std::{env, io};
 
+#[cfg(not(target_os = "android"))]
+use nix::libc;
+use nix::unistd;
 use nix::unistd::AccessFlags;
-use nix::{libc, unistd};
 
 use crate::error;
 use crate::sys::fs::PathExt;

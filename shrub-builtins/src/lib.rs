@@ -208,11 +208,14 @@ mod factory;
 mod lookup;
 mod unimp;
 
+#[cfg(any(feature = "builtin.alias", feature = "builtin.command"))]
 use std::io;
+#[cfg(any(feature = "builtin.alias", feature = "builtin.command"))]
 use std::io::Write;
 
 pub use builder::ShellBuilderExt;
 pub use factory::{BuiltinSet, default_builtins};
+#[cfg(any(feature = "builtin.alias", feature = "builtin.command"))]
 use shrub_core::escape;
 
 /// Writes an alias definition in the reusable form printed by `alias` and

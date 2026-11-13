@@ -2,8 +2,10 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::env::consts;
 use std::path::PathBuf;
+#[cfg(not(target_family = "wasm"))] // ast-grep-ignore: platform-cfg-outside-sys
+use std::process;
 use std::time::SystemTime;
-use std::{env, process, time};
+use std::{env, time};
 
 use rand::RngExt as _;
 

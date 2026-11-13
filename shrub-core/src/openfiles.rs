@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::fs::File;
 use std::io::{IsTerminal, PipeReader, PipeWriter, Read, Stderr, Stdin, Stdout, Write};
+#[cfg(unix)] // ast-grep-ignore: platform-cfg-outside-sys
 use std::os::fd::{BorrowedFd, OwnedFd};
 use std::process::Stdio;
 use std::sync::Arc;
