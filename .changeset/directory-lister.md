@@ -1,5 +1,5 @@
 ---
-shrub: patch
+shrub: minor
 ---
 
 A program that embeds shrub can list some directories itself.
