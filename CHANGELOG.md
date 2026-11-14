@@ -1,5 +1,23 @@
 # Changelog
 
+## shrub 0.8.0
+
+- The experimental listing and read-window builtins follow their programs more closely: ([`a5b4c71`](https://github.com/victor-software-house/shrub/commit/a5b4c71a092265c0418e79e82c92d8a7a547fc0f)).
+
+  - `ls` with several operands lists each in the order given under its own header, and passes `--` before a path it hands to the `ls` program; GNU's `-I`, `-T` and `-w` keep their values.
+  - `tree` marks a directory it cannot read where it stands and goes on, does not descend into a lister's entry whose name is not one path component, and walks on a thread of its own through `ShellTasks::spawn_blocking`, now public in `shrub-core`.
+  - `cat` with a windowed operand reads every operand from one stream, so `-n` and `-s` span files; `-n` is not taken as taking a value; `head` and `tail` honour `-q` and `-v`, and pass `--` before a path.
+- A program that embeds shrub can list some directories itself.
+  `shrub_core::listing::DirectoryLister` answers for the directories it knows, one `ListedEntry` per entry with the line a listing shows, and the embedder sets it in `RuntimeOptions::directory_lister`.
+  Two experimental builtins ask it first, each behind its own feature of `shrub-experimental-builtins`, off by default: ([`be3f8e1`](https://github.com/victor-software-house/shrub/commit/be3f8e1c80304a080e12706254d8c8e20ac4ac46)).
+
+  - `ls` (`builtin.ls`) prints the lister's lines for a directory it answers for, and runs the `ls` program in `PATH` with the same arguments for any other path.
+  - `tree` (`builtin.tree`, with `-a` and `-L`) prints a directory tree, descending through the lister where it answers and through the file system elsewhere.
+- A program that embeds shrub can serve a file from a later first byte, such as an output whose oldest bytes it dropped in place.
+  `shrub_core::window::ReadWindow` names the first byte to read of the files it answers for, and the embedder sets it in `RuntimeOptions::read_window`.
+  Three experimental builtins ask it first, each behind its own feature of `shrub-experimental-builtins`, off by default: `cat` (`builtin.cat`), `head` (`builtin.head`) and `tail` (`builtin.tail`).
+  Each runs the program of its name in `PATH`; a file the window answers for is opened at that byte and given to the program on its standard input, so the program's options and output stay, and `head` and `tail` print a header per file when given several ([`29511ca`](https://github.com/victor-software-house/shrub/commit/29511ca0a661cfd2e56d575d4e552fc9ad59b0ee)).
+
 ## shrub 0.7.0
 
 - A new crate, `shrub-process`, launches processes for shrub and for programs that embed it: one spawn request, `Spawn`, started by `spawn` or `exec`, with the child setup that runs between the fork and exec (the cgroup join, the open-file and process limits, the process counts, the descriptor map, the process group and the terminal) behind safe functions.
