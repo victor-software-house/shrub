@@ -1,5 +1,5 @@
 ---
-shrub: patch
+shrub: minor
 ---
 
 A program that embeds shrub can serve a file from a later first byte, such as an output whose oldest bytes it dropped in place.
