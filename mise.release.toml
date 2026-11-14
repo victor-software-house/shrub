@@ -1,4 +1,4 @@
 # Loaded when MISE_ENV contains `release`: the release workflow.
 
 [tools]
-"github:victor-software-house/verctl" = "0.8.6-rc.4"
+"github:victor-software-house/verctl" = "0.8.6-rc.5"
