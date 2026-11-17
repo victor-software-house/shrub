@@ -1,6 +1,7 @@
 use std::io;
+use std::time::SystemTime;
 
-use shrub_core::history::{CommandLineFilter, Direction, History, Item, Query};
+use shrub_core::history::{CommandLineFilter, Direction, History, Item, ItemTimestamp, Query};
 use tokio::runtime::Handle;
 use tokio::sync::MutexGuard;
 use tokio::task;
@@ -169,7 +170,7 @@ impl<SE: shrub_core::ShellExtensions> reedline::History for ReedlineHistory<SE> 
 fn shrub_history_item_to_reedline(item: &Item) -> reedline::HistoryItem {
     let mut rl_item = reedline::HistoryItem::from_command_line(item.command_line.as_str());
     rl_item.id = Some(reedline::HistoryItemId(item.id));
-    rl_item.start_timestamp = item.timestamp;
+    rl_item.start_timestamp = item.timestamp.map(|ts| SystemTime::from(ts).into());
 
     rl_item
 }
@@ -180,9 +181,15 @@ fn reedline_history_item_to_shrub(item: &reedline::HistoryItem) -> Item {
     Item {
         id: item.id.map_or(0, |id| id.0),
         command_line: item.command_line.clone(),
-        timestamp: item.start_timestamp,
+        timestamp: item.start_timestamp.and_then(reedline_timestamp_to_shrub),
         dirty: true,
     }
+}
+
+/// Converts a reedline timestamp to shrub's, or `None` for one outside the
+/// years -9999 to 9999 that shrub's timestamps hold.
+fn reedline_timestamp_to_shrub(timestamp: impl Into<SystemTime>) -> Option<ItemTimestamp> {
+    ItemTimestamp::try_from(timestamp.into()).ok()
 }
 
 fn shrub_error_to_reedline(error: shrub_core::Error) -> reedline::ReedlineError {
@@ -207,14 +214,14 @@ fn reedline_history_query_into_shrub(query: reedline::SearchQuery) -> reedline::
             query.end_id.map(|id| id.0)
         },
         not_at_or_before_time: if matches!(query.direction, reedline::SearchDirection::Backward) {
-            query.end_time
+            query.end_time.and_then(reedline_timestamp_to_shrub)
         } else {
-            query.start_time
+            query.start_time.and_then(reedline_timestamp_to_shrub)
         },
         not_at_or_after_time: if matches!(query.direction, reedline::SearchDirection::Backward) {
-            query.start_time
+            query.start_time.and_then(reedline_timestamp_to_shrub)
         } else {
-            query.end_time
+            query.end_time.and_then(reedline_timestamp_to_shrub)
         },
         ..Default::default()
     };

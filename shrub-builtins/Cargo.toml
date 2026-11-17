@@ -136,7 +136,6 @@ shrub-core = { workspace = true }
 shrub-parser = { workspace = true }
 shrub-process = { workspace = true, optional = true }
 cfg-if = { workspace = true }
-chrono = { workspace = true }
 clap = { workspace = true, features = ["derive", "wrap_help"] }
 fancy-regex = { workspace = true }
 itertools = { workspace = true }
@@ -172,7 +171,7 @@ nix = { workspace = true, features = [
 rlimit = "0.11.0"
 
 [target.'cfg(any(target_os = "linux", target_os = "android"))'.dependencies]
-procfs = "0.18.0"
+procfs = { version = "0.18.0", default-features = false }
 
 [dev-dependencies]
 anyhow = { workspace = true }

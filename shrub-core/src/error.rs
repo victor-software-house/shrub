@@ -279,6 +279,10 @@ pub enum ErrorKind {
     #[error("system time error: {0}")]
     TimeError(#[from] SystemTimeError),
 
+    /// A time could not be formatted.
+    #[error("time format error: {0}")]
+    TimeFormatError(#[from] jiff::Error),
+
     /// Array index out of range.
     #[error("array index out of range: {0}")]
     ArrayIndexOutOfRange(String),

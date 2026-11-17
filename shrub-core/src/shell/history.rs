@@ -133,7 +133,7 @@ impl<SE: ShellExtensions> crate::Shell<SE> {
         history.add(Item {
             id: 0,
             command_line: command.to_owned(),
-            timestamp: Some(chrono::Utc::now()),
+            timestamp: Some(jiff::Timestamp::now()),
             dirty: true,
         })?;
 
