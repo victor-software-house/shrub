@@ -194,13 +194,13 @@ fn display_history(
     let skip_count = item_count - max_entries.unwrap_or(item_count);
 
     for (i, item) in history.iter().skip(skip_count).enumerate() {
-        let mut formatted_timestamp = String::new();
-
-        if let Some(timestamp) = item.timestamp
+        let formatted_timestamp = if let Some(timestamp) = item.timestamp
             && let Some(format) = &config.time_format
         {
-            formatted_timestamp = time_format::format_local(timestamp, format)?;
-        }
+            time_format::format_local(timestamp, format)?
+        } else {
+            String::new()
+        };
 
         // Output format is something like:
         //     1  echo hello world
