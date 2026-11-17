@@ -18,7 +18,7 @@ workspace = true
 
 [features]
 default = []
-serde = ["dep:serde", "shrub-parser/serde", "rpds/serde", "chrono/serde"]
+serde = ["dep:serde", "shrub-parser/serde", "rpds/serde", "jiff/serde"]
 experimental-parser = ["shrub-parser/winnow-parser"]
 
 [dependencies]
@@ -29,13 +29,20 @@ shrub-process = { workspace = true }
 bon = { workspace = true }
 cached = { workspace = true }
 cfg-if = { workspace = true }
-chrono = { workspace = true }
 clap = { workspace = true, features = ["derive", "wrap_help"] }
 color-print = { workspace = true }
 fancy-regex = { workspace = true }
 futures = "0.3.32"
 inherent = "1.0.13"
 itertools = { workspace = true }
+# The system time zone, with tz database lookups for TZ names: from
+# /usr/share/zoneinfo, or bundled where the platform has none.
+jiff = { workspace = true, features = [
+  "std",
+  "tz-system",
+  "tzdb-bundle-platform",
+  "tzdb-zoneinfo",
+] }
 normalize-path = "0.2.1"
 rand = "0.10.0"
 rpds = "1.2.0"
@@ -82,6 +89,7 @@ uzers = "0.12.2"
 
 [target.wasm32-unknown-unknown.dependencies]
 getrandom = { workspace = true, features = ["wasm_js"] }
+jiff = { workspace = true, features = ["js"] }
 uuid = { workspace = true, features = ["js"] }
 
 [dev-dependencies]

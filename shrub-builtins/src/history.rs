@@ -2,7 +2,9 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use clap::Parser;
-use shrub_core::{ExecutionExitCode, ExecutionResult, builtins, error, history, int_utils};
+use shrub_core::{
+    ExecutionExitCode, ExecutionResult, builtins, error, history, int_utils, time_format,
+};
 
 /// Query or manipulate the shell's command history.
 // TODO(history): Evaluate which of the options conflict with each other.
@@ -192,15 +194,13 @@ fn display_history(
     let skip_count = item_count - max_entries.unwrap_or(item_count);
 
     for (i, item) in history.iter().skip(skip_count).enumerate() {
-        let mut formatted_timestamp = String::new();
-
-        if let Some(timestamp) = item.timestamp {
-            let local_timestamp = timestamp.with_timezone(&chrono::Local);
-            if let Some(time_format) = &config.time_format {
-                let fmt_items = chrono::format::StrftimeItems::new(time_format);
-                formatted_timestamp = local_timestamp.format_with_items(fmt_items).to_string();
-            }
-        }
+        let formatted_timestamp = if let Some(timestamp) = item.timestamp
+            && let Some(format) = &config.time_format
+        {
+            time_format::format_local(timestamp, format)?
+        } else {
+            String::new()
+        };
 
         // Output format is something like:
         //     1  echo hello world

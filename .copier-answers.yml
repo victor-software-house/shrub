@@ -1,5 +1,5 @@
 # Changes here will be overwritten by Copier; edit with `copier update --data`.
-_commit: v0.0.111
+_commit: v0.0.117
 _src_path: https://github.com/victor-software-house/templates.git
 build_os: linux
 cargo_min_publish_age: 3 days
@@ -10,7 +10,15 @@ clippy_disallowed_methods: []
 clippy_disallowed_types: []
 default_branch: main
 deny_bans: []
-deny_ignore: []
+deny_ignore:
+-   id: RUSTSEC-2026-0441
+    reason: pin-utils is unmaintained and reaches shrub only in tests, through expectrl
+        0.9.0 and its nix 0.26; remove when expectrl releases without nix 0.26
+-   id: RUSTSEC-2026-0543
+    reason: chrono is unmaintained and reaches shrub only through procfs 0.18.0, whose
+        default features uucore 0.12.0 asks for, and reedline 0.52.0; remove when
+        uucore asks for procfs without its default features and shrub takes reedline
+        0.53.0, which has no chrono
 deny_licenses:
 -   license: BSD-2-Clause
     reason: git-version and junit-parser

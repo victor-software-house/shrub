@@ -1,12 +1,12 @@
-use std::fmt::Display;
 use std::path::Path;
 
+use jiff::Zoned;
 use shrub_parser::prompt;
 use shrub_parser::prompt::{PromptDateFormat, PromptPiece, PromptTimeFormat};
 
 use crate::shell::Shell;
 use crate::sys::{self, users};
-use crate::{ExecutionParameters, error, expansion, extensions};
+use crate::{ExecutionParameters, error, expansion, extensions, time_format};
 
 const VERSION_MAJOR: &str = env!("CARGO_PKG_VERSION_MAJOR");
 const VERSION_MINOR: &str = env!("CARGO_PKG_VERSION_MINOR");
@@ -91,7 +91,7 @@ fn format_prompt_piece(
             tilde_replaced,
             basename,
         } => format_current_working_directory(shell, tilde_replaced, basename),
-        PromptPiece::Date(format) => format_date(&chrono::Local::now(), &format),
+        PromptPiece::Date(format) => format_date(&Zoned::now(), &format)?,
         PromptPiece::DollarOrPound => {
             if users::is_root() {
                 "#".to_owned()
@@ -154,7 +154,7 @@ fn format_prompt_piece(
         PromptPiece::TerminalDeviceBaseName => sys::terminal::try_get_terminal_device_path()
             .and_then(|p| p.file_name().map(|s| s.to_string_lossy().to_string()))
             .unwrap_or_default(),
-        PromptPiece::Time(time_fmt) => format_time(&chrono::Local::now(), &time_fmt),
+        PromptPiece::Time(time_fmt) => format_time(&Zoned::now(), &time_fmt)?,
     };
 
     Ok(formatted)
@@ -183,87 +183,75 @@ fn format_current_working_directory(
     working_dir_str
 }
 
-fn format_time<Tz: chrono::TimeZone>(
-    datetime: &chrono::DateTime<Tz>,
-    format: &PromptTimeFormat,
-) -> String
-where
-    Tz::Offset: Display,
-{
-    let formatted = match format {
-        PromptTimeFormat::TwelveHourAM => datetime.format("%I:%M %p"),
-        PromptTimeFormat::TwelveHourHHMMSS => datetime.format("%I:%M:%S"),
-        PromptTimeFormat::TwentyFourHourHHMM => datetime.format("%H:%M"),
-        PromptTimeFormat::TwentyFourHourHHMMSS => datetime.format("%H:%M:%S"),
+fn format_time(datetime: &Zoned, format: &PromptTimeFormat) -> Result<String, error::Error> {
+    let format = match format {
+        PromptTimeFormat::TwelveHourAM => "%I:%M %p",
+        PromptTimeFormat::TwelveHourHHMMSS => "%I:%M:%S",
+        PromptTimeFormat::TwentyFourHourHHMM => "%H:%M",
+        PromptTimeFormat::TwentyFourHourHHMMSS => "%H:%M:%S",
     };
 
-    formatted.to_string()
+    time_format::format_zoned(datetime, format)
 }
 
-fn format_date<Tz: chrono::TimeZone>(
-    datetime: &chrono::DateTime<Tz>,
-    format: &PromptDateFormat,
-) -> String
-where
-    Tz::Offset: Display,
-{
-    match format {
-        PromptDateFormat::WeekdayMonthDate => datetime.format("%a %b %d").to_string(),
-        PromptDateFormat::Custom(fmt) => {
-            let fmt_items = chrono::format::StrftimeItems::new(fmt);
-            datetime.format_with_items(fmt_items).to_string()
-        }
-    }
+fn format_date(datetime: &Zoned, format: &PromptDateFormat) -> Result<String, error::Error> {
+    let format = match format {
+        PromptDateFormat::WeekdayMonthDate => "%a %b %d",
+        PromptDateFormat::Custom(fmt) => fmt.as_str(),
+    };
+
+    time_format::format_zoned(datetime, format)
 }
 
 #[cfg(test)]
+#[expect(clippy::panic_in_result_fn, reason = "assertions in fallible tests")]
 mod tests {
+    use jiff::Timestamp;
+    use jiff::tz::TimeZone;
     use shrub_parser::prompt::{PromptDateFormat, PromptTimeFormat};
 
     use super::*;
 
-    #[test]
-    fn test_format_time() {
-        // Create a well-known test date/time.
-        let dt = chrono::DateTime::parse_from_rfc3339("2024-12-25T13:34:56.789Z").unwrap();
-
-        assert_eq!(
-            format_time(&dt, &PromptTimeFormat::TwelveHourAM),
-            "01:34 PM"
-        );
-
-        assert_eq!(
-            format_time(&dt, &PromptTimeFormat::TwentyFourHourHHMMSS),
-            "13:34:56"
-        );
-
-        assert_eq!(
-            format_time(&dt, &PromptTimeFormat::TwelveHourHHMMSS),
-            "01:34:56"
-        );
+    fn utc(rfc3339: &str) -> Result<Zoned, error::Error> {
+        Ok(rfc3339.parse::<Timestamp>()?.to_zoned(TimeZone::UTC))
     }
 
     #[test]
-    fn test_format_date() {
+    fn test_format_time() -> Result<(), error::Error> {
         // Create a well-known test date/time.
-        let dt = chrono::DateTime::parse_from_rfc3339("2024-12-25T12:34:56.789Z").unwrap();
+        let dt = utc("2024-12-25T13:34:56.789Z")?;
 
         assert_eq!(
-            format_date(&dt, &PromptDateFormat::WeekdayMonthDate),
+            format_time(&dt, &PromptTimeFormat::TwelveHourAM)?,
+            "01:34 PM"
+        );
+        assert_eq!(
+            format_time(&dt, &PromptTimeFormat::TwentyFourHourHHMMSS)?,
+            "13:34:56"
+        );
+        assert_eq!(
+            format_time(&dt, &PromptTimeFormat::TwelveHourHHMMSS)?,
+            "01:34:56"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_format_date() -> Result<(), error::Error> {
+        // Create a well-known test date/time.
+        let dt = utc("2024-12-25T12:34:56.789Z")?;
+
+        assert_eq!(
+            format_date(&dt, &PromptDateFormat::WeekdayMonthDate)?,
             "Wed Dec 25"
         );
-
-        assert_eq!(
-            format_date(&dt, &PromptDateFormat::Custom(String::from("%Y-%m-%d"))),
-            "2024-12-25"
-        );
-
         assert_eq!(
             format_date(
                 &dt,
-                &PromptDateFormat::Custom(String::from("%Y-%m-%d %H:%M:%S.%f"))
-            ),
-            "2024-12-25 12:34:56.789000000"
+                &PromptDateFormat::Custom(String::from("%Y-%m-%d %H:%M:%S"))
+            )?,
+            "2024-12-25 12:34:56"
         );
+        Ok(())
     }
 }

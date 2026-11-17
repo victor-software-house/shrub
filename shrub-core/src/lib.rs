@@ -111,6 +111,7 @@ pub mod sys;
 pub mod tasks;
 pub mod terminal;
 pub mod tests;
+pub mod time_format;
 pub mod timing;
 pub mod trace_categories;
 pub mod traps;

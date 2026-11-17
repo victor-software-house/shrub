@@ -6,7 +6,7 @@ use std::io::{BufRead, BufReader, BufWriter, ErrorKind, IntoInnerError, Read, Wr
 use std::ops::Range;
 use std::path::Path;
 
-use chrono::Utc;
+use jiff::Timestamp;
 
 use crate::error;
 
@@ -45,7 +45,7 @@ impl History {
     /// with an error other than invalid data, which is skipped.
     pub fn import(reader: impl Read) -> Result<Self, error::Error> {
         let mut history = Self::default();
-        let read_time = Utc::now();
+        let read_time = Timestamp::now();
 
         let buf_reader = BufReader::new(reader);
 
@@ -70,7 +70,7 @@ impl History {
             // Look for timestamp comments; ignore other comment lines.
             if let Some(comment) = line.strip_prefix("#") {
                 if let Ok(seconds_since_epoch) = comment.trim().parse() {
-                    next_timestamp = ItemTimestamp::from_timestamp(seconds_since_epoch, 0);
+                    next_timestamp = ItemTimestamp::from_second(seconds_since_epoch).ok();
                 } else {
                     next_timestamp = None;
                 }
@@ -262,7 +262,7 @@ impl History {
             }
 
             if write_timestamps && let Some(timestamp) = item.timestamp {
-                writeln!(file, "#{}", timestamp.timestamp())?;
+                writeln!(file, "#{}", timestamp.as_second())?;
             }
 
             writeln!(file, "{}", item.command_line)?;
@@ -391,7 +391,7 @@ impl HistoryControl {
 }
 
 /// Represents a timestamp for a history item.
-pub type ItemTimestamp = chrono::DateTime<Utc>;
+pub type ItemTimestamp = Timestamp;
 
 /// Represents an item in the history.
 #[derive(Clone, Default)]
@@ -418,7 +418,7 @@ impl Item {
         Self {
             id: 0, // NOTE: ID will be assigned when added to the history.
             command_line: command_line.into(),
-            timestamp: Some(chrono::Utc::now()),
+            timestamp: Some(Timestamp::now()),
             dirty: true,
         }
     }
@@ -868,7 +868,7 @@ mod tests {
     /// and an item with no timestamp isn't excluded by time bounds.
     #[test]
     fn query_includes_by_each_filter() {
-        let at = |seconds| ItemTimestamp::from_timestamp(seconds, 0);
+        let at = |seconds| ItemTimestamp::from_second(seconds).ok();
         let item = |id, command_line: &str, timestamp| Item {
             id,
             command_line: command_line.to_owned(),
@@ -954,7 +954,7 @@ mod tests {
     /// A new item is unsaved and stamped now; adding it gives it the next ID.
     #[test]
     fn new_items_are_unsaved_and_stamped() -> Result<(), error::Error> {
-        let before = Utc::now();
+        let before = Timestamp::now();
         let item = Item::new("ls");
         assert!(item.dirty);
         assert!(item.timestamp.is_some_and(|ts| ts >= before));
@@ -971,7 +971,7 @@ mod tests {
     /// unreadable lines, and leaves the items saved and numbered from 0.
     #[test]
     fn import_reads_history_files() -> Result<(), error::Error> {
-        let before = Utc::now();
+        let before = Timestamp::now();
         let file = b"#1700000000\na\n#1700000005\n#not a time\nb\n#1700000001\n#1700000002\nc\n\xff\xfe\nd\n";
         let mut history = History::import(&file[..])?;
 
@@ -979,12 +979,12 @@ mod tests {
         let timestamps: Vec<_> = history.iter().map(|item| item.timestamp).collect();
         assert_eq!(
             timestamps[0],
-            ItemTimestamp::from_timestamp(1_700_000_000, 0)
+            ItemTimestamp::from_second(1_700_000_000).ok()
         );
         assert!(timestamps[1].is_some_and(|ts| ts >= before));
         assert_eq!(
             timestamps[2],
-            ItemTimestamp::from_timestamp(1_700_000_002, 0)
+            ItemTimestamp::from_second(1_700_000_002).ok()
         );
         assert!(timestamps[3].is_some_and(|ts| ts >= before));
         assert!(history.iter().all(|item| !item.dirty));
@@ -1009,7 +1009,7 @@ mod tests {
 
         let mut history = History::default();
         history.add(Item {
-            timestamp: ItemTimestamp::from_timestamp(1_700_000_000, 0),
+            timestamp: ItemTimestamp::from_second(1_700_000_000).ok(),
             ..Item::new("a")
         })?;
         history.add(Item {
@@ -1023,7 +1023,7 @@ mod tests {
         assert_eq!(command_lines(reread.iter()), ["existing", "a", "b"]);
         assert_eq!(
             reread.get(1).and_then(|item| item.timestamp),
-            ItemTimestamp::from_timestamp(1_700_000_000, 0)
+            ItemTimestamp::from_second(1_700_000_000).ok()
         );
 
         Ok(())
@@ -1103,13 +1103,13 @@ mod tests {
     /// Like bash, an entry the file gives no timestamp gets the time it's read.
     #[test]
     fn import_stamps_entries_without_timestamps() -> Result<(), error::Error> {
-        let before = Utc::now();
+        let before = Timestamp::now();
         let history = History::import(&b"#1700000000\nls\necho hi\n"[..])?;
 
         let timestamps: Vec<_> = history.iter().map(|item| item.timestamp).collect();
         assert_eq!(
             timestamps[0],
-            ItemTimestamp::from_timestamp(1_700_000_000, 0)
+            ItemTimestamp::from_second(1_700_000_000).ok()
         );
         assert!(timestamps[1].is_some_and(|ts| ts >= before));
 

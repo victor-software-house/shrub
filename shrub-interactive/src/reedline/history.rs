@@ -1,6 +1,7 @@
 use std::io;
+use std::time::SystemTime;
 
-use shrub_core::history::{CommandLineFilter, Direction, History, Item, Query};
+use shrub_core::history::{CommandLineFilter, Direction, History, Item, ItemTimestamp, Query};
 use tokio::runtime::Handle;
 use tokio::sync::MutexGuard;
 use tokio::task;
@@ -169,7 +170,7 @@ impl<SE: shrub_core::ShellExtensions> reedline::History for ReedlineHistory<SE> 
 fn shrub_history_item_to_reedline(item: &Item) -> reedline::HistoryItem {
     let mut rl_item = reedline::HistoryItem::from_command_line(item.command_line.as_str());
     rl_item.id = Some(reedline::HistoryItemId(item.id));
-    rl_item.start_timestamp = item.timestamp;
+    rl_item.start_timestamp = item.timestamp.map(|ts| SystemTime::from(ts).into());
 
     rl_item
 }
@@ -180,9 +181,21 @@ fn reedline_history_item_to_shrub(item: &reedline::HistoryItem) -> Item {
     Item {
         id: item.id.map_or(0, |id| id.0),
         command_line: item.command_line.clone(),
-        timestamp: item.start_timestamp,
+        timestamp: item.start_timestamp.map(reedline_timestamp_to_shrub),
         dirty: true,
     }
+}
+
+/// Converts a reedline timestamp to shrub's. One outside the years -9999 to
+/// 9999 that shrub's timestamps hold takes the nearer end of that range, so a
+/// far query bound still excludes every item beyond it.
+fn reedline_timestamp_to_shrub(timestamp: impl Into<SystemTime>) -> ItemTimestamp {
+    let time = timestamp.into();
+    ItemTimestamp::try_from(time).unwrap_or(if time > SystemTime::UNIX_EPOCH {
+        ItemTimestamp::MAX
+    } else {
+        ItemTimestamp::MIN
+    })
 }
 
 fn shrub_error_to_reedline(error: shrub_core::Error) -> reedline::ReedlineError {
@@ -207,14 +220,14 @@ fn reedline_history_query_into_shrub(query: reedline::SearchQuery) -> reedline::
             query.end_id.map(|id| id.0)
         },
         not_at_or_before_time: if matches!(query.direction, reedline::SearchDirection::Backward) {
-            query.end_time
+            query.end_time.map(reedline_timestamp_to_shrub)
         } else {
-            query.start_time
+            query.start_time.map(reedline_timestamp_to_shrub)
         },
         not_at_or_after_time: if matches!(query.direction, reedline::SearchDirection::Backward) {
-            query.start_time
+            query.start_time.map(reedline_timestamp_to_shrub)
         } else {
-            query.end_time
+            query.end_time.map(reedline_timestamp_to_shrub)
         },
         ..Default::default()
     };
@@ -275,6 +288,7 @@ fn get_shell_history_mut<'a, SE: shrub_core::ShellExtensions>(
 mod tests {
     use std::error;
     use std::sync::Arc;
+    use std::time::Duration;
 
     use reedline::History as _;
     use shrub_core::history::Item;
@@ -314,5 +328,20 @@ mod tests {
         assert_eq!(history.count(echo)?, 2);
 
         Ok(())
+    }
+
+    /// A time past either end of shrub's range takes that end, so a far query
+    /// bound keeps excluding the items beyond it.
+    #[test]
+    fn far_timestamps_clamp_to_the_range() {
+        let years = Duration::from_secs(31_556_952) * 20_000;
+        assert_eq!(
+            reedline_timestamp_to_shrub(SystemTime::UNIX_EPOCH + years),
+            ItemTimestamp::MAX
+        );
+        assert_eq!(
+            reedline_timestamp_to_shrub(SystemTime::UNIX_EPOCH - years),
+            ItemTimestamp::MIN
+        );
     }
 }

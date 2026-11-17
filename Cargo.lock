@@ -539,10 +539,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1aa79e62e7697b8e29b513a68abacf485adcd1fe8284a4316c5ae868e6633327"
 dependencies = [
  "iana-time-zone",
- "js-sys",
  "num-traits",
  "serde",
- "wasm-bindgen",
  "windows-link",
 ]
 
@@ -2191,10 +2189,12 @@ dependencies = [
  "jiff-core",
  "jiff-static",
  "jiff-tzdb-platform",
+ "js-sys",
  "log",
  "portable-atomic",
  "portable-atomic-util",
  "serde_core",
+ "wasm-bindgen",
  "windows-link",
 ]
 
@@ -3684,7 +3684,6 @@ version = "0.7.0"
 dependencies = [
  "anyhow",
  "cfg-if",
- "chrono",
  "clap",
  "fancy-regex",
  "itertools 0.15.0",
@@ -3716,7 +3715,6 @@ dependencies = [
  "cached",
  "cfg-if",
  "check_elevation",
- "chrono",
  "clap",
  "color-print",
  "fancy-regex",
@@ -3725,6 +3723,7 @@ dependencies = [
  "hostname",
  "inherent",
  "itertools 0.15.0",
+ "jiff",
  "libc",
  "nix 0.31.3",
  "normalize-path",
