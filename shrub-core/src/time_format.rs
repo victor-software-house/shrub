@@ -30,6 +30,7 @@ pub(crate) fn format_zoned(zoned: &Zoned, format: &str) -> Result<String, error:
 }
 
 #[cfg(test)]
+#[expect(clippy::panic_in_result_fn, reason = "assertions in fallible tests")]
 mod tests {
     use super::*;
 

@@ -204,6 +204,7 @@ fn format_date(datetime: &Zoned, format: &PromptDateFormat) -> Result<String, er
 }
 
 #[cfg(test)]
+#[expect(clippy::panic_in_result_fn, reason = "assertions in fallible tests")]
 mod tests {
     use jiff::Timestamp;
     use jiff::tz::TimeZone;
