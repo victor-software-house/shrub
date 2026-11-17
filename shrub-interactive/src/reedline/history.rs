@@ -1,5 +1,4 @@
 use std::io;
-use std::time::SystemTime;
 
 use shrub_core::history::{CommandLineFilter, Direction, History, Item, ItemTimestamp, Query};
 use tokio::runtime::Handle;
@@ -170,7 +169,9 @@ impl<SE: shrub_core::ShellExtensions> reedline::History for ReedlineHistory<SE> 
 fn shrub_history_item_to_reedline(item: &Item) -> reedline::HistoryItem {
     let mut rl_item = reedline::HistoryItem::from_command_line(item.command_line.as_str());
     rl_item.id = Some(reedline::HistoryItemId(item.id));
-    rl_item.start_timestamp = item.timestamp.map(|ts| SystemTime::from(ts).into());
+    rl_item.start_timestamp = item
+        .timestamp
+        .map(|ts| reedline::HistoryTimestamp::from_millis(ts.as_millisecond()));
 
     rl_item
 }
@@ -189,9 +190,9 @@ fn reedline_history_item_to_shrub(item: &reedline::HistoryItem) -> Item {
 /// Converts a reedline timestamp to shrub's. One outside the years -9999 to
 /// 9999 that shrub's timestamps hold takes the nearer end of that range, so a
 /// far query bound still excludes every item beyond it.
-fn reedline_timestamp_to_shrub(timestamp: impl Into<SystemTime>) -> ItemTimestamp {
-    let time = timestamp.into();
-    ItemTimestamp::try_from(time).unwrap_or(if time > SystemTime::UNIX_EPOCH {
+fn reedline_timestamp_to_shrub(timestamp: reedline::HistoryTimestamp) -> ItemTimestamp {
+    let millis = timestamp.to_millis();
+    ItemTimestamp::from_millisecond(millis).unwrap_or(if millis > 0 {
         ItemTimestamp::MAX
     } else {
         ItemTimestamp::MIN
@@ -288,7 +289,6 @@ fn get_shell_history_mut<'a, SE: shrub_core::ShellExtensions>(
 mod tests {
     use std::error;
     use std::sync::Arc;
-    use std::time::Duration;
 
     use reedline::History as _;
     use shrub_core::history::Item;
@@ -334,14 +334,27 @@ mod tests {
     /// bound keeps excluding the items beyond it.
     #[test]
     fn far_timestamps_clamp_to_the_range() {
-        let years = Duration::from_secs(31_556_952) * 20_000;
+        let years = 31_556_952_000 * 20_000;
         assert_eq!(
-            reedline_timestamp_to_shrub(SystemTime::UNIX_EPOCH + years),
+            reedline_timestamp_to_shrub(reedline::HistoryTimestamp::from_millis(years)),
             ItemTimestamp::MAX
         );
         assert_eq!(
-            reedline_timestamp_to_shrub(SystemTime::UNIX_EPOCH - years),
+            reedline_timestamp_to_shrub(reedline::HistoryTimestamp::from_millis(-years)),
             ItemTimestamp::MIN
+        );
+    }
+
+    /// A shrub timestamp reaches reedline with its milliseconds.
+    #[test]
+    fn timestamps_keep_their_milliseconds() {
+        let item = Item {
+            timestamp: ItemTimestamp::from_millisecond(1_700_000_000_123).ok(),
+            ..Item::new("ls")
+        };
+        assert_eq!(
+            shrub_history_item_to_reedline(&item).start_timestamp,
+            Some(reedline::HistoryTimestamp::from_millis(1_700_000_000_123))
         );
     }
 }
