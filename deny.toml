@@ -7,7 +7,7 @@ unmaintained = "all"
 # RUSTSEC ids and yanked crates that cannot be upgraded yet. Not a lint-level downgrade.
 ignore = [
     { id = "RUSTSEC-2026-0441", reason = "pin-utils is unmaintained and reaches shrub only in tests, through expectrl 0.9.0 and its nix 0.26; remove when expectrl releases without nix 0.26" },
-    { id = "RUSTSEC-2026-0543", reason = "chrono is unmaintained and reaches shrub only through procfs 0.18.0, whose default features uucore 0.12.0 asks for, and reedline 0.52.0; remove when uucore asks for procfs without its default features and shrub takes reedline 0.53.0, which has no chrono" },
+    { id = "RUSTSEC-2026-0543", reason = "chrono is unmaintained and reaches shrub only through procfs 0.18.0, whose default features uucore 0.12.0 asks for; uutils turned them off upstream in b222504ef (2026-10-05), unreleased; remove when shrub takes the uucore release that carries it" },
 ]
 
 [licenses]
