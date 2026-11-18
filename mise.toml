@@ -49,6 +49,11 @@ RUST_NIGHTLY = "nightly-2026-09-29"
 CARGO_REGISTRY_GLOBAL_MIN_PUBLISH_AGE = "3 days"
 # The crates.io logins whose crates `mise run update:own` takes past the cooldown.
 CARGO_TRUSTED_OWNERS = "any-victor"
+# The mbx remote cache (release-mirror, add-mbx-cache decision 9): a URL a CI
+# step exported wins; elsewhere the machine's bucket joined with this
+# repository's id, which exists only where the machine holds a key.
+MBX_REMOTE_URL = "{% if env.MBX_REMOTE_URL is defined %}{{ env.MBX_REMOTE_URL }}{% elif env.MBX_CACHE_BUCKET_URL is defined %}{{ env.MBX_CACHE_BUCKET_URL }}/1419994047{% endif %}"
+MBX_REMOTE_NAMESPACE = "{{ env.MBX_REMOTE_NAMESPACE | default(value='v1') }}"
 
 # The one gate, composed from the pieces this repository keeps. deny:advisories
 # and semver need the network, so they run as their own CI steps.
