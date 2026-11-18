@@ -49,6 +49,20 @@ RUST_NIGHTLY = "nightly-2026-09-29"
 CARGO_REGISTRY_GLOBAL_MIN_PUBLISH_AGE = "3 days"
 # The crates.io logins whose crates `mise run update:own` takes past the cooldown.
 CARGO_TRUSTED_OWNERS = "any-victor"
+# The mbx remote cache (release-mirror, add-mbx-cache decision 9): a URL a CI
+# step exported for this repository wins; elsewhere the machine's bucket
+# joined with this repository's id. Where the machine holds no key the URL
+# renders empty, which mbx reads as no remote.
+# A URL inherited from another repository's environment, or an empty one,
+# does not end with this id, so it never names another prefix.
+# The line-ending backslashes join the parts into one value.
+MBX_REMOTE_URL = """\
+  {% set url = env.MBX_REMOTE_URL | default(value="") %}\
+  {% set bucket = env.MBX_CACHE_BUCKET_URL | default(value="") | trim_end(pat="/") %}\
+  {% if url | split(pat="/") | last == "1419994047" %}{{ url }}\
+  {% elif bucket %}{{ bucket }}/1419994047\
+  {% endif %}"""
+MBX_REMOTE_NAMESPACE = "{{ env.MBX_REMOTE_NAMESPACE | default(value='v1') }}"
 
 # The one gate, composed from the pieces this repository keeps. deny:advisories
 # and semver need the network, so they run as their own CI steps.
@@ -79,10 +93,10 @@ includes = [
   # run. Bump the ref together with the verctl pin in mise.release.toml and
   # the workflow's pin.
   "git::https://github.com/victor-software-house/verctl.git//tasks/ver?ref=v0.8.6-rc.5",
-  # The shared Rust tasks, at actions main, 2026-11-16.
-  "git::https://github.com/victor-software-house/actions.git//tasks/rust.toml?ref=cb43721495406000501e460309abc1cf9f899cf7",
-  # template:check, template:off, and template:on, at actions main, 2026-11-16.
-  "git::https://github.com/victor-software-house/actions.git//tasks/template.toml?ref=cb43721495406000501e460309abc1cf9f899cf7",
+  # The shared Rust tasks, at actions main, 2026-11-18.
+  "git::https://github.com/victor-software-house/actions.git//tasks/rust.toml?ref=6243d0aec17b8d3eb664b6cf5162bfb5ef7990c3",
+  # template:check, template:off, and template:on, at actions main, 2026-11-18.
+  "git::https://github.com/victor-software-house/actions.git//tasks/template.toml?ref=6243d0aec17b8d3eb664b6cf5162bfb5ef7990c3",
 ]
 
 # Replaces ctl-core's test, which runs cargo test with --all-features; a

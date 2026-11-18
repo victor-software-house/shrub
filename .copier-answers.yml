@@ -1,5 +1,5 @@
 # Changes here will be overwritten by Copier; edit with `copier update --data`.
-_commit: v0.0.117
+_commit: v0.0.121
 _src_path: https://github.com/victor-software-house/templates.git
 build_os: linux
 cargo_min_publish_age: 3 days
@@ -69,6 +69,7 @@ platforms:
 - macos-arm64
 project: rust-crate
 published: true
+repository_id: 1419994047
 repository_visibility: public
 rust_nightly: nightly-2026-09-29
 rust_version: 1.100.0
