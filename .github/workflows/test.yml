@@ -73,7 +73,7 @@ jobs:
           version: 2026.11.6
           cache: true
       - name: Cache builds with mbx
-        uses: jdx/mr-boxington-action@88acf2bb50552c7c508cbac13e5f8c576b95b1de # v1.7.3
+        uses: victor-software-house/mr-boxington-action@535e3459742146fa60f90ac2752e9e524c92e0f7 # v1.7.4-vsh.1
         with:
           save-on-workflow-dispatch: true
       # macOS ships bash 3.2; the compatibility suite's oracle is a current
