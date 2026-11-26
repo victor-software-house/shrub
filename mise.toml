@@ -95,9 +95,9 @@ includes = [
   # the workflow's pin.
   "git::https://github.com/victor-software-house/verctl.git//tasks/ver?ref=v0.8.6-rc.5",
   # The shared Rust tasks, at actions main, 2026-11-26.
-  "git::https://github.com/victor-software-house/actions.git//tasks/rust.toml?ref=e9cf7ef0da4f4a9a7a6f978f5dd54be0d0d539bc",
+  "git::https://github.com/victor-software-house/actions.git//tasks/rust.toml?ref=1c7fb4ca1e0acfffa1af42cf289e7ccb74588bff",
   # template:check, template:off, and template:on, at actions main, 2026-11-26.
-  "git::https://github.com/victor-software-house/actions.git//tasks/template.toml?ref=e9cf7ef0da4f4a9a7a6f978f5dd54be0d0d539bc",
+  "git::https://github.com/victor-software-house/actions.git//tasks/template.toml?ref=1c7fb4ca1e0acfffa1af42cf289e7ccb74588bff",
 ]
 
 # Replaces ctl-core's test, which runs cargo test with --all-features; a

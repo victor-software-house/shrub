@@ -60,7 +60,7 @@ jobs:
       contents: read
       id-token: write
       pull-requests: read
-    uses: victor-software-house/actions/.github/workflows/rust-ci.yml@e9cf7ef0da4f4a9a7a6f978f5dd54be0d0d539bc # main, 2026-11-26
+    uses: victor-software-house/actions/.github/workflows/rust-ci.yml@1c7fb4ca1e0acfffa1af42cf289e7ccb74588bff # main, 2026-11-26
     with:
       mise-version: 2026.11.12
       advisories: true
