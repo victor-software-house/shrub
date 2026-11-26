@@ -70,7 +70,7 @@ jobs:
         env:
           MISE_JOBS: 1
         with:
-          version: 2026.11.6
+          version: 2026.11.12
           cache: true
       - name: Cache builds with mbx
         uses: victor-software-house/mr-boxington-action@535e3459742146fa60f90ac2752e9e524c92e0f7 # v1.7.4-vsh.1

@@ -9,6 +9,9 @@ extend-ignore-re = [
   "-ot",
   # Ignore 2-letter string literals, which show up in testing a fair bit.
   '"[a-zA-Z]{2}"',
+  # A changelog links each entry to its commit as [`abc1234`](…).
+  # A hash is not a word, yet a short one can spell a typo, such as 71c9abd.
+  "\\[`[0-9a-f]{7,40}`\\]",
 ]
 
 [default.extend-words]
