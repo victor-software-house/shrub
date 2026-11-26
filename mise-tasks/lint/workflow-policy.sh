@@ -49,7 +49,7 @@ unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
 cd "$(git rev-parse --show-toplevel)" || exit 1
 files=$(git ls-files ':(glob).github/workflows/*.yml' ':(glob).github/workflows/*.yaml') || exit 1
 [ -n "$files" ] || exit 0
-commit=e9cf7ef0da4f4a9a7a6f978f5dd54be0d0d539bc
+commit=1c7fb4ca1e0acfffa1af42cf289e7ccb74588bff
 policy=$(git rev-parse --git-path "workflow-policy/$commit") || exit 1
 texts=$(git rev-parse --git-path "workflow-texts.$$.yaml") || exit 1
 trap 'rm -f "$texts"' EXIT
@@ -71,7 +71,7 @@ if [ ! -d "$policy" ]; then
   trap 'rm -rf "${policy:?}.part"; rmdir "$policy.lock" 2>/dev/null; rm -f "$texts"' EXIT
   if [ ! -d "$policy" ]; then
     rm -rf "${policy:?}.part"
-    url='git::https://github.com/victor-software-house/actions.git//policy?ref=e9cf7ef0da4f4a9a7a6f978f5dd54be0d0d539bc'
+    url='git::https://github.com/victor-software-house/actions.git//policy?ref=1c7fb4ca1e0acfffa1af42cf289e7ccb74588bff'
     if conftest pull --absolute-paths -p "$policy.part" "$url"; then
       mv "$policy.part" "$policy"
     fi
